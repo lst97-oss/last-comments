@@ -1,4 +1,5 @@
 # last-comments
+<img width="1100" height="768" alt="Screenshot 2026-10-22 at 1 12 16 am" src="https://github.com/user-attachments/assets/defdb475-b97e-4cf5-8f56-306bba7eda38" />
 
 Self-hosted comment threads for any page: a Payload CMS admin for content, a TanStack Start site with docs and blog, and a Bun/Drizzle comments service with Better Auth, a moderation dashboard, publisher API keys, and a server plugin system. Payload owns `/admin`; comments, sites, votes, API keys and auth sessions live in a separate business database.
 
