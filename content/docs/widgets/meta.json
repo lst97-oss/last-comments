@@ -1,0 +1,12 @@
+{
+  "title": "Widgets",
+  "icon": "LayoutGrid",
+  "pages": [
+    "react",
+    "vue",
+    "angular",
+    "html",
+    "viewer",
+    "moderation"
+  ]
+}

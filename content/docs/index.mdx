@@ -1,0 +1,48 @@
+---
+title: Documentation
+description: Embed the Last Comments widgets in React, Vue, Angular or plain HTML, or call the HTTP API directly.
+icon: BookOpen
+---
+
+`@lst97-oss/last-comments-widgets` ships the same comment widget implemented natively for React, Vue, Angular and plain HTML, on one framework-free API client and one self-contained theme. Install only the framework you use; every other framework's libraries are optional peers and are never loaded.
+
+## Pick your widget
+
+<Cards>
+  <Card title="React" href="/docs/widgets/react">
+    Drop-in React 19 widget with comments, viewer and votes.
+  </Card>
+  <Card title="Vue" href="/docs/widgets/vue">
+    Drop-in Vue 3 widget with kebab-case attributes and events.
+  </Card>
+  <Card title="Angular" href="/docs/widgets/angular">
+    Standalone Angular 22 components with inputs and outputs.
+  </Card>
+  <Card title="Plain HTML" href="/docs/widgets/html">
+    The no-build-step widget driven by `data-lc-*` attributes.
+  </Card>
+</Cards>
+
+## Go deeper
+
+<Cards>
+  <Card title="Install & server setup" href="/docs/install">
+    Add the package, register the page origin, and proxy the API same-origin.
+  </Card>
+  <Card title="Self-hosting" href="/docs/self-hosting">
+    Run the Compose stack with PostgreSQL 18, migrations, the worker and Turnstile.
+  </Card>
+  <Card title="Theming" href="/docs/theming">
+    `themeVars`, CSS variables and the shared style hooks.
+  </Card>
+  <Card title="Client API" href="/docs/client">
+    The framework-free client the four widgets are built on.
+  </Card>
+  <Card title="API reference" href="/docs/api-reference">
+    The generated Scalar reference for the business and auth APIs.
+  </Card>
+</Cards>
+
+<Callout type="warn" title="Same-origin API required">
+  Every widget request is sent with `credentials: 'include'`, and the API never returns `Access-Control-Allow-Credentials`. Route the API through a same-origin proxy — see [Install & server setup](/docs/install).
+</Callout>

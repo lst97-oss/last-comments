@@ -1,0 +1,18 @@
+{
+  "title": "Docs",
+  "pages": [
+    "index",
+    "install",
+    "self-hosting",
+    "widgets",
+    "theming",
+    "client",
+    "identity",
+    "auth",
+    "plugins",
+    "pagination",
+    "markdown",
+    "errors",
+    "api-reference"
+  ]
+}

@@ -1,0 +1,165 @@
+---
+title: Theming
+description: themeVars, CSS variables, plain-HTML theme attributes and the shared style hooks.
+icon: Palette
+---
+
+React, Vue, Angular, and vanilla accept the same `themeVars` object. `vars` applies in both modes; `dark` overrides individual values when `theme="dark"` or system dark mode is active. `Comments` and `CommentViewer` share the same tokens. Theme types are exported from each widget subpath.
+
+```tsx
+import { Comments, type WidgetTheme } from '@lst97-oss/last-comments-widgets/react'
+import '@lst97-oss/last-comments-widgets/react/styles.css'
+
+const brand: WidgetTheme = {
+  vars: {
+    primary: '#2354d1', primaryForeground: '#ffffff',
+    popover: '#ffffff', popoverForeground: '#182033',
+    accent: '#e8efff', accentForeground: '#182033',
+    fontFamily: 'Inter, sans-serif', fontSize: '16px',
+    spacing: '0.25rem', radius: '0.75rem', controlRadius: '0.5rem',
+    controlHeight: '2.5rem', cardPadding: '1rem', composerPadding: '1rem',
+    cardShadow: '0 2px 12px rgb(0 0 0 / 0.08)', dropdownShadow: 'none',
+  },
+  dark: {
+    background: '#111827', foreground: '#f9fafb',
+    card: '#182033', cardForeground: '#f9fafb',
+    popover: '#182033', popoverForeground: '#f9fafb',
+    accent: '#263450', accentForeground: '#ffffff',
+  },
+}
+
+<Comments site="demo" baseUrl="/" theme="system" themeVars={brand} />
+```
+
+Vue uses `:theme-vars="brand"`; Angular uses `[themeVars]="brand"`; vanilla accepts `{ themeVars: brand }` in `mountComments` and `renderCommentViewer`. Pass complete CSS colors (hex, `rgb()`, `oklch()`, etc.), lengths with units, and unitless line heights. Fonts must be loaded by the host if they are not already available.
+
+<Tabs items={["React", "Vue", "Angular", "Plain HTML"]}>
+<Tab value="React">
+```tsx
+<Comments site="demo" baseUrl="/" theme="system" themeVars={brand} />
+```
+</Tab>
+<Tab value="Vue">
+```vue
+<Comments site="demo" base-url="/" theme="system" :theme-vars="brand" />
+```
+</Tab>
+<Tab value="Angular">
+```html
+<lc-comments site="demo" baseUrl="/" theme="system" [themeVars]="brand" />
+```
+</Tab>
+<Tab value="Plain HTML">
+```ts
+mountComments(document.querySelector('#comments')!, {
+  site: 'demo',
+  baseUrl: '/',
+  theme: 'system',
+  themeVars: brand,
+})
+```
+</Tab>
+</Tabs>
+
+**`themeVars` is the widget's one configuration object.** Every design knob lives there — colors, sizes, radii, shadows, and visibility switches — so a host adjusts the look in one place instead of through a growing list of props. Props stay reserved for behaviour (`limit`, `lazy`, `actionMode`, `viewerRole`, …), and a new *design* knob becomes a new `themeVars` key rather than a new prop. Keys whose value is not free-form CSS (`threadGuideDisplay` is `block` or `none`) are typed, so a typo is a compile error instead of a silently ignored override; the plain-HTML port drops an out-of-range value the same way it drops an unparsable number.
+
+## Theme keys
+
+### Surfaces and text
+
+| Theme keys | Controls |
+| --- | --- |
+| `background`, `foreground` | Widget surface and default text |
+| `primary`, `primaryForeground` | Primary actions and links |
+| `card`, `cardForeground` | Comment surfaces and text |
+| `popover`, `popoverForeground` | Identity menus and React dialogs |
+| `muted`, `mutedForeground`, `secondary`, `secondaryForeground` | Composer, placeholders, secondary surfaces and text |
+| `accent`, `accentForeground` | Selector hover and keyboard highlight |
+| `border`, `input`, `ring` | Borders and focus indicators |
+
+### Status
+
+| Theme keys | Controls |
+| --- | --- |
+| `destructive`, `destructiveForeground` | Errors and destructive actions |
+| `success`, `warning`, `error`, `info` | Status palettes; each also has `Foreground` and `Muted` keys |
+
+### Shape and typography
+
+| Theme keys | Controls |
+| --- | --- |
+| `radius`, `controlRadius`, `avatarRadius`, `skeletonRadius` | Surface/control corner radii, avatar shape, and loading placeholder radius |
+| `fontFamily`, `fontFamilyMono`, `fontSize`, `lineHeight` | Typography, including Markdown and popups |
+| `fontWeightMedium` | Weight used by author names, buttons, and other emphasized labels |
+
+### Layout and controls
+
+| Theme keys | Controls |
+| --- | --- |
+| `spacing` | Spacing unit used by gaps, margins, padding, and utility-sized controls |
+| `controlHeight` | Minimum height of buttons, inputs, and selects |
+| `cardPadding`, `composerPadding`, `composerBackground` | Comment/composer padding and the composer surface color; reply indentation is preserved |
+| `commentBorder`, `borderWidth`, `replyBackground` | Comment border width (`0` = none), border width of other surfaces and controls, and reply surface color |
+| `menuZIndex` | Stacking order of the identity menu |
+| `cardShadow`, `dropdownShadow` | Shadows on the comment card and the popup menus |
+
+### Thread guides, votes, and actions
+
+| Theme keys | Controls |
+| --- | --- |
+| `threadActive`, `threadMuted`, `threadIndent` | Reply guide line: active and muted colors, and the guide gutter width |
+| `threadGuideDisplay` | Reply guide line visibility: `block` (default) or `none` to hide it |
+| `avatarRing` | Ring behind stacked reply avatars |
+| `voteBackground`, `voteBorder`, `voteShadow` | Vote pill surface, border and shadow |
+| `actionColor`, `actionHoverColor`, `actionHoverBackground` | Reply/Edit/Delete and moderator action colors on hover |
+
+## CSS variables
+
+Semantic CSS variables use kebab case (`primaryForeground` → `--primary-foreground`). Typography, spacing, control dimensions, padding, and shadow tokens use an `--lc-` prefix (`fontFamily` → `--lc-font-family`, `cardShadow` → `--lc-card-shadow`); `radius` remains `--radius`. Inline `themeVars` values take precedence over stylesheet variables on the root. `THEME_CSS_VARIABLES` in `@lst97-oss/last-comments-widgets/client` exports the complete mapping.
+
+```css
+/* Wrap the widget in <div id="discussion"> to target this instance. */
+#discussion .lc-comments {
+  --popover: #fff5e8;
+  --accent: #fbd9a0;
+  --lc-font-family: Georgia, serif;
+}
+#discussion .lc-identity-menu {
+  min-width: 15rem;
+  border: 1px solid #d4ab71;
+}
+#discussion .lc-comment {
+  border: 1px solid #e5e7eb;
+}
+```
+
+Custom styles can override the defaults without `!important`.
+
+## Plain HTML theme attributes
+
+For plain HTML, every token also has `data-lc-theme-var-<kebab-name>` and `data-lc-theme-dark-var-<kebab-name>` attributes:
+
+```html
+<div
+  data-lc-comments
+  data-lc-site="demo"
+  data-lc-base-url="/"
+  data-lc-theme="system"
+  data-lc-theme-var-popover="#fff5e8"
+  data-lc-theme-var-font-family="Georgia, serif"
+  data-lc-theme-var-control-height="44px"
+  data-lc-theme-dark-var-popover="#241b14"
+></div>
+```
+
+## Scoping
+
+Styles, resets, and semantic defaults are scoped to `.lc-comments` and `.lc-theme` using native CSS `@scope`; use a browser with `@scope` support. Importing widget CSS does not set the host page's font, colors, margins, or utility classes. Each instance has its own defaults, and an explicitly light widget stays light inside a dark host. React menus portal into their owning root so CSS variables and selectors still apply. Avoid clipping that root with `overflow: hidden` when using popups.
+
+When composing from exported subcomponents, supply a theme root yourself: React provides `<CommentsTheme theme="system" themeVars={brand}>…</CommentsTheme>`; other frameworks and raw HTML can use a `.lc-theme` wrapper with CSS variables and a `dark` class for dark mode. `Comments` and `CommentViewer` already provide their roots. Third-party verification challenges retain their provider-owned appearance.
+
+## Style hooks
+
+Shared hooks: `.lc-comments`, `.lc-comment`, `.lc-reply`, `.lc-replies-trigger`, `.lc-thread-guides`, `.lc-thread-overlay`, `.lc-reply-stack`, `.lc-vote`, `.lc-action`, `.lc-action-destructive`, `.lc-collapse`, `.lc-admin-badge`, `.lc-blocked-badge`, `.lc-composer`, `.lc-markdown`, `.lc-avatar`, `.lc-skeleton`, `.lc-error`, `.lc-identity-trigger`, `.lc-identity-menu`, `.lc-identity-item`, `.lc-actions-menu`, and `.lc-footer`. Controls can be targeted with ordinary `button`, `input`, `textarea`, and `select` selectors below the root.
+
+To hide the reply guide lines, set `threadGuideDisplay: 'none'` in `themeVars` (or the `--lc-thread-guide-display` CSS variable, or `data-lc-theme-var-thread-guide-display="none"` in plain HTML); add `--lc-thread-indent: 0px` to reclaim the gutter they rode in.

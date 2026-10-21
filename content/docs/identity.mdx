@@ -1,0 +1,27 @@
+---
+title: Identity & sign-in
+description: How the widget picks between anonymous and signed-in identities, and what each can do.
+icon: KeyRound
+---
+
+The composer footer carries the identity control next to the name field — `Comment as [ Anonymous ▾ ]` — so signing in is always optional: the guest form (name + Turnstile) is usable either way. Its right-hand group holds the Markdown hint, Cancel when needed and the submit button, so the hint and action stay right-aligned and the button remains at the edge on narrow screens. Both the comments widget and the read-only viewer end with a small `Powered by last-comments` footnote (`.lc-footer`).
+
+## Signed-out visitors
+
+The identity menu offers `Sign in…`. It links to `signInUrl` when the host provides one, otherwise the widget asks the API to start the OAuth flow (`POST {baseUrl}/api/auth/sign-in/social`, provider `google`) and navigates to the returned authorization URL, which returns the user to `pageUrl`. That default path needs `baseUrl` reachable with credentials from the page (the same-origin proxy recommended for voting) and a provider configured on the server; failures show the server's message under the control.
+
+## Signed-in visitors
+
+Signed-in visitors can switch between `Anonymous` and `<name> (you)`, and `Sign out` ends the API session (`POST {baseUrl}/api/auth/sign-out`). The widget detects the session from the API (`GET {baseUrl}/api/auth/get-session`), with the host's `viewerUserId` prop as the fallback when the API cannot answer (no same-origin proxy): when signed in, the composer drops the guest name field and Turnstile, posting uses the session identity, and votes work; the identity menu lets the user post anonymously instead.
+
+## Guest comments
+
+Guest comments — the anonymous identity, or any visitor without a session — are posted **without** the session cookie (`credentials: 'omit'`), so the API attributes them to the guest name (blank posts as `Anonymous`). A proxy that attaches the session server-side will attribute them to the account instead, and Edit/Delete/votes do not apply to guest comments.
+
+<Callout type="info" title="Anonymous edit window">
+  A guest may edit only from the browser that stored the key returned when they posted, and only within `anonEditWindowMinutes` (default `10`). Signed-in authors may edit any time.
+</Callout>
+
+## Auth providers
+
+The server resolves every request to a provider-neutral identity. Deployers pick the providers in `src/server/auth/auth.config.ts`: `better-auth` (default built-in email/password plus optional Google OAuth — the only provider serving the dashboard sign-in form and `/api/auth/*`), `oidc-jwt` (Bearer JWTs from an existing identity provider), or `header` (reverse-proxy SSO headers). External subjects link to the canonical user (verified emails link, unverified never merge), and service keys (`lck_*`) are unaffected. Full setup, first-admin bootstrap, and the configuration reference live in [Auth providers](/docs/auth).

@@ -1,0 +1,91 @@
+---
+title: Plugin system
+description: Extend the server with trusted TypeScript modules — validation, rate limits, verification, and business events.
+icon: Puzzle
+---
+
+Plugins are trusted server-side TypeScript modules. The host does not discover or download code at runtime: each plugin is statically imported into `src/server/plugins/config.ts`, so installing a package alone never activates it.
+
+```ts
+import type { CommentPlugin } from '@/server/plugins/comment-plugins'
+import { filterPlugin } from '@/server/plugins/filter/filter.plugin'
+import { createRateLimitPlugin } from '@/server/plugins/rate-limit/rate-limit.plugin'
+import { turnstilePlugin } from '@/server/plugins/turnstile/turnstile.plugin'
+
+export const installedCommentPlugins = [
+  turnstilePlugin,
+  createRateLimitPlugin((request) => request.headers.get('x-real-ip')),
+  filterPlugin,
+] satisfies readonly CommentPlugin[]
+```
+
+The manifest checks plugin IDs and API versions at startup. Removing a plugin from this list stops its hooks and future migrations, but leaves its database objects and data in place until they are explicitly dropped.
+
+## At a glance
+
+| Plugin | Mode | On hit | Tuning |
+| --- | --- | --- | --- |
+| Turnstile | Reject | `403` bad token · `503` unavailable | `turnstile.config.ts` + `TURNSTILE_SECRET_KEY` |
+| Rate limit | Reject | `429` over budget (+ `Retry-After`) · `503` store down | `rate-limit.config.ts` + `BETTER_AUTH_SECRET` |
+| Filter | Hold for review | `hidden` status, still `200` | `filter.config.ts` + `OPENROUTER_API_KEY` |
+
+## Capabilities
+
+- **Configuration:** plugins keep a typed `<id>.config.ts` next to their implementation. `filter` and `turnstile` use `definePluginConfig`; the env-driven `rate-limit` plugin keeps its budgets in `rate-limit.config.ts`. Only secrets resolve from the environment. Never log secrets, verification tokens, or raw requester identifiers; use `getRequestLogger().child({ plugin: '<id>' })` for structured diagnostics.
+- **Comment validation:** `validateComment(input, signal)` runs inside the comment creation use case, before persistence. Validators run in manifest order and each must resolve for the comment to be saved; a failure stops creation. Each validator has a five-second timeout and receives an `AbortSignal`.
+- **Comment screening:** `screenComment(input, signal)` is the advisory counterpart — it returns `{ decision: 'allow' | 'hide' }` instead of throwing, and a `hide` verdict persists the comment with `status: 'hidden'` for the moderation queue. Screening never rejects the write; transport failures resolve through the plugin's own fail-open/fail-closed setting.
+- **Operation hooks:** `beforeOperation(input, signal)` runs at explicit public write boundaries for create, edit, delete, and vote — use it for cross-cutting business checks such as rate limits. Moderator actions do not use public-write hooks.
+- **Business events:** `events` plus `handleEvent(event)` subscribes to events such as `comment.created`, `comment.hidden`, `page.locked`, and `user.verified`. Events record transactionally with the business change and are delivered by a separate `bun run plugins:work` process. Delivery retries, so handlers must be idempotent and should honor the event's abort signal.
+- **Plugin migrations:** add `migrations: { folder, schema }` to the manifest. `bun run db:business:migrate` runs core migrations, then only the migrations for plugins in `installedCommentPlugins`. Keep each plugin's journal and SQL in its own folder and never run plugin DDL at app startup. Disabling a plugin stops its behavior and future migrations while retaining its objects and data; remove them explicitly with `bun run db:business:plugins:uninstall <id>` only after backup/review.
+
+<Callout type="warn" title="Keep plugins out of middleware">
+  Do not put business plugins in global HTTP middleware. Install trusted packages with Bun and list them in `src/server/plugins/config.ts`.
+</Callout>
+
+## Built-in plugins
+
+**Rate limiting** (enabled by default) caps creates (5/10 minutes), edits and deletes (20/10 minutes), and votes (60/minute) per site and requester. Signed-in requests key off the user ID; guests key off an HMAC of the resolved client IP (the raw IP is never stored, keyed by `BETTER_AUTH_SECRET`). The default IP resolver reads `x-real-ip` — configure the trusted ingress to overwrite this header, otherwise guests can spoof their rate-limit identity. DB errors fail closed with 503 and over-limit responses include `Retry-After`. To disable it, remove it from `installedCommentPlugins` and deploy after running the normal business migrations.
+
+**Turnstile verification** (enabled by default) checks guest comment tokens on the server. Set `TURNSTILE_SECRET_KEY` in the server environment and the public site key in `TURNSTILE_SITE_KEY` (or `src/server/plugins/turnstile/turnstile.config.ts`, which takes precedence); the consuming site renders a Turnstile widget with its public site key and sends the token as `verificationToken` in `POST /api/comments`. Signed-in comments skip verification. Guest verification is required by default (`verificationRequired` in the same file — `false` for local development), and guest submissions fail closed when no verification provider is available. Cloudflare's testing keys always pass and work on any domain, localhost included: `TURNSTILE_SITE_KEY=1x00000000000000000000AA` with `TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA`.
+
+## Filter (hide-for-review screening)
+
+The `filter` plugin (`src/server/plugins/filter/`, off by default) holds violations for review instead of rejecting them. Two engines, each independently switchable — either, both, or all off:
+
+- **`bad-words`** — lexical blocklist plus the default profanity wordlist. Sync, zero cost. Tune with `blocklist` / `allowlist` (the allowlist fixes false positives without forking the library).
+- **LLM decider** — OpenRouter `perplexity/pplx-decider-v1.2` via the official `@openrouter/sdk`, judging `authorName` + `bodyMarkdown` plus any markdown images the widget can render. Images are fetched server-side and shrunk with `sharp` to 512px JPEG thumbnails before sending, so vision cost stays bounded (~1 chat call per screened comment).
+
+The decider scores text and image schemas, and `schemas.text` / `schemas.image` in `filter.config.ts` enable any subset — disabled schemas are never sent to the model and can never trigger a hide.
+
+<Accordions>
+<Accordion title="Text schemas (8)">
+| Schema | Catches |
+| --- | --- |
+| `spam_scam` | Bulk, link-farm, crypto/giveaway, SEO junk |
+| `harassment_hate` | Insults, threats, slurs, protected-class hate |
+| `sexual_explicit` | Pornographic detail, solicitation (always hide) |
+| `violence_threat` | Credible threats, instructions facilitating wrongdoing |
+| `self_harm` | Encouragement or instructions (hide; method never repeated) |
+| `illicit_pii` | Doxxing, credentials, private contact dumps |
+| `link_abuse` | Misleading URLs, phishing lures, redirect chains |
+| `low_quality` | Gibberish, test spam, emoji/copy-paste floods |
+</Accordion>
+<Accordion title="Image schemas (8)">
+| Schema | Catches |
+| --- | --- |
+| `sexual_explicit` | Pornographic imagery (always hide) |
+| `graphic_violence_gore` | Graphic violence, gore, injuries |
+| `hate_symbol` | Hate symbols, extremist iconography |
+| `harassment_bullying` | Memes targeting a person |
+| `spam_scam_image` | QR-to-scam codes, fake captchas, ad overlays |
+| `self_harm_image` | Imagery depicting or encouraging self-harm |
+| `illegal_activity` | Imagery depicting criminal activity |
+| `benign` | Screenshots, avatars, diagrams — evidence only, never hides |
+</Accordion>
+</Accordions>
+
+Hits persist with `status: 'hidden'`: invisible on the public thread, visible in `/moderation`, with reasons in the `comment.created` event payload. Edits are re-screened (`visible → hidden` only, never auto-unhide); moderator dashboard writes skip screening. The plugin never throws — an LLM outage resolves through `failOpen` (allow by default, or hold for review), so writers never see a 5xx from screening. Set `OPENROUTER_API_KEY` in the environment when the LLM engine is on; everything else lives in `filter.config.ts`.
+
+## Writing a plugin
+
+Implement the `CommentPlugin` contract in `src/server/plugins/comment-plugins.ts` (see `rate-limit/` and `turnstile/` as the reference pair: one stateful with migrations, one stateless; each keeps a `<id>.plugin.ts` plus a `<id>.config.ts` next to a README). Test each capability in isolation — validators and hooks as pure functions with injected fakes, event handlers against recorded payloads — following the repo rule of mirroring the module basename under `tests/`.

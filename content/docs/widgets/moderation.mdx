@@ -1,0 +1,41 @@
+---
+title: Inline moderation
+description: viewerRole, pageId and onModerated add server-authorized moderation controls to the widget.
+icon: ShieldCheck
+---
+
+Pass `viewerRole` (`admin` or `moderator`, typically with `viewerUserId`) to render inline moderation controls:
+
+- the composer posts and edits through `/api/moderation` (so a dashboard origin does not need to be in the site's allow-list),
+- `pageId` addresses the thread directly instead of matching `pageUrl` against the site's capped page list,
+- `onModerated` (React prop, Vue `@moderated`, Angular `(moderated)`, vanilla `onModerated`) fires after a successful action so the host can refresh its own thread list.
+
+```tsx
+<Comments
+  site="demo"
+  baseUrl="/"
+  viewerUserId="usr_123"
+  viewerRole="moderator"
+  pageId="page_456"
+  onModerated={() => void refreshThreads()}
+/>
+```
+
+## Identity and posts
+
+Moderators get the same `Comment as` control as any signed-in viewer and may post as themselves or anonymously (`createModerationComment` forwards `anonymous` and the guest `authorName`); an anonymous moderator post is stored as a guest row with an edit key.
+
+## Actions
+
+| Area | What moderators get |
+| --- | --- |
+| Delete | Soft status (`deleted`, restorable through `Restore`), acting immediately from the row menu — no confirmation dialog. |
+| Thread list | Every status with `hidden`/`deleted` badges; each row offers Hide/Restore, Pin/Unpin, Delete and Block/Unblock user; a page lock/unlock bar above the list. |
+| Votes | See and cast votes in place: the moderation payload carries each row's score and the moderator's own vote (hidden/deleted rows and locked pages never offer them). |
+| Identity | Comment rows carry the author's site role as `authorRole` (`admin` \| `moderator` \| `null`); the React widget colours site-admin names and appends an `[Admin]` badge (`.lc-admin-badge` styling hook). |
+
+The server authorizes every action, so an account without permission sees the `FORBIDDEN` copy and nothing changes.
+
+<Callout type="warn" title="Same-origin only">
+  Moderation requires the comments API to be served from the widget page's own origin: `/api/moderation` sends no CORS headers and its POST is origin-checked, so dev proxies must rewrite the `Origin` header (see `examples/react/vite.config.ts`); a cross-origin embed cannot moderate.
+</Callout>

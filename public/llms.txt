@@ -1,0 +1,75 @@
+# Last Comments
+
+> Self-hosted comment threads for any page: drop-in widgets for React, Vue, Angular and plain HTML on one framework-free API client, with guest + signed-in authors, votes, a moderation dashboard, publisher API keys, and a server plugin system. This file tells AI agents what this site is and where the API and documentation live.
+
+## What this site is
+
+- Product: a self-hosted comments server. Site owners register page origins, embed a widget, and moderate threads from `/moderation`. Publishers can pre-register page threads via the API.
+- Stack: Payload CMS (`/admin`) for content, plus a Bun/Drizzle business database for comments, pages, votes, sites, API keys, and Better Auth sessions.
+- Responses: successful API responses are `{"data": ...}`; failures are `{"error": {"code": "...", "message": "..."}}`. Widget error copy keys off `error.code`.
+- Same-origin rule: every widget request sends `credentials: 'include'` and the API never returns `Access-Control-Allow-Credentials`. Hosts must proxy `/api/comments` and `/api/moderation` through their own origin. See [Install & server setup](/docs/install).
+- [About](/about): the project goal — a universal, minimal, plugin-extensible comment core with theming support — plus the current project status and how to report bugs or request features.
+
+## Docs
+
+- [Documentation index](/docs): widget guides plus the API reference.
+- [Install & server setup](/docs/install): package install, per-framework peers, origin registration, same-origin proxy.
+- [Self-hosting](/docs/self-hosting): Docker Compose stack (PostgreSQL 18, migrations, plugin worker) and Turnstile keys.
+- [React widget](/docs/widgets/react): props, including `site`, `baseUrl`, `pageUrl`, `themeVars`.
+- [Vue widget](/docs/widgets/vue): kebab-case attributes and events.
+- [Angular widget](/docs/widgets/angular): standalone components, signal inputs.
+- [Plain HTML widget](/docs/widgets/html): `data-lc-*` attributes, no build step.
+- [Comment viewer](/docs/widgets/viewer): read-only thread rendering.
+- [Moderation widget](/docs/widgets/moderation): moderator thread UI.
+- [Theming](/docs/theming): `themeVars` and shared style hooks.
+- [Client API](/docs/client): the framework-free client the four widgets are built on.
+- [Identity](/docs/identity): guest vs session authors, sign-in flow, `signInUrl`, `viewerUserId`.
+- [Auth providers](/docs/auth): `AUTH_PROVIDERS` selection, OIDC/proxy SSO setup, identity mapping, first-admin bootstrap.
+- [Plugin system](/docs/plugins): trusted server modules, capabilities, built-in rate-limit and Turnstile plugins.
+- [Pagination](/docs/pagination): thread paging, `limit`, `lazy`.
+- [Markdown](/docs/markdown): supported comment Markdown.
+- [Errors](/docs/errors): `error.code` values the widgets key off.
+- [API reference](/docs/api-reference): generated Scalar references and the HTTP path table.
+
+## HTTP API
+
+- Spec: [OpenAPI document](/api/openapi.json). Interactive references: [Business API (Scalar)](/api/reference) and [Auth API (Scalar)](/api/auth/reference, better-auth only — 404 when external-only providers are configured). The Scalar pages are served only while the OpenAPI plugin is installed; otherwise they answer 404.
+- Auth: guests post with `authorName` (+ Turnstile `verificationToken` when required); voting, editing as a signed-in author, and all moderation calls need a session. Default provider is Better Auth (session cookie); set `AUTH_PROVIDERS` to use an external IdP instead (`oidc-jwt` Bearer tokens) or reverse-proxy SSO (`header`). Publisher calls accept `Authorization: Bearer lck_...` or `x-api-key`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/comments` | List the visible comments of one page (`site` + `url` or `pageKey`; row-offset paging, no total) |
+| POST | `/api/comments` | Post a comment or reply (guest name + Turnstile, or session) |
+| PATCH | `/api/comments/{commentId}` | Edit your own comment (session, or guest `editKey` inside the edit window) |
+| DELETE | `/api/comments/{commentId}` | Delete your own comment (session required) |
+| PUT | `/api/comments/vote` | Cast an up/down vote (session required) |
+| DELETE | `/api/comments/vote` | Clear your vote (session required) |
+| GET | `/api/moderation` | List sites, threads, and comments for the moderation dashboard (session required) |
+| POST | `/api/moderation` | Moderate: hide/restore/delete/pin comment, lock page, block user, post as moderator (session required) |
+| GET | `/api/admin/sites` | List every site with its allowed origins (session or service key) |
+| POST | `/api/admin/sites` | Create a site with its first allowed origin (instance admin or service key) |
+| PATCH | `/api/admin/sites/{siteKey}` | Rename a site (session or service key) |
+| DELETE | `/api/admin/sites/{siteKey}` | Delete a site and its threads (session or service key) |
+| GET | `/api/admin/pages` | List the registered page threads of one site with recent-window activity (`?recentDays=1..30&preview=1..5`, session or service key) |
+| POST | `/api/admin/pages` | Register a page thread up front: `{ site, url, pageKey?, title? }`, idempotent (session or service key) |
+| GET | `/api/admin/pages/{pageId}` | Read one page thread with its totals, daily trend, top authors and moderation activity (session or service key) |
+| GET | `/api/admin/users` | List the user directory of one site — commenters, members, blocked users (`?search=&filter=all|blocked&limit=&offset=`, session required) |
+| GET | `/api/admin/users/{userId}/comments` | Read one user's comment history on a site, hidden and deleted included (session required) |
+| GET | `/api/admin/settings` | Read the read-only instance settings snapshot: plugin status, providers, comment settings (instance admin, session required) |
+| GET | `/api/admin/stats` | Dashboard totals, trend, top threads, moderation activity (session or service key) |
+| POST | `/api/admin/api-keys` | Issue a service API key; the plaintext key is returned once (session required) |
+| PATCH | `/api/admin/api-keys` | Change an API key's scopes or enabled flag (session required) |
+| GET | `/api/admin/api-keys` | List your own API keys with scopes and site bindings (session required) |
+| DELETE | `/api/admin/api-keys?keyId=…` | Delete one of your API keys (session required) |
+| GET | `/api/session` | Provider-neutral session probe; `{ principal: null }` when anonymous |
+| GET | `/api/auth-providers` | Enabled interactive-login providers (public) |
+| GET | `/api/initial-admin` | Check whether first-admin setup is still available |
+| POST | `/api/initial-admin` | Create the first instance admin (setup window only) |
+| GET | `/api/live` | Liveness probe, never touches the database |
+| GET | `/api/ready` | Readiness probe, 503 with report when degraded |
+
+## Examples
+
+- React: `import { Comments } from '@lst97-oss/last-comments-widgets/react'` then `<Comments site="demo" baseUrl="https://comments.example.com" />` behind a same-origin proxy. Full props: [React widget](/docs/widgets/react).
+- Search the docs: `GET /api/search`.
+- Machine sitemap: [/sitemap.xml](/sitemap.xml). Crawl rules: [/robots.txt](/robots.txt).

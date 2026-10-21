@@ -1,0 +1,60 @@
+---
+title: Plain HTML
+description: The no-build-step widget — mountComments, data-lc-* attributes and the marked import map.
+icon: Code
+---
+
+```html
+<link rel="stylesheet" href="https://unpkg.com/@lst97-oss/last-comments-widgets/dist/vanilla/styles.css" />
+<div data-lc-comments data-lc-site="demo" data-lc-base-url="https://comments.example.com"></div>
+<script type="importmap">
+  {
+    "imports": {
+      "marked": "https://unpkg.com/marked/lib/marked.esm.js"
+    }
+  }
+</script>
+<script type="module" src="https://unpkg.com/@lst97-oss/last-comments-widgets/dist/vanilla/index.js"></script>
+```
+
+`data-lc-site` is the site key configured on your last-comments server. `data-lc-base-url` should point at a same-origin proxy of the API — see [Install & server setup](/docs/install).
+
+<Callout type="info" title="Two files, one import map">
+  The widget needs the compiled stylesheet at `dist/vanilla/styles.css` and the bundle at `dist/vanilla/index.js`. The `importmap` entry for `marked` is required — the bundle imports it rather than bundling a Markdown parser. Nothing else is needed: the widget bundle and the theme are self-contained.
+</Callout>
+
+## Attributes
+
+Every programmatic option also has an attribute, mapped to the same prop:
+
+| Attribute | Prop | Default |
+| --- | --- | --- |
+| `data-lc-anon-edit-window-minutes` | `anonEditWindowMinutes` | `10` |
+| `data-lc-action-mode` | `actionMode` (`icon` \| `icon-text` \| `text`) | `icon-text` |
+| `data-lc-body-limit` | `bodyLimit` | `10000` |
+| `data-lc-turnstile` | `turnstileSiteKey` | — |
+| `data-lc-turnstile-theme` | `turnstileOptions.theme` (`auto` \| `light` \| `dark`) | widget light/dark mode |
+| `data-lc-turnstile-size` | `turnstileOptions.size` (`normal` \| `compact` \| `flexible`) | `normal` |
+| `data-lc-turnstile-appearance` | `turnstileOptions.appearance` (`always` \| `interaction-only`) | `always` |
+| `data-lc-turnstile-language` | `turnstileOptions.language` | browser language |
+
+The Turnstile rows only apply when `data-lc-turnstile` (the site key) is set. Cloudflare owns the challenge iframe, so `theme`, `size`, `appearance` and `language` are the only knobs; style the `.lc-turnstile` container instead.
+
+Signed-in authors may edit their own comments any time; a guest may edit only from the browser that stored the key returned when they posted, inside the anonymous window above.
+
+## Programmatic mounting
+
+`mountComments(element, options)` and `renderCommentViewer(element, options)` are exported from `@lst97-oss/last-comments-widgets/vanilla`. Both accept `{ themeVars: brand }` alongside the same options as the attributes above.
+
+```ts
+import { mountComments } from '@lst97-oss/last-comments-widgets/vanilla'
+
+mountComments(document.querySelector('#comments')!, {
+  site: 'demo',
+  baseUrl: '/',
+  theme: 'system',
+  themeVars: brand,
+})
+```
+
+Themes reach plain HTML through `data-lc-theme-var-*` and `data-lc-theme-dark-var-*` attributes — see [Theming](/docs/theming).

@@ -1,0 +1,41 @@
+---
+title: API reference
+description: The generated Scalar references for the business API and the auth API, and the HTTP paths they document.
+icon: Braces
+---
+
+The server publishes two interactive references:
+
+- [Business API reference](/api/reference) — the comments, votes, moderation, sites, pages, stats and setup endpoints (Scalar).
+- [Auth API reference](/api/auth/reference) — the better-auth endpoints the widgets use for sign-in, sign-out and sessions (Scalar). Only served while the `better-auth` provider is enabled (the default); with external-only `providers` in `auth.config.ts` the whole `/api/auth/*` mount — reference included — answers 404.
+
+Both pages are served only while the OpenAPI plugin is installed on the server; otherwise they answer 404. Enablement is a code registry on the server, so toggling them takes a redeploy.
+
+## Envelope
+
+Successful responses are `{"data": ...}` and failures are `{"error": {"code": "...", "message": "..."}}`. The widget's error copy is keyed off `error.code` — see [Errors](/docs/errors).
+
+## Paths
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/comments` | List the comments of one page (threads page by row offset, no total) |
+| POST | `/api/comments` | Post a comment or a reply (guest name + Turnstile, or a session) |
+| PATCH | `/api/comments/{commentId}` | Edit your own comment (session, or the guest edit key) |
+| DELETE | `/api/comments/{commentId}` | Delete your own comment (session required) |
+| PUT | `/api/comments/vote` | Cast an up/down vote on a comment (session required) |
+| DELETE | `/api/comments/vote` | Clear your vote on a comment (session required) |
+| GET | `/api/moderation` | List sites, threads and comments for the moderation dashboard (session required) |
+| POST | `/api/moderation` | Run a moderation action: hide/restore/delete/pin a comment, lock a page, block a user, post as moderator, edit, vote (session required) |
+| GET | `/api/admin/sites` | List every site with its allowed origins (session or service key) |
+| POST | `/api/admin/sites` | Create a site with its first allowed origin (instance admin or service key) |
+| GET | `/api/admin/pages` | List the registered page threads of one site with recent-window activity (`?recentDays=1..30&preview=1..5`, session or service key) |
+| GET | `/api/admin/pages/{pageId}` | Read one page thread with its totals, daily trend, top authors and moderation activity (session or service key) |
+| GET | `/api/admin/users` | List the user directory of one site — commenters, members, blocked users (`?search=&filter=all|blocked&limit=&offset=`, session required) |
+| GET | `/api/admin/users/{userId}/comments` | Read one user's comment history on a site, hidden and deleted included (session required) |
+| GET | `/api/admin/settings` | Read the read-only instance settings snapshot: plugin status, providers, comment settings (instance admin, session required) |
+| GET | `/api/admin/stats` | Dashboard totals, daily trend, top threads and moderation activity for one site |
+| GET | `/api/admin/api-keys` | List your own API keys with scopes and site bindings (session required) |
+| DELETE | `/api/admin/api-keys?keyId=…` | Delete one of your API keys (owner or instance admin, session required) |
+
+The Scalar page is the authoritative list of request schemas and status codes; besides the paths above it also documents `/api/admin/sites/{siteKey}` (rename, delete), `/api/admin/api-keys` (create, update scopes), `/api/session` (provider-neutral session probe), `/api/auth-providers` (enabled providers), `/api/initial-admin` (setup), and the `/api/live` and `/api/ready` health probes.

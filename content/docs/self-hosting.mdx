@@ -1,0 +1,87 @@
+---
+title: Self-hosting
+description: Run last-comments with Docker Compose — Postgres 18, migrations, the app, the plugin worker and Turnstile.
+icon: Terminal
+---
+
+The repository ships a `compose.yaml` stack for local development and small self-hosted deployments. It runs PostgreSQL 18, applies both migration sets, starts the app on port 3000, and runs the plugin outbox worker.
+
+## Requirements
+
+- Docker Engine with Compose v2.24 or newer.
+- At least 2 GB of RAM for the image build and PostgreSQL.
+- A public HTTPS origin for production (the server rejects loopback origins when `NODE_ENV=production`).
+
+## Start the stack
+
+```bash
+cp .env.example .env
+# set PAYLOAD_SECRET and BETTER_AUTH_SECRET (32+ characters)
+bun run stack:up
+```
+
+`stack:up` is `docker compose up -d --build --wait`. The equivalent raw commands are:
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f app
+```
+
+Open [http://localhost:3000](http://localhost:3000). The Compose file works without a `.env` file for local evaluation; the defaults are development-only secrets.
+
+| Service | Purpose |
+| --- | --- |
+| `postgres` | `postgres:18-alpine`; Payload database `template_demo`, business database `business_comments` |
+| `migrate` | One-shot `bun run db:migrate` + `bun run db:business:migrate`; `app` and `worker` wait for it |
+| `app` | The Nitro server on `:3000` |
+| `worker` | `bun scripts/plugin-worker.ts`, delivering the plugin outbox |
+
+## First users
+
+1. Business admin (moderation, sites, API keys): open `/create-admin-user`.
+2. Payload admin (content at `/admin`): open `/admin` and create the first user there.
+3. Create a site in `/moderation` and add the page's exact origin. A missing origin produces `403 ORIGIN_NOT_ALLOWED`.
+
+## Turnstile
+
+Turnstile is a hosted Cloudflare service, not a container. The Compose defaults are Cloudflare's public testing keys:
+
+```bash
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+```
+
+They always pass and work on any hostname, including localhost. For production, create a Turnstile widget in Cloudflare, set the real site key and secret in `.env`, and add every embedding hostname to the widget's allowed hostnames. Signed-in comments skip verification; guest comments fail closed if the secret is missing or Siteverify is unreachable.
+
+## Data and backups
+
+PostgreSQL 18 stores its cluster below `/var/lib/postgresql`; the Compose volume is named `last-comments-pgdata`. Normal restarts and `docker compose down` keep it. `docker compose down -v` deletes it.
+
+```bash
+# Payload database
+docker compose exec -T postgres pg_dump -U demo -d template_demo > template_demo.sql
+# Business comments/auth database
+docker compose exec -T postgres pg_dump -U business -d business_comments > business_comments.sql
+```
+
+Restore into a fresh volume with `psql` in the `postgres` service, then restart `app` and `worker`. A PostgreSQL major-version upgrade needs a dump/restore or `pg_upgrade`; changing only the image tag does not migrate the cluster.
+
+## Production checklist
+
+- Set `NODE_ENV=production`, `PAYLOAD_PUBLIC_SERVER_URL=https://comments.example.com`, and `BETTER_AUTH_URL` to the same public origin.
+- Replace `PAYLOAD_SECRET`, `BETTER_AUTH_SECRET`, `POSTGRES_PASSWORD` and `BUSINESS_DB_PASSWORD`; update the URLs in `.env` to match.
+- Put a TLS reverse proxy in front of port 3000 and overwrite `x-real-ip`. The rate-limit plugin trusts that header; without a trusted proxy, guests can spoof their rate-limit identity.
+- Use real Turnstile keys and register the embedding origins in Cloudflare.
+- Run exactly one `worker` replica for the outbox, and run the `migrate` service once per release.
+- Back up both databases before upgrading. Keep the volume outside the container lifecycle.
+
+## Upgrades
+
+```bash
+docker compose pull postgres
+docker compose build --pull app
+docker compose up -d
+```
+
+The `migrate` service runs before the app starts. Rebuild after changing dependencies or source. If a migration fails, `docker compose logs migrate` shows the error and the app does not start.

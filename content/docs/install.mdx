@@ -1,0 +1,102 @@
+---
+title: Install & server setup
+description: Install the widget package, add your framework's runtime libraries, and register the page origin on the server.
+icon: Download
+---
+
+One package, one version, subpath exports — you install only the framework you use.
+
+<Steps>
+<Step>
+### Install the package
+
+<Tabs items={["bun", "npm"]}>
+  <Tab value="bun">
+    ```bash
+    bun add @lst97-oss/last-comments-widgets
+    ```
+  </Tab>
+  <Tab value="npm">
+    ```bash
+    npm install @lst97-oss/last-comments-widgets
+    ```
+  </Tab>
+</Tabs>
+</Step>
+
+<Step>
+### Add your framework's peers
+
+Every other framework's libraries are optional peers and are never installed:
+
+<Tabs items={["React", "Vue", "Angular", "Plain HTML"]}>
+  <Tab value="React">
+    ```bash
+    bun add @base-ui/react lucide-react class-variance-authority clsx tailwind-merge
+    # …plus shiki, only if comment code fences should be syntax-highlighted
+    bun add shiki
+    ```
+  </Tab>
+  <Tab value="Vue">
+    ```bash
+    bun add @lucide/vue reka-ui clsx tailwind-merge
+    ```
+  </Tab>
+  <Tab value="Angular">
+    ```bash
+    bun add @angular/cdk @lucide/angular
+    ```
+  </Tab>
+  <Tab value="Plain HTML">
+    Nothing more — the widget bundle and the theme are self-contained.
+  </Tab>
+</Tabs>
+
+Only your framework is a peer dependency (React 19, Vue 3.5 or Angular 22). Framework compatibility lives in `peerDependencies`, never in the package version.
+</Step>
+
+<Step>
+### Register the page origin
+
+<Callout type="warn" title="Register the page origin">
+  Create the site in `/moderation` (or call `POST /api/admin/sites`) and add the page's exact origin. Every API call from an unregistered origin fails with `ORIGIN_NOT_ALLOWED` (403).
+</Callout>
+</Step>
+
+<Step>
+### Proxy the API same-origin
+
+<Callout type="warn" title="Proxy the API same-origin">
+  Every widget request is sent with `credentials: 'include'`, and the API never returns `Access-Control-Allow-Credentials` — so a plain cross-origin embed cannot list, post, vote or moderate. Route the API through a same-origin proxy (e.g. rewrite `/api/comments` and `/api/moderation` → `baseUrl`, as the examples do). A reverse proxy in front of the API must rewrite `Origin` for `/api/moderation`, whose POST is origin-checked against the server's own origin.
+</Callout>
+</Step>
+</Steps>
+
+## Entry points
+
+| Import | What it gives you |
+| --- | --- |
+| `@lst97-oss/last-comments-widgets` · `…/client` | The framework-free API client: `createClient`, `listCommentsPage`, `loadThreadWindow`, `buildCommentTree`, `describeError`, `renderMarkdown`, `themeVarsToStyle`, `isEditWindowOpen`, `canModerate` and the exported types |
+| `…/react` | `Comments`, `CommentViewer`, `VoteButtons`, `CommentsTheme` |
+| `…/vue` | The same components as Vue SFCs |
+| `…/angular` | `LcCommentsComponent`, `LcCommentViewerComponent`, the vote buttons and the Turnstile directive |
+| `…/vanilla` | `mountComments`, `renderCommentViewer` for plain HTML |
+| `…/theme.css` | The theme tokens on their own |
+| `…/{react,vue,angular,vanilla}/styles.css` | The compiled widget stylesheet for that framework |
+
+## Requirements
+
+- Guest posting needs `turnstileSiteKey` (Cloudflare Turnstile, from `TURNSTILE_SITE_KEY` or `turnstile.config.ts`); signed-in users skip verification. With verification required and no provider, guests get a 503 notice. Local development can use Cloudflare's testing keys.
+- Published bundles target **ES2025** and ship no polyfills: use a current evergreen browser, and Node 22+ when running the client outside the browser.
+- The stylesheet is scoped with native CSS `@scope`; use a browser with `@scope` support.
+
+## Quick start
+
+```tsx
+import { Comments } from '@lst97-oss/last-comments-widgets/react'
+import '@lst97-oss/last-comments-widgets/react/styles.css'
+
+<Comments site="demo" baseUrl="https://comments.example.com" turnstileSiteKey="…" />
+```
+
+`site` is the site key configured on your last-comments server. Pick your framework: [React](/docs/widgets/react), [Vue](/docs/widgets/vue), [Angular](/docs/widgets/angular), [plain HTML](/docs/widgets/html).

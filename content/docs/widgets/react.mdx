@@ -1,0 +1,50 @@
+---
+title: React
+description: Drop-in React 19 comment widget — import Comments, its stylesheet and the props it accepts.
+icon: Atom
+---
+
+```tsx
+import { Comments } from '@lst97-oss/last-comments-widgets/react'
+import '@lst97-oss/last-comments-widgets/react/styles.css'
+
+<Comments site="demo" baseUrl="https://comments.example.com" turnstileSiteKey="…" />
+```
+
+`site` is the site key configured on your last-comments server. `baseUrl` should point at a same-origin proxy of the API — see [Install & server setup](/docs/install).
+
+## Props
+
+Props are shared across all four frameworks (`actionMode`, `bodyLimit` and `anonEditWindowMinutes` are read from `data-lc-*` attributes in the plain-HTML port).
+
+| Prop | Description |
+| --- | --- |
+| `site` | **Required.** The site key configured on your last-comments server. |
+| `baseUrl` | **Required.** The comments API origin; route it through a same-origin proxy. |
+| `pageUrl` | Page the thread belongs to. Default `location.href`. |
+| `turnstileSiteKey` | Cloudflare Turnstile site key for guest posting. |
+| `limit` | Threads per page. Default `20`. |
+| `lazy` | Defer all requests until the widget scrolls into view. Default `false`. |
+| `theme` | `light`, `dark` or `system`. |
+| `themeVars` | Per-instance design overrides — see [Theming](/docs/theming). |
+| `signInUrl` | Host-owned sign-in page. |
+| `viewerUserId` | Shows the viewer's own Edit/Delete buttons; empty means guest. |
+| `pageId` | Host-known thread id; moderator mode addresses it instead of matching `pageUrl`. |
+| `viewerRole` | `admin` or `moderator`; enables inline moderation — see [Inline moderation](/docs/widgets/moderation). |
+| `onModerated` | Callback after a moderation action, lock change or moderator post. |
+| `actionMode` | `icon`, `icon-text` or `text` — how Reply/Edit/Delete and moderator actions render their icons. Default `icon-text`. |
+| `bodyLimit` | Max body characters, counted before trimming. Default `10,000`; set it to whatever the host server enforces. |
+| `anonEditWindowMinutes` | Anonymous edit window. Default `10`, mirroring `anonEditWindowMinutes` in the server `comment-policy.config.ts`. Signed-in authors may edit any time, while guests edit only from the browser that stored the key returned when they posted. |
+| `turnstileOptions` | Cloudflare widget options (`theme`, `size`, `appearance`, `language`) — see below. |
+| `fetchImpl` | Bring-your-own fetch — log, record, or rewrite to a same-origin proxy. Every request still sends `credentials: 'include'` and the init shape is unchanged. |
+
+### Turnstile options
+
+`theme` (`auto`, `light`, `dark`; defaults to the widget's own light/dark mode), `size` (`normal`, `compact`, `flexible`), `appearance` (`always`, `interaction-only`) and `language`. Cloudflare draws the challenge itself inside a cross-origin iframe, so its background, border, radius and shadow cannot be themed — style the `.lc-turnstile` container the widget renders instead.
+
+## Other exports
+
+- `CommentViewer` — the same list with no composer and no Reply/Edit/Delete/vote buttons. See [Read-only viewer](/docs/widgets/viewer).
+- `VoteButtons` — the vote control, exported for hosts that opt into voting in a custom composition.
+- `CommentsTheme` — a theme root for composing from exported subcomponents: `<CommentsTheme theme="system" themeVars={brand}>…</CommentsTheme>`.
+- `WidgetTheme` — the `themeVars` type, exported from this subpath.

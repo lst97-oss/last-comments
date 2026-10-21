@@ -1,0 +1,72 @@
+---
+title: Client API
+description: The framework-free TypeScript client the four widgets are built on — createClient, paging helpers, markdown and error copy.
+icon: Terminal
+---
+
+`@lst97-oss/last-comments-widgets/client` (the bare package name resolves to the same entry point) is what the four widgets are built on; hosts rendering their own UI can import it directly. Every widget subpath depends on it at runtime, which is why all four frameworks ship inside one package and share its version.
+
+```ts
+import { createClient, loadThreadWindow } from '@lst97-oss/last-comments-widgets/client'
+
+const client = createClient({ site: 'demo', baseUrl: 'https://comments.example.com' })
+const { comments, hasMore } = await loadThreadWindow({
+  site: 'demo',
+  baseUrl: 'https://comments.example.com',
+  pageUrl: location.href,
+  limit: 20,
+  pages: 1,
+})
+```
+
+## Exports
+
+### Threads and paging
+
+| Export | Purpose |
+| --- | --- |
+| `createClient({ site, baseUrl, fetchImpl })` | List, post, edit and delete comments, vote, and run moderation calls |
+| `listCommentsPage({ …, offset, limit })` | One page of rows plus `hasMore` (probes one extra row; the API returns no total) |
+| `loadThreadWindow({ …, pages, existing })` | Rows accumulated until N whole threads are present — the loader behind the widget pager |
+| `fetchViewerThreads({ … })` | One-shot fetch of the flat stream |
+| `buildCommentTree(rows)` | Group that stream into thread nodes (orphan replies become roots) |
+| `sortThreadTree` · `foldReplySummary` | Rank threads; reply totals plus the moderator-only pinned/hidden/deleted breakdown |
+
+### Identity and sessions
+
+| Export | Purpose |
+| --- | --- |
+| `beginOAuthSignIn` · `fetchViewerSession` · `signOutViewerSession` | The flow behind the identity control |
+| `describeError(error, overrides?)` | The title/message/action copy every widget renders |
+
+### Rendering and theme
+
+| Export | Purpose |
+| --- | --- |
+| `renderMarkdown` · `safeUrl` | Markdown rendering (raw HTML stripped) and URL sanitising |
+| `themeVarsToStyle` · `THEME_CSS_VARIABLES` | Map `themeVars` onto the widget's CSS variables |
+| `formatRelativeTime` · `collectThreadParticipants` | Reddit-style short ages and the unique authors inside a reply subtree |
+
+### Shared widget rules
+
+| Export | Purpose |
+| --- | --- |
+| `isEditWindowOpen` · `canModerate` · `moderationCommentToComment` | Edit gating, moderation UI gating, moderation-row mapping |
+
+Signatures and the complete type list live in `packages/client/src/index.ts`.
+
+## Bring your own fetch
+
+Pass `fetchImpl` to `createClient` or to any widget to route every request through a same-origin proxy:
+
+```ts
+// fetchImpl receives (url, init) exactly as the widget would call fetch.
+const fetchImpl: typeof fetch = (input, init) =>
+  fetch(toSameOriginProxy(input), init);
+```
+
+Every request still sends `credentials: 'include'` and the init shape is unchanged.
+
+## Errors
+
+`describeError(error, overrides?)` maps each `ApiError.code` to `{ code, title, message, action }`; see [Errors](/docs/errors).

@@ -1,0 +1,98 @@
+---
+title: Auth providers
+description: Choose how users sign in — the built-in login, an external OIDC identity provider, or reverse-proxy SSO — and how external identities map to users.
+icon: Fingerprint
+---
+
+Every request resolves to a provider-neutral identity, so routes and guards never depend on a specific auth SDK. Deployers pick the providers in `src/server/auth/auth.config.ts` (`providers`, first match wins); adding a provider never requires touching a route. `AUTH_PROVIDERS` in the environment overrides the file when set (per-environment sets).
+
+`GET /api/auth-providers` reports the active providers (public, no secrets) so the sign-in UI renders the right form.
+
+<Tabs items={["better-auth", "oidc-jwt", "header"]}>
+<Tab value="better-auth">
+Built-in email/password plus optional Google OAuth, with session cookies for the dashboard and widgets.
+
+```ts
+// src/server/auth/auth.config.ts
+providers: ['better-auth'], // default
+```
+
+- `BETTER_AUTH_SECRET` (min 32 chars), `BETTER_AUTH_URL`, and optionally `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Register `http://localhost:3000/api/auth/callback/google` as the OAuth redirect URI.
+- Public password registration stays disabled; the login endpoints live under `/api/auth/*`, including the interactive reference at `/api/auth/reference`. That whole mount is only served while `better-auth` is in `providers` (chains like `['better-auth', 'oidc-jwt']` count) and answers 404 otherwise.
+- On a new database, open `/create-admin-user` to create the first admin. Until an instance admin exists, the server refuses all other account creation — except the single address in `bootstrapEmail`, which may register directly (for headless deploys without the setup form).
+</Tab>
+
+<Tab value="oidc-jwt">
+Bearer JWTs from an identity provider you already run — Auth0, Clerk, Keycloak, Entra ID, Supabase Auth, and others. API clients send `Authorization: Bearer <idp-token>`.
+
+```ts
+// src/server/auth/auth.config.ts
+providers: ['oidc-jwt'],
+```
+
+```bash
+# Endpoint identity stays in the environment:
+AUTH_OIDC_JWKS_URL=https://idp.example.com/.well-known/jwks.json
+AUTH_OIDC_ISSUER=https://idp.example.com/
+AUTH_OIDC_AUDIENCE=last-comments
+```
+
+- Signatures verify against the cached JWKS (10-minute cache, refreshed once on key rotation); issuer and audience are pinned, `exp` is enforced with a 60-second leeway (`clockSkewSeconds`), and unsigned algorithms are rejected.
+- The subject (`sub`) links to a user via the [identity mapping](#identity-mapping) below; names and avatars come from the `name` / `picture` claims when present.
+- The email claim defaults to `email` (`emailClaim`). Only a verified address (`email_verified: true`) links to an existing user.
+
+<Callout type="warn" title="Dashboard sign-in">
+  `oidc-jwt` authenticates API callers holding IdP tokens. Interactive dashboard sign-in needs a cookie session: keep `better-auth` in the chain or put the dashboard behind the `header` provider.
+</Callout>
+</Tab>
+
+<Tab value="header">
+Identity headers from a proxy that already authenticated the user (Cloudflare Access, Authelia, Pomerium…).
+
+```ts
+// src/server/auth/auth.config.ts
+providers: ['header'],
+header: {
+  trustProxy: true,
+  proxyCidr: '10.0.0.0/8',
+  userHeader: 'x-forwarded-user',
+  emailHeader: 'x-forwarded-email',
+  nameHeader: 'x-forwarded-name', // default shown; omit keys you don't override
+},
+```
+
+<Callout type="error" title="Fail closed by default">
+  Without `trustProxy: true` the headers are ignored entirely. With it, requests arriving outside `proxyCidr` are ignored too — a misconfigured proxy fails closed instead of trusting forged headers.
+</Callout>
+</Tab>
+</Tabs>
+
+## Identity mapping
+
+External subjects link to the canonical user row (`external_identities`: provider + subject → user), so site memberships, votes, and comments keep joining on `user.id` no matter which provider signed the user in:
+
+- A verified email links to the existing user with that address (same human, new provider).
+- An unverified email **never merges** — it provisions a separate user, so a forged claim cannot take over an account.
+- Unknown subjects auto-provision a linked user; `autoProvision: false` requires accounts to exist first.
+- The first external login on a fresh instance claims the singleton instance-admin slot (restricted to `bootstrapEmail` when set); afterwards external users get zero site roles until an admin grants them.
+
+## Service keys
+
+Publisher keys (`lck_*`) verify before any session provider and are unaffected by the choice above — machine callers keep working when interactive login moves to OIDC or proxy SSO. Keys are issued server-side only, with permissions and site binding the client can never set.
+
+## Configuration reference
+
+Policy lives in `src/server/auth/auth.config.ts`; endpoint identity and credentials stay in `.env` (see `.env.example`).
+
+| File key | Purpose | Default |
+| --- | --- | --- |
+| `providers` | Enabled providers, first match wins (`AUTH_PROVIDERS` env overrides when set) | `['better-auth']` |
+| `autoProvision` | Create linked users on first external login | `true` |
+| `bootstrapEmail` | Only address allowed to claim the first admin remotely | unset |
+| `header.trustProxy` / `header.proxyCidr` | Enable proxy SSO / allowed proxy source | `false` / `*` |
+| `header.userHeader` / `header.emailHeader` / `header.nameHeader` | Trusted header names | `x-forwarded-*` |
+| `oidc.emailClaim` / `oidc.clockSkewSeconds` | Email claim name / expiry leeway | `'email'` / `60` |
+
+| Env key | Purpose |
+| --- | --- |
+| `AUTH_OIDC_JWKS_URL` / `AUTH_OIDC_ISSUER` / `AUTH_OIDC_AUDIENCE` | Trusted JWT settings for `oidc-jwt` (required when enabled) |

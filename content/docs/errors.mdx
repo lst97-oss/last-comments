@@ -1,0 +1,71 @@
+---
+title: Errors
+description: The single error block every widget renders, the copy that comes from describeError, and the full error-code list.
+icon: TriangleAlert
+---
+
+Every failure renders one block — alert icon, a title that names the situation, the API's own message when it is human-readable, and an action only when one helps (`Try again` for retryable failures, `Sign in` when an account is required). It appears for:
+
+- list and viewer load failures (including the viewer's retry),
+- composer post/reply failures,
+- edit/delete/vote failures,
+- moderation actions,
+- sign-in/sign-out failures.
+
+Busy/blocked/locked pages keep their dedicated states.
+
+<Callout type="info" title="Hidden is not an error">
+  The [filter plugin](/docs/plugins#filter-hide-for-review-screening) holds violations for review instead of rejecting them: a flagged comment still posts (`200`) with `status: 'hidden'`. Hidden rows never produce an error block — they vanish from the public thread and wait in `/moderation`.
+</Callout>
+
+## describeError
+
+The copy comes from `describeError(error, overrides?)` in `@lst97-oss/last-comments-widgets/client` (exported and tested): it maps each `ApiError.code` to `{ code, title, message, action }`, turns a failed `fetch` into "Couldn't reach the comments service", ignores the synthesised `request failed with 500` message, and takes `overrides.title` only for codes that have no scenario-specific copy — widgets pass action framing such as `"Your comment wasn't posted"`. Hosts rendering their own UI can call it directly.
+
+```ts
+import { describeError } from '@lst97-oss/last-comments-widgets/client'
+
+const copy = describeError(error, { title: "Your comment wasn't posted" })
+```
+
+## Styling and asserting
+
+The rendered block carries `data-lc-error` and `data-error-code` (empty when the failure was not from the API) so you can style or assert on it.
+
+```css
+[data-lc-error] {
+  border-color: var(--destructive);
+}
+[data-error-code="ORIGIN_NOT_ALLOWED"] {
+  /* the page origin is not an allowed origin of the site */
+}
+```
+
+## Error codes
+
+### Request errors
+
+| Code | Meaning |
+| --- | --- |
+| `VALIDATION_ERROR` | The request body or query did not pass validation. |
+| `MALFORMED_JSON` | The request body was not valid JSON. |
+| `UNAUTHENTICATED` | The action requires a signed-in session. |
+| `ORIGIN_NOT_ALLOWED` | The page origin is not an allowed origin of the site (403). |
+| `SITE_NOT_FOUND` | The `site` key does not exist on the server. |
+| `FORBIDDEN` | The account lacks permission for this action. |
+
+### Content and verification errors
+
+| Code | Meaning |
+| --- | --- |
+| `USER_BLOCKED` | The account is blocked from the site. |
+| `PAGE_LOCKED` | The thread is locked and accepts no new comments. |
+| `PARENT_NOT_FOUND` | The reply's parent comment does not exist. |
+| `COMMENT_NOT_FOUND` | The comment does not exist. |
+| `COMMENT_VERIFICATION_FAILED` | The guest's Turnstile challenge was rejected. |
+| `COMMENT_VERIFICATION_UNAVAILABLE` | Verification is required but no provider is configured (503). |
+| `EDIT_WINDOW_EXPIRED` | The anonymous edit window has closed. |
+| `SIGN_IN_UNAVAILABLE` | The API could not start the sign-in flow. |
+| `SIGN_OUT_FAILED` | The sign-out request failed. |
+
+The list is `ApiError.code` in `packages/client/src/index.ts`.

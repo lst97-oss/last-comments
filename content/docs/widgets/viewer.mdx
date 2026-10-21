@@ -1,0 +1,25 @@
+---
+title: Read-only viewer
+description: CommentViewer renders the thread list with no composer and no Reply, Edit, Delete or vote buttons.
+icon: Eye
+---
+
+`CommentViewer` (Vue `CommentViewer`, Angular `lc-comment-viewer`, vanilla `data-lc-viewer` + `renderCommentViewer`) renders the same list with no composer and no Reply/Edit/Delete/vote buttons — import it where the page only shows comments.
+
+```tsx
+import { CommentViewer } from "@lst97-oss/last-comments-widgets/react";
+
+<CommentViewer site="demo" baseUrl="https://comments.example.com" />;
+```
+
+Same `site`/`baseUrl`/`pageUrl`/`limit`/`lazy`/`theme`/`themeVars`, same thread pager and skeletons; voting UI stays available via the exported `VoteButtons` for hosts that opt in.
+
+```html
+<div data-lc-viewer data-lc-site="demo" data-lc-base-url="/"></div>
+```
+
+<Callout type="info" title="Shared theme">
+  `Comments` and `CommentViewer` share the same tokens. Both already provide their theme root, so `themeVars` works the same way in both — see [Theming](/docs/theming).
+</Callout>
+
+The viewer ends with the same `Powered by last-comments` footnote (`.lc-footer`) as the comments widget, and its failed loads render the same error block with a retry action — see [Errors](/docs/errors).

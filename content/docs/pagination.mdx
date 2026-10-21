@@ -1,0 +1,39 @@
+---
+title: Pagination & loading
+description: Threads page by thread, Previous is served from memory, and every wait is a skeleton.
+icon: List
+---
+
+## Threads, not rows
+
+Lists page through **threads**, not rows:
+
+- A page shows `limit` top-level comments (default `20`) together with their replies.
+- The pager (`‹ Previous` / `Page N` / `Next ›`) appears once there is more than one page. The list endpoint returns no total, so the pager shows the current page instead of numbered links; `Next` disables once the stream ends.
+- Rows are fetched only for the page you visit and kept in memory, so `Previous` is instant and never re-requests.
+- A reply written after the stream moved past its thread's page is not shown until more rows load — the list endpoint has no per-thread query, so exact thread pagination would need a server-side `threads` query.
+
+## Thread guides
+
+- Replies hang off their parent through measured connector lines: each thread's guide is its own subpath, so it never connects to the thread above, and segments bend between nesting levels.
+- The segment at your reading position (middle of the viewport) draws in `threadActive`; the rest stays `threadMuted`. Lines ride the gutter midpoint, so they never cross comment content.
+- Every reply group collapses: while hidden the trigger shows an overlapping avatar stack (up to three, then `+N`) plus the reply count; while open it hides them behind a `Hide N replies` label.
+- Counts cover every reply whatever its state; moderators additionally see the composition inline (`4 replies · 1 pinned · 1 hidden · 1 deleted`, hidden below `sm` so the row never crowds).
+- Replies carry a `Replying to @author` caption, so a reply always reads as attached to the comment it answers.
+- Timestamps are Reddit-style short ages (`just now`, `5m ago`, `3h ago`, `2d ago`, `2mo ago`, `1y ago`) with the full local time on hover, via the shared `formatRelativeTime` helper.
+- Actions render as icon only, icon with label, or label only through `actionMode`.
+
+## Loading states
+
+Loading states are skeletons rather than blank space:
+
+- Three skeleton cards on first load; two more below the list while the next page arrives (the pager disables in flight).
+- A skeleton chip in the identity control — with posting disabled — until the API answers `get-session`, so a comment can never be posted with a guessed identity.
+
+## Lazy loading
+
+`lazy` defers every request (comments and session) until the widget scrolls into view (`IntersectionObserver`, 200px margin, one-shot). Use it for embeds below the fold; avatars load lazily in every mode.
+
+```tsx
+<Comments site="demo" baseUrl="/" lazy />
+```

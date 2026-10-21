@@ -1,0 +1,50 @@
+---
+title: Angular
+description: Standalone Angular 22 comment widget — lc-comments and lc-comment-viewer selectors, inputs and outputs.
+icon: Hexagon
+---
+
+```ts
+import { Component } from '@angular/core'
+import { LcCommentsComponent } from '@lst97-oss/last-comments-widgets/angular'
+import '@lst97-oss/last-comments-widgets/angular/styles.css'
+
+@Component({
+  imports: [LcCommentsComponent],
+  template: `<lc-comments site="demo" baseUrl="https://comments.example.com" turnstileSiteKey="…" />`,
+})
+export class AppComponent {}
+```
+
+`site` is the site key configured on your last-comments server. `baseUrl` should point at a same-origin proxy of the API — see [Install & server setup](/docs/install).
+
+## Selectors
+
+- `lc-comments` (`LcCommentsComponent`) — the full widget, composer included.
+- `lc-comment-viewer` (`LcCommentViewerComponent`) — the read-only list. See [Read-only viewer](/docs/widgets/viewer).
+
+## Inputs
+
+Inputs are signal inputs, so they bind with `[name]`: `site`, `baseUrl`, `pageUrl`, `pageId`, `turnstileSiteKey`, `turnstileOptions`, `limit`, `lazy`, `theme`, `themeVars`, `signInUrl`, `viewerUserId`, `viewerRole`, `anonEditWindowMinutes`, `actionMode`, `bodyLimit` and `fetchImpl`. The full prop list (shared with every framework) is on the [React page](/docs/widgets/react#props).
+
+```ts
+@Component({
+  imports: [LcCommentsComponent],
+  template: `<lc-comments
+    site="demo"
+    baseUrl="/"
+    [themeVars]="brand"
+    [viewerRole]="'moderator'"
+    (moderated)="refreshThreads()"
+    (signIn)="openSignIn()"
+  />`,
+})
+export class DiscussionComponent {}
+```
+
+## Outputs
+
+- `(moderated)` — fires after a successful moderation action, lock change or moderator post, so a dashboard can refresh its own thread list. Replaces React's `onModerated` prop. See [Inline moderation](/docs/widgets/moderation).
+- `(signIn)` — fires when the viewer needs to sign in: the error block's sign-in action when no `signInUrl` is configured, or an action that fails with `UNAUTHENTICATED`. The widget still starts the API's OAuth fallback unless `signInUrl` is set.
+
+Standalone `lc-vote-buttons` and the `[lcTurnstile]` directive are exported too.

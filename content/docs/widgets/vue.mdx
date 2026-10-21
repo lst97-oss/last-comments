@@ -1,0 +1,51 @@
+---
+title: Vue
+description: Drop-in Vue 3 comment widget — import Comments, its stylesheet, kebab-case attributes and the moderated event.
+icon: Layers
+---
+
+```vue
+<script setup lang="ts">
+import { Comments } from '@lst97-oss/last-comments-widgets/vue'
+import '@lst97-oss/last-comments-widgets/vue/styles.css'
+</script>
+
+<template>
+  <Comments site="demo" base-url="https://comments.example.com" turnstile-site-key="…" />
+</template>
+```
+
+`site` is the site key configured on your last-comments server. `base-url` should point at a same-origin proxy of the API — see [Install & server setup](/docs/install).
+
+## Attributes and bindings
+
+Each prop is a kebab-case attribute: `baseUrl` becomes `base-url`, `turnstileSiteKey` becomes `turnstile-site-key`, `themeVars` becomes `:theme-vars`.
+
+```vue
+<script setup lang="ts">
+import { Comments } from '@lst97-oss/last-comments-widgets/vue'
+import type { WidgetTheme } from '@lst97-oss/last-comments-widgets/vue'
+
+const brand: WidgetTheme = { vars: { primary: '#2354d1' } }
+</script>
+
+<template>
+  <Comments
+    site="demo"
+    base-url="/"
+    theme="system"
+    :theme-vars="brand"
+    @moderated="refreshThreads"
+  />
+</template>
+```
+
+The full prop list (shared with every framework) is on the [React page](/docs/widgets/react#props).
+
+## Events
+
+- `@moderated` — fires after a moderation action, lock change or moderator post. It replaces React's `onModerated` callback prop. See [Inline moderation](/docs/widgets/moderation).
+
+## Other exports
+
+`CommentViewer` renders the same list with no composer and no Reply/Edit/Delete/vote buttons ([Read-only viewer](/docs/widgets/viewer)); `VoteButtons` is exported for hosts that opt into voting.
