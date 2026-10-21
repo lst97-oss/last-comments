@@ -1,0 +1,502 @@
+/* Public-site Tailwind entry. shadcn CLI detection note: this file is the
+   Tailwind v4 entry, equivalent to `@import "tailwindcss"` split into
+   granular theme import + scoped utilities so preflight stays out of the shared
+   admin shell (a global reset would fight Payload's own element styling).
+   The public document marker scopes the necessary element defaults below,
+   including portals, while Payload's own document shell stays outside them.
+   Palette: DESIGN.md §4 semantic tokens. `@theme inline` keeps utilities
+   referencing the vars (so `.dark` overrides apply); raw values live in
+   `:root` / `.dark`. Token names align with shadcn for later reuse. */
+/* Keep Tailwind's layer order when omitting its global preflight import. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Payload owns classes such as .table too; public utilities must not match them. */
+@layer utilities {
+  @scope (html[data-public-ui]) {
+    @tailwind utilities;
+  }
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --success: var(--color-emerald-600);
+  --success-foreground: oklch(0.985 0 0);
+  --success-muted: var(--color-emerald-100);
+  --warning: var(--color-amber-600);
+  --warning-foreground: oklch(0.985 0 0);
+  --warning-muted: var(--color-amber-100);
+  --error: var(--color-red-600);
+  --error-foreground: oklch(0.985 0 0);
+  --error-muted: var(--color-red-100);
+  --info: var(--color-sky-600);
+  --info-foreground: oklch(0.985 0 0);
+  --info-muted: var(--color-sky-100);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --success: var(--color-emerald-400);
+  --success-foreground: oklch(0.141 0.005 285.823);
+  --success-muted: var(--color-emerald-950);
+  --warning: var(--color-amber-400);
+  --warning-foreground: oklch(0.141 0.005 285.823);
+  --warning-muted: var(--color-amber-950);
+  --error: var(--color-red-400);
+  --error-foreground: oklch(0.141 0.005 285.823);
+  --error-muted: var(--color-red-950);
+  --info: var(--color-sky-400);
+  --info-foreground: oklch(0.141 0.005 285.823);
+  --info-muted: var(--color-sky-950);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-muted: var(--success-muted);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-muted: var(--warning-muted);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-error-muted: var(--error-muted);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-muted: var(--info-muted);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  /* shadcn assumes these Tailwind element defaults. withPayloadRoot uses a
+     different <html> for admin, so this also covers public body portals. */
+  :where(html[data-public-ui]) {
+    @apply font-sans;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    -webkit-tap-highlight-color: transparent;
+
+    &, & *, & ::before, & ::after, & ::backdrop, & ::file-selector-button {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-width: 0;
+      border-style: solid;
+      @apply border-border outline-ring/50;
+    }
+
+    & body {
+      @apply bg-background text-foreground;
+    }
+
+    & :is(h1, h2, h3, h4, h5, h6) {
+      font-size: inherit;
+      font-weight: inherit;
+    }
+
+    & a {
+      color: inherit;
+      text-decoration: inherit;
+    }
+
+    & :is(ol, ul, menu) {
+      list-style: none;
+    }
+
+    & :is(button, input, select, optgroup, textarea), & ::file-selector-button {
+      font: inherit;
+      font-feature-settings: inherit;
+      font-variation-settings: inherit;
+      letter-spacing: inherit;
+      color: inherit;
+      border-radius: 0;
+      background-color: transparent;
+      opacity: 1;
+    }
+
+    & :is(button, input:where([type='button'], [type='reset'], [type='submit'])), & ::file-selector-button {
+      appearance: button;
+    }
+
+    & textarea {
+      resize: vertical;
+    }
+
+    & ::placeholder {
+      opacity: 1;
+      color: color-mix(in oklab, currentColor 50%, transparent);
+    }
+
+    & :is(img, svg, video, canvas, audio, iframe, embed, object) {
+      display: block;
+      vertical-align: middle;
+    }
+
+    & :is(img, video) {
+      max-width: 100%;
+      height: auto;
+    }
+
+    & table {
+      text-indent: 0;
+      border-color: inherit;
+      border-collapse: collapse;
+    }
+
+    & [hidden]:where(:not([hidden='until-found'])) {
+      display: none !important;
+    }
+  }
+}
+
+/* Blog post rendering: prose typography, Shiki code blocks with docs chrome,
+   Mermaid diagrams. Scoped to the public shell so Payload admin styling never
+   matches. Shiki emits dual-theme spans (`--shiki-light` / `--shiki-dark`);
+   the `.dark` class (next-themes) flips which one paints. */
+@layer components {
+  :where(html[data-public-ui]) .lc-md > * + * {
+    margin-top: 0.75rem;
+  }
+
+  :where(html[data-public-ui]) .lc-md h2 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  :where(html[data-public-ui]) .lc-md h2:not(:first-child) {
+    margin-top: 1.5rem;
+  }
+
+  :where(html[data-public-ui]) .lc-md h3 {
+    font-size: 1.0625rem;
+    line-height: 1.625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  :where(html[data-public-ui]) .lc-md h3:not(:first-child) {
+    margin-top: 1.25rem;
+  }
+
+  :where(html[data-public-ui]) .lc-md ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+  }
+
+  :where(html[data-public-ui]) .lc-md ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+  }
+
+  :where(html[data-public-ui]) .lc-md li + li {
+    margin-top: 0.25rem;
+  }
+
+  :where(html[data-public-ui]) .lc-md li::marker {
+    color: var(--muted-foreground);
+  }
+
+  :where(html[data-public-ui]) .lc-md a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  }
+
+  :where(html[data-public-ui]) .lc-md a:hover {
+    text-decoration-color: currentColor;
+  }
+
+  :where(html[data-public-ui]) .lc-md :not(pre) > code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8125em;
+    background-color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 0.6);
+    padding: 0.15em 0.35em;
+    /* Pills often wrap mid-path (e.g. `/admin`); paint each line fragment
+       as its own complete pill instead of slicing one box across lines. */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  :where(html[data-public-ui]) .lc-md blockquote {
+    border-left: 2px solid var(--border);
+    padding-left: 1rem;
+    color: var(--muted-foreground);
+  }
+
+  :where(html[data-public-ui]) .lc-md table {
+    width: 100%;
+    font-size: 0.8125rem;
+    border-collapse: collapse;
+  }
+
+  :where(html[data-public-ui]) .lc-md th,
+  :where(html[data-public-ui]) .lc-md td {
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+
+  :where(html[data-public-ui]) .lc-md th {
+    color: var(--muted-foreground);
+    font-weight: 500;
+  }
+
+  :where(html[data-public-ui]) .lc-md hr {
+    border-color: var(--border);
+  }
+
+  :where(html[data-public-ui]) .lc-md img {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  /* No-JS / pre-enhance fallback for fenced blocks. */
+  :where(html[data-public-ui]) .lc-md pre {
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background-color: var(--muted);
+    padding: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock {
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background-color: var(--card);
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    background-color: color-mix(in oklab, var(--muted) 55%, transparent);
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock-lang {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: calc(var(--radius) * 0.6);
+    color: var(--muted-foreground);
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock-copy:hover {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock-copy[data-copied] {
+    color: var(--success);
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock pre.shiki {
+    border: 0;
+    border-radius: 0;
+    overflow-x: auto;
+    padding: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  /* The not-yet-highlighted block sits in the same frame, so it drops its own
+     border and background: only the code area changes when the highlighter
+     lands. Same padding, so the block does not jump. */
+  :where(html[data-public-ui]) .lc-codeblock pre:not(.shiki) {
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    overflow-x: auto;
+    padding: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  :where(html[data-public-ui]) .lc-codeblock pre.shiki code {
+    display: grid;
+    min-width: max-content;
+  }
+
+  :where(html[data-public-ui]) .shiki,
+  :where(html[data-public-ui]) .shiki span {
+    color: var(--shiki-light);
+    background-color: var(--shiki-light-bg);
+    font-style: var(--shiki-light-font-style);
+    font-weight: var(--shiki-light-font-weight);
+    text-decoration: var(--shiki-light-text-decoration);
+  }
+
+  :where(html[data-public-ui].dark) .shiki,
+  :where(html[data-public-ui].dark) .shiki span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+    text-decoration: var(--shiki-dark-text-decoration) !important;
+  }
+
+  :where(html[data-public-ui]) .lc-mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Mermaid loading frame keeps its height so the diagram popping in does
+     not shift the article. Skeletons come from the registry primitive. */
+  :where(html[data-public-ui]) .lc-mermaid-loading {
+    min-height: 12rem;
+  }
+
+  /* Shiki pending state: while the dynamic highlighter import is in flight the
+     code area keeps its source and gets a pulsing skeleton background, the same
+     language as the widget's `.lc-skeleton`. Cleared (or the node replaced)
+     once highlighting settles, so no-JS readers keep the plain fallback. */
+  :where(html[data-public-ui]) .lc-codeblock pre[data-shiki='pending'] {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--muted);
+    animation: lc-shiki-skeleton 1.8s ease-in-out infinite;
+  }
+
+  @keyframes lc-shiki-skeleton {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(html[data-public-ui]) .lc-codeblock pre[data-shiki='pending'] {
+      animation: none;
+    }
+  }
+}

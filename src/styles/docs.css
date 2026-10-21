@@ -1,0 +1,35 @@
+/* Fumadocs UI theme, loaded ONLY by the /docs route.
+   Fumadocs' base layer sets a global `*` border-color and body colors; a
+   global import would restyle the Payload admin shell, which must stay
+   byte-identical. Keeping the theme in its own stylesheet means /admin and
+   the public site never load it. The shadcn preset maps the docs palette
+   onto the semantic tokens app.css defines on :root. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "fumadocs-ui/css/shadcn.css";
+@import "fumadocs-ui/css/preset.css";
+
+@layer theme, base, components, utilities;
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Fumadocs' own `@source inline(...)` lists miss variant utilities (the
+   `md:hidden` that hides the desktop header, for one), so the package is
+   scanned instead: every class name its components use is generated. */
+@source "../../node_modules/fumadocs-ui/dist";
+
+/* Utilities are generated here (not only in app.css) because Fumadocs ships
+   its class names as `@source inline(...)` directives inside preset.css, and
+   only a build that imports preset.css knows about them. They are scoped
+   like the app's own utilities, but one level deeper: the app scopes its
+   utilities under `html[data-public-ui]`, and the app's sheet is emitted
+   twice (the route chunk and the entry chunk, which loads last), so a
+   same-specificity rule would lose every `display` conflict — the
+   `md:hidden` that hides the desktop header, for one. */
+@layer utilities {
+  @scope (html[data-public-ui] body) {
+    @tailwind utilities;
+  }
+}

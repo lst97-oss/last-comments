@@ -1,0 +1,10 @@
+{
+  "background_color": "#ffffff",
+  "description": "Self-hosted comment threads for any site.",
+  "display": "standalone",
+  "icons": [{ "purpose": "any", "sizes": "any", "src": "/favicon.svg", "type": "image/svg+xml" }],
+  "name": "Last Comments",
+  "short_name": "Last Comments",
+  "start_url": "/",
+  "theme_color": "#ffffff"
+}

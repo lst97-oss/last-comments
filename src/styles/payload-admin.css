@@ -1,0 +1,14 @@
+/* Payload admin stylesheet.
+   Layer order must match @payloadcms/ui/dist/css/app.css:1, which the entry
+   chunk already loads. The generated sheet re-declares the same design tokens
+   (identical values), and the theme file must come last so its --font-family-*
+   overrides win at equal specificity. */
+@layer payload-default, payload;
+
+/* The theme file below is intentionally UNLAYERED. The layer order above only
+   orders the generated component sheet's own rules; the font tokens must
+   outrank @payloadcms/ui's own `@layer payload-default` declarations regardless
+   of `<link>` order in the built document. */
+
+@import './payload-admin-generated.css';
+@import './payload-admin-theme.css';

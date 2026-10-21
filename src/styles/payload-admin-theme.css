@@ -1,0 +1,18 @@
+/* Payload admin font stack — deliberately UNLAYERED.
+   @payloadcms/ui re-declares both variables inside `@layer payload-default`
+   (dist/css/typography.css:3-4) and ships no @font-face, so 'Inter' silently
+   resolved to whatever the visiting machine happened to have. An override in
+   the same layer at the same `:root` specificity is decided purely by document
+   order, and TanStack emits a route's `head().links` BEFORE manifest CSS
+   (headContentUtils.js:120-121) — so upstream's 'Inter' landed after this
+   sheet in the built document and won, while dev (module import order) showed
+   the override working. Unlayered declarations outrank every layered one in
+   both. Do not wrap this in a `@layer` to "tidy" it. */
+:root {
+  --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  /* app.css:7 defines --font-body as var(--font-family-sans) and consumes it
+     at app.css:44. It re-resolves at computed-value time, but declaring it here
+     keeps `body` independent of that indirection. */
+  --font-body: var(--font-family-sans), sans-serif;
+}
