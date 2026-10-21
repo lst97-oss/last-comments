@@ -1,0 +1,92 @@
+# Postgres 18 + migrations + app + plugin worker. Works without .env for local
+# development; copy .env.example to override secrets. Compose v2.24+ required.
+# Turnstile defaults are Cloudflare's public testing keys.
+
+name: last-comments
+
+x-app-environment: &app-environment
+  NODE_ENV: ${NODE_ENV:-development}
+  HOST: 0.0.0.0
+  PORT: "3000"
+  PAYLOAD_SECRET: ${PAYLOAD_SECRET:-local-compose-payload-secret-change-me-32-chars}
+  DATABASE_URL: postgres://demo:${POSTGRES_PASSWORD:-demo-secret-pw}@postgres:5432/template_demo
+  BUSINESS_DATABASE_URL: postgres://business:${BUSINESS_DB_PASSWORD:-business-secret-pw}@postgres:5432/business_comments
+  # Production must use a public HTTPS origin (loopback is rejected).
+  PAYLOAD_PUBLIC_SERVER_URL: ${PAYLOAD_PUBLIC_SERVER_URL:-http://localhost:3000}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-compose-better-auth-secret-change-me-32-chars}
+  TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
+  TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-1x0000000000000000000000000000000AA}
+  LOG_PRETTY: ${LOG_PRETTY:-true}
+  LOG_VERBOSE: ${LOG_VERBOSE:-false}
+  LOG_COLOR: ${LOG_COLOR:-auto}
+
+x-app-service: &app-service
+  image: ${LAST_COMMENTS_IMAGE:-last-comments:local}
+  env_file:
+    - path: .env
+      required: false
+  environment: *app-environment
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo-secret-pw}
+      POSTGRES_DB: template_demo
+      BUSINESS_DB_PASSWORD: ${BUSINESS_DB_PASSWORD:-business-secret-pw}
+    volumes:
+      # PG18 keeps its cluster below /var/lib/postgresql; reuse the existing volume.
+      - pgdata:/var/lib/postgresql
+      - ./scripts/docker/init-business-db.sh:/docker-entrypoint-initdb.d/10-business-db.sh:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  migrate:
+    <<: *app-service
+    command: ['sh', '-c', 'bun run db:migrate && bun run db:business:migrate']
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  app:
+    <<: *app-service
+    build:
+      context: .
+      args:
+        BUN_VERSION: ${BUN_VERSION:-1.4.3}
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    <<: *app-service
+    command: ['bun', 'scripts/plugin-worker.ts']
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: last-comments-pgdata
