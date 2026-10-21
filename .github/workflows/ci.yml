@@ -1,0 +1,121 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: last-comments-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      business-postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: business
+          POSTGRES_PASSWORD: business
+          POSTGRES_DB: business_comments
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/last-comments-test
+      BUSINESS_DATABASE_URL: postgres://business:business@localhost:5435/business_comments
+      PAYLOAD_SECRET: ci-only-dummy-secret-override-at-runtime-1234567890
+      BETTER_AUTH_SECRET: ci-only-better-auth-secret-override-at-runtime-1234567890
+      BETTER_AUTH_URL: http://localhost:3000
+      PAYLOAD_BUNX_FLAGS: --bun
+      PAYLOAD_CLI_ARGS: --disable-transpile
+      # Production builds reject loopback origins.
+      PAYLOAD_PUBLIC_SERVER_URL: https://example.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - run: bun run generate-routes
+      - run: bun run generate:types
+      - run: bun run generate:importmap
+      - run: bun run generate:payload-admin-css
+      - run: bun run typecheck
+      - run: bunx @biomejs/biome check .
+      - run: bun run db:migrate
+      - run: bun run db:business:migrate
+      - run: bun test
+      - run: |
+          export NITRO_PRESET=node-server
+          bun run build
+          (bun scripts/start.ts & echo $! > /tmp/last-comments-server.pid)
+          for i in $(seq 1 30); do
+            curl -sf --max-time 2 http://localhost:3000/api/live && break
+            sleep 2
+          done
+          SMOKE_BASE_URL=http://localhost:3000 bun run smoke
+          kill "$(cat /tmp/last-comments-server.pid)"
+
+  docker:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Bun version
+        run: echo "BUN_VERSION=$(cat .bun-version)" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: last-comments:ci
+          build-args: |
+            BUN_VERSION=${{ env.BUN_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Start stack
+        env:
+          LAST_COMMENTS_IMAGE: last-comments:ci
+        run: docker compose up -d --no-build --wait
+      - name: Smoke
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 2 http://localhost:3000/api/live >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:3000/api/live
+          curl -fsS http://localhost:3000/api/ready
+          curl -fsS -o /dev/null http://localhost:3000/
+          curl -fsS -o /dev/null http://localhost:3000/docs
+      - name: Compose logs
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
