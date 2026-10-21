@@ -1,0 +1,67 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!**/*.json", "!src/styles", "!src/migrations", "!src/routeTree.gen.ts", "!vendor", "!.agents"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "includes": ["src/server/**", "src/routes/**", "src/components/admin/**", "src/hooks/**", "src/lib/**"],
+    "rules": {
+      "preset": "none",
+      "correctness": {
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error",
+        "noRenderReturnValue": "error",
+        "useJsxKeyInIterable": "error",
+        "noVoidElementsWithChildren": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "error"
+      }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "includes": ["src/**", "scripts/**", "*.ts"],
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "sortBareImports": false
+          }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/server/**"],
+      "linter": {
+        "enabled": true,
+        "rules": {
+          "preset": "recommended"
+        }
+      }
+    }
+  ]
+}
