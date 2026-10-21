@@ -1,17 +1,24 @@
 import { afterAll, expect, test } from 'bun:test'
 import { getBusinessDb } from '@/server/db/business-sql'
-import { instanceAdmins, pages, siteMemberships, sites } from '@/server/db/schema'
-import { cleanupTestData, createSignedInUser, handlerOf, jsonRequest, siteKeys } from './helpers/integration'
+import { pages, siteMemberships, sites } from '@/server/db/schema'
+import {
+  cleanupTestData,
+  createSignedInUser,
+  handlerOf,
+  type InstanceAdminLoan,
+  jsonRequest,
+  lendInstanceAdmin,
+  returnInstanceAdmin,
+  siteKeys,
+} from './helpers/integration'
 
 // Lazy: another test file's drainAll() closes the shared pool mid-run.
 const db = () => getBusinessDb()
 const siteKey = `moderation-create-${crypto.randomUUID()}`
-// The admin slot is a singleton, so the test lends it to a fresh session user
-// for the duration of the request and puts the original back afterwards.
-let previousAdminId: string | undefined
+let adminLoan: InstanceAdminLoan | undefined
 
 afterAll(async () => {
-  if (previousAdminId) await db().update(instanceAdmins).set({ userId: previousAdminId })
+  if (adminLoan) await returnInstanceAdmin(adminLoan)
   await cleanupTestData()
 })
 
@@ -22,9 +29,7 @@ test('moderation comment-create posts as the moderator or anonymously', async ()
   Bun.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
 
   const { userId, cookie } = await createSignedInUser()
-  const [currentAdmin] = await db().select({ userId: instanceAdmins.userId }).from(instanceAdmins)
-  previousAdminId = currentAdmin?.userId
-  await db().update(instanceAdmins).set({ userId })
+  adminLoan = await lendInstanceAdmin(userId)
 
   siteKeys.push(siteKey)
   const [site] = await db().insert(sites).values({ key: siteKey, name: 'Moderation create test' }).returning({
@@ -78,6 +83,6 @@ test('moderation comment-create posts as the moderator or anonymously', async ()
     data: { comment: { userId, authorName: 'Session user' } },
   })
 
-  await db().update(instanceAdmins).set({ userId: previousAdminId })
-  previousAdminId = undefined
+  await returnInstanceAdmin(adminLoan)
+  adminLoan = undefined
 })

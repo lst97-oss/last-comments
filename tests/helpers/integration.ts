@@ -2,7 +2,7 @@ import { eq, inArray } from 'drizzle-orm'
 
 import { getBusinessSetupAuth } from '@/server/auth/business-auth'
 import { getBusinessDb } from '@/server/db/business-sql'
-import { apikey, sites, user } from '@/server/db/schema'
+import { apikey, instanceAdmins, sites, user } from '@/server/db/schema'
 import { createComment } from '@/server/modules/comments/application/create-comment'
 import { persistComment, prepareCommentCreation } from '@/server/modules/comments/infrastructure/comment-repository'
 
@@ -20,6 +20,28 @@ export async function cleanupTestData(): Promise<void> {
   if (keyIds.length > 0) await db().delete(apikey).where(inArray(apikey.id, keyIds))
   for (const key of siteKeys) await db().delete(sites).where(eq(sites.key, key))
   if (userIds.length > 0) await db().delete(user).where(inArray(user.id, userIds))
+}
+
+export type InstanceAdminLoan = { previousUserId: string | null; lentUserId: string | null }
+
+// Lend the singleton admin slot to a test user, then restore the previous
+// holder or remove the row when the suite started with a fresh database.
+export async function lendInstanceAdmin(userId: string): Promise<InstanceAdminLoan> {
+  const [current] = await db().select({ userId: instanceAdmins.userId }).from(instanceAdmins).limit(1)
+  if (current?.userId) {
+    await db().update(instanceAdmins).set({ userId })
+    return { previousUserId: current.userId, lentUserId: null }
+  }
+  await db().insert(instanceAdmins).values({ userId })
+  return { previousUserId: null, lentUserId: userId }
+}
+
+export async function returnInstanceAdmin(loan: InstanceAdminLoan): Promise<void> {
+  if (loan.previousUserId) {
+    await db().update(instanceAdmins).set({ userId: loan.previousUserId })
+  } else if (loan.lentUserId) {
+    await db().delete(instanceAdmins).where(eq(instanceAdmins.userId, loan.lentUserId))
+  }
 }
 
 type Handler = (request: Request) => Promise<Response>

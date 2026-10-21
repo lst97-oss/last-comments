@@ -1,25 +1,23 @@
 import { afterAll, expect, test } from 'bun:test'
 
 import { getBusinessDb } from '@/server/db/business-sql'
+import { comments, moderationEvents, pages, siteMemberships, sites, userBlocks, votes } from '@/server/db/schema'
 import {
-  comments,
-  instanceAdmins,
-  moderationEvents,
-  pages,
-  siteMemberships,
-  sites,
-  userBlocks,
-  votes,
-} from '@/server/db/schema'
-import { cleanupTestData, createOwner, createSignedInUser, handlerOf, siteKeys } from './helpers/integration'
+  cleanupTestData,
+  createOwner,
+  createSignedInUser,
+  handlerOf,
+  type InstanceAdminLoan,
+  lendInstanceAdmin,
+  returnInstanceAdmin,
+  siteKeys,
+} from './helpers/integration'
 
 // Lazy: another test file's drainAll() closes the shared pool mid-run.
 const db = () => getBusinessDb()
 const siteKey = `admin-stats-${crypto.randomUUID()}`
 const otherSiteKey = `admin-stats-other-${crypto.randomUUID()}`
-// The admin slot is a singleton, so the test lends it to a fresh session user
-// for the duration of the request and puts the original back afterwards.
-let previousAdminId: string | undefined
+let adminLoan: InstanceAdminLoan | undefined
 
 const DAY = 24 * 60 * 60 * 1000
 const now = new Date()
@@ -27,7 +25,7 @@ const yesterday = new Date(now.getTime() - DAY)
 const twoDaysAgo = new Date(now.getTime() - 2 * DAY)
 
 afterAll(async () => {
-  if (previousAdminId) await db().update(instanceAdmins).set({ userId: previousAdminId })
+  if (adminLoan) await returnInstanceAdmin(adminLoan)
   await cleanupTestData()
 })
 
@@ -38,9 +36,7 @@ test('dashboard stats aggregate totals, a zero-filled daily series and moderatio
   Bun.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
 
   const { userId, cookie } = await createSignedInUser()
-  const [currentAdmin] = await db().select({ userId: instanceAdmins.userId }).from(instanceAdmins)
-  previousAdminId = currentAdmin?.userId
-  await db().update(instanceAdmins).set({ userId })
+  adminLoan = await lendInstanceAdmin(userId)
 
   siteKeys.push(siteKey, otherSiteKey)
   const [site] = await db().insert(sites).values({ key: siteKey, name: 'Stats site' }).returning({ id: sites.id })
@@ -240,6 +236,6 @@ test('dashboard stats aggregate totals, a zero-filled daily series and moderatio
   })
   expect(forbidden.status).toBe(403)
 
-  await db().update(instanceAdmins).set({ userId: previousAdminId })
-  previousAdminId = undefined
+  await returnInstanceAdmin(adminLoan)
+  adminLoan = undefined
 })
