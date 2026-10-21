@@ -46,7 +46,7 @@ the rules that are easy to get wrong and hard to notice.
 ## Verification before declaring done
 
 - `bun run typecheck` clean (`bun check`, Bun 1.4.3+ native).
-- `bunx @biomejs/biome check .` clean; `biome lint src/server` clean; imports organized.
+- `bun run check:biome` clean; `biome lint src/server` clean; imports organized.
 - `bun run format` applied (formatter covers everything except `*.json`, `src/styles`, `src/migrations`, `vendor`, `routeTree.gen.ts`).
 - After route changes: `bun run generate-routes`, then `bun run dev` + `bun run smoke` — `/` 200, `/admin` login redirect, `/api/users/me` 200 `{"user":null}`, `/api/live` 200 live, `/api/ready` 200|503 with report.
 - Docker changes: `docker compose config` clean, then `bun run stack:up`; check `/`, `/docs`, `/api/live` and `/api/ready`, and `docker compose down`.

@@ -62,7 +62,7 @@ jobs:
       - run: bun run generate:importmap
       - run: bun run generate:payload-admin-css
       - run: bun run typecheck
-      - run: bunx @biomejs/biome check .
+      - run: bun run check:biome
       - run: bun run db:migrate
       - run: bun run db:business:migrate
       - run: bun test

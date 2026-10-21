@@ -27,7 +27,8 @@
     "db:seed:demo-comments": "bun scripts/seeds/seed-demo-comments.ts",
     "plugins:work": "bun --bun scripts/plugin-worker.ts",
     "typecheck": "bun check",
-    "format": "bunx @biomejs/biome format --write .",
+    "check:biome": "biome check .",
+    "format": "biome format --write .",
     "smoke": "bun scripts/smoke.ts",
     "generate:payload-admin-css": "bun run scripts/assets/generate-payload-admin-css.ts",
     "generate:scalar": "bun run scripts/assets/copy-scalar.ts",
@@ -80,6 +81,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@tanstack/router-cli": "^1.167.45",
     "@types/mdx": "2.0.14",
     "@types/node": "^26.6.5",
