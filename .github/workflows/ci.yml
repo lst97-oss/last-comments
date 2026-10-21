@@ -101,7 +101,9 @@ jobs:
       - name: Start stack
         env:
           LAST_COMMENTS_IMAGE: last-comments:ci
-        run: docker compose up -d --no-build --wait
+        # The one-shot migration service exits, and the worker has no HTTP
+        # healthcheck; the smoke step below polls the app instead.
+        run: docker compose up -d --no-build
       - name: Smoke
         run: |
           set -euo pipefail
