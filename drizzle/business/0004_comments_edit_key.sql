@@ -1,0 +1,1 @@
+ALTER TABLE "comments" ADD COLUMN "edit_key_hash" text;

@@ -1,0 +1,48 @@
+{
+  "entries": [
+    {
+      "breakpoints": true,
+      "idx": 0,
+      "tag": "0000_business_core",
+      "version": "7",
+      "when": 1791957678225
+    },
+    {
+      "breakpoints": true,
+      "idx": 1,
+      "tag": "0001_instance_admin_setup",
+      "version": "7",
+      "when": 1792061557377
+    },
+    {
+      "breakpoints": true,
+      "idx": 2,
+      "tag": "0002_better_auth_apikey",
+      "version": "7",
+      "when": 1792142080913
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792154808511,
+      "tag": "0003_pages_page_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792377739461,
+      "tag": "0004_comments_edit_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792559945050,
+      "tag": "0006_smooth_lucky_pierre",
+      "breakpoints": true
+    }
+  ],
+  "dialect": "postgresql",
+  "version": "7"
+}
