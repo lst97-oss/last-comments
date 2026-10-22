@@ -86,7 +86,7 @@ Only your framework is a peer dependency (React 19, Vue 3.5 or Angular 22). Fram
 
 ## Requirements
 
-- Guest posting needs `turnstileSiteKey` (Cloudflare Turnstile, from `TURNSTILE_SITE_KEY` or `turnstile.config.ts`); signed-in users skip verification. With verification required and no provider, guests get a 503 notice. Local development can use Cloudflare's testing keys.
+- Posting needs `turnstileSiteKey` (Cloudflare Turnstile, from `TURNSTILE_SITE_KEY` or `turnstile.config.ts`); every commenter is verified, signed-in users included. With verification required and no provider, posts get a 503 notice. Local development can use Cloudflare's testing keys.
 - Published bundles target **ES2025** and ship no polyfills: use a current evergreen browser, and Node 22+ when running the client outside the browser.
 - The stylesheet is scoped with native CSS `@scope`; use a browser with `@scope` support.
 

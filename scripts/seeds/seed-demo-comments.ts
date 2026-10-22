@@ -83,7 +83,7 @@ const DEMO_COMMENTS = [
       'bun run dev',
       '```',
       '',
-      'Guests post with a Turnstile token, signed-in authors can edit any time, and it all lands in one',
+      'Everyone posts with a Turnstile token, signed-in authors can edit any time, and it all lands in one',
       'Postgres database.',
     ].join('\n'),
   },

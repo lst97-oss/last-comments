@@ -41,7 +41,7 @@ Auth providers are configured in `src/server/auth/auth.config.ts` (`better-auth`
 
 ## Public comments API
 
-`GET|POST /api/comments` takes a `site` plus the absolute page `url`; register the page origin as an allowed origin for that site first. Guests provide a display name and, when verification is enabled, a Turnstile token. Responses include vote `score`, the signed-in viewer's `viewerVote`, and the author's site role as `authorRole` (`admin` | `moderator` | `null`).
+`GET|POST /api/comments` takes a `site` plus the absolute page `url`; register the page origin as an allowed origin for that site first. Every post carries a Turnstile token when verification is enabled; guests also provide a display name. Responses include vote `score`, the signed-in viewer's `viewerVote`, and the author's site role as `authorRole` (`admin` | `moderator` | `null`).
 - `PUT /api/comments/vote` casts or switches a vote; `DELETE /api/comments/vote?site=…&commentId=…` clears it. Voting needs a session through the first-party deployment or a same-origin proxy.
 - Signed-in authors may edit their own comments at any time via `PATCH /api/comments/:id`. Guests receive a one-time `editKey` in the create response and may use it within the guest edit window (`comment-policy.config.ts`, default 10 minutes; `0` = unlimited). Expired guest edits fail with 403 `EDIT_WINDOW_EXPIRED`.
 - Delete stays session-only via `DELETE /api/comments/:id?site=…`.
@@ -86,7 +86,7 @@ To remove it, delete it from `installedCommentPlugins` and deploy after running 
 
 ### Turnstile verification
 
-Turnstile is enabled by default and verifies guest tokens server-side. Set `TURNSTILE_SECRET_KEY` in the environment and the public site key in `TURNSTILE_SITE_KEY` (or `turnstile.config.ts`, which wins). The consuming site renders the widget and sends the token as `verificationToken`; signed-in comments skip verification. Missing/invalid tokens fail with 403, unavailable verification fails closed with 503.
+Turnstile is enabled by default and verifies comment tokens server-side. Set `TURNSTILE_SECRET_KEY` in the environment and the public site key in `TURNSTILE_SITE_KEY` (or `turnstile.config.ts`, which wins). The consuming site renders the widget and sends the token as `verificationToken`; every commenter is verified, signed-in ones included. Missing/invalid tokens fail with 403, unavailable verification fails closed with 503.
 
 Local development can use Cloudflare's testing keys:
 

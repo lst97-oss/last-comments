@@ -198,8 +198,8 @@ function SettingsPage() {
             <section aria-label="Comments and verification" className="grid gap-4 lg:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Guest verification</CardTitle>
-                  <CardDescription>Turnstile checks for signed-out commenters.</CardDescription>
+                  <CardTitle>Comment verification</CardTitle>
+                  <CardDescription>Turnstile checks every commenter.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2 text-sm">
                   <div className="flex items-center justify-between gap-3">
@@ -228,7 +228,7 @@ function SettingsPage() {
                   </div>
                   {!settings.comments.verificationRequired && (
                     <p className="text-xs text-muted-foreground">
-                      The bypass is for local development only — guests post without a token while it is off.
+                      The bypass is for local development only — everyone posts without a token while it is off.
                     </p>
                   )}
                 </CardContent>

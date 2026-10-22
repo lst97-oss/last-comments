@@ -79,10 +79,10 @@ export function getInstanceSettings(overrides: { env?: Record<string, string | u
     }
     if (plugin.id === 'turnstile') {
       const detail = !pluginSettings.verificationRequired
-        ? 'Guest verification is bypassed (local development only)'
+        ? 'Comment verification is bypassed (local development only)'
         : turnstileSecretConfigured
-          ? 'Guest comments require a Turnstile token'
-          : 'Guest verification is required but TURNSTILE_SECRET_KEY is missing — guest posts fail closed'
+          ? 'Comments require a Turnstile token'
+          : 'Comment verification is required but TURNSTILE_SECRET_KEY is missing — posts fail closed'
       return {
         id: plugin.id,
         apiVersion: plugin.apiVersion,

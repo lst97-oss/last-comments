@@ -12,7 +12,7 @@ The identity menu offers `Sign in…`. It links to `signInUrl` when the host pro
 
 ## Signed-in visitors
 
-Signed-in visitors can switch between `Anonymous` and `<name> (you)`, and `Sign out` ends the API session (`POST {baseUrl}/api/auth/sign-out`). The widget detects the session from the API (`GET {baseUrl}/api/auth/get-session`), with the host's `viewerUserId` prop as the fallback when the API cannot answer (no same-origin proxy): when signed in, the composer drops the guest name field and Turnstile, posting uses the session identity, and votes work; the identity menu lets the user post anonymously instead.
+Signed-in visitors can switch between `Anonymous` and `<name> (you)`, and `Sign out` ends the API session (`POST {baseUrl}/api/auth/sign-out`). The widget detects the session from the API (`GET {baseUrl}/api/auth/get-session`), with the host's `viewerUserId` prop as the fallback when the API cannot answer (no same-origin proxy): when signed in, the composer drops the guest name field, posting uses the session identity, and votes work; the identity menu lets the user post anonymously instead. The Turnstile challenge stays in the composer for every identity — the server verifies every comment, signed-in ones included.
 
 ## Guest comments
 

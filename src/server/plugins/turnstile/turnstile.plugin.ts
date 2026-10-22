@@ -42,10 +42,11 @@ export function createTurnstilePlugin({
     apiVersion: 1,
     verificationProvider: true,
     async validateComment(input, signal) {
-      if (input.userId) return
+      // Every commenter is verified: a signed-in session is not a substitute
+      // for the challenge, so a spam account cannot skip it.
       // `verificationRequired: false` in turnstile.config.ts is the
-      // local-development bypass: guests post without a token. With it on, a
-      // missing secret still fails closed below.
+      // local-development bypass: commenters post without a token. With it on,
+      // a missing secret still fails closed below.
       if (!verificationRequired) return
       const secret = secretKey?.trim()
       if (!secret) throw unavailable(logger, 'secret_missing')

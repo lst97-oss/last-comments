@@ -34,12 +34,12 @@
 ## HTTP API
 
 - Spec: [OpenAPI document](/api/openapi.json). Interactive references: [Business API (Scalar)](/api/reference) and [Auth API (Scalar)](/api/auth/reference, better-auth only — 404 when external-only providers are configured). The Scalar pages are served only while the OpenAPI plugin is installed; otherwise they answer 404.
-- Auth: guests post with `authorName` (+ Turnstile `verificationToken` when required); voting, editing as a signed-in author, and all moderation calls need a session. Default provider is Better Auth (session cookie); set `AUTH_PROVIDERS` to use an external IdP instead (`oidc-jwt` Bearer tokens) or reverse-proxy SSO (`header`). Publisher calls accept `Authorization: Bearer lck_...` or `x-api-key`.
+- Auth: every post carries a Turnstile `verificationToken` when verification is required; guests also post with `authorName`. Voting, editing as a signed-in author, and all moderation calls need a session. Default provider is Better Auth (session cookie); set `AUTH_PROVIDERS` to use an external IdP instead (`oidc-jwt` Bearer tokens) or reverse-proxy SSO (`header`). Publisher calls accept `Authorization: Bearer lck_...` or `x-api-key`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/comments` | List the visible comments of one page (`site` + `url` or `pageKey`; row-offset paging, no total) |
-| POST | `/api/comments` | Post a comment or reply (guest name + Turnstile, or session) |
+| POST | `/api/comments` | Post a comment or reply (Turnstile token + guest name, or session) |
 | PATCH | `/api/comments/{commentId}` | Edit your own comment (session, or guest `editKey` inside the edit window) |
 | DELETE | `/api/comments/{commentId}` | Delete your own comment (session required) |
 | PUT | `/api/comments/vote` | Cast an up/down vote (session required) |

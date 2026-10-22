@@ -20,7 +20,7 @@ Successful responses are `{"data": ...}` and failures are `{"error": {"code": ".
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/comments` | List the comments of one page (threads page by row offset, no total) |
-| POST | `/api/comments` | Post a comment or a reply (guest name + Turnstile, or a session) |
+| POST | `/api/comments` | Post a comment or a reply (Turnstile token + guest name, or a session) |
 | PATCH | `/api/comments/{commentId}` | Edit your own comment (session, or the guest edit key) |
 | DELETE | `/api/comments/{commentId}` | Delete your own comment (session required) |
 | PUT | `/api/comments/vote` | Cast an up/down vote on a comment (session required) |

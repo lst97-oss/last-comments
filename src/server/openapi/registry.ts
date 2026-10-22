@@ -123,14 +123,14 @@ registry.registerPath({
   tags: ['comments'],
   summary: 'Post a comment or a reply',
   description:
-    'Guests post with `authorName` and a Turnstile `verificationToken`; signed-in authors post with their session and may leave both out. Pass `parentId` to reply.',
+    'Every post carries a Turnstile `verificationToken`; guests also post with `authorName`, signed-in authors post with their session and may leave the name out. Pass `parentId` to reply.',
   request: { body: { content: json(commentBodySchema) } },
   responses: {
     200: ok(z.strictObject({ comment: Comment })),
     400: errorResponse('Invalid body'),
     403: errorResponse('The site origin is not registered, or the guest name is missing'),
     404: errorResponse('The reply target does not exist'),
-    409: errorResponse('The page is locked, or the guest verification failed'),
+    409: errorResponse('The page is locked, or the verification failed'),
     503: errorResponse('The database is temporarily unavailable'),
   },
 })
