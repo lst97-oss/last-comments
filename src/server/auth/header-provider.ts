@@ -2,6 +2,7 @@ import { linkOrProvisionExternalUser, maybeBootstrapInstanceAdmin } from '@/serv
 import type { SessionPrincipal } from '@/server/auth/principal'
 import { getAuthSelection, getHeaderProviderSettings, type HeaderProviderSettings } from '@/server/auth/provider-config'
 import type { getBusinessDb } from '@/server/db/business-sql'
+import { isProxySourceAllowed } from '@/server/http/proxy-source'
 
 const PROVIDER = 'header'
 
@@ -18,35 +19,6 @@ type HeaderDeps = {
 // source checks — requires trustProxy=true in auth.config.ts AND a matching
 // proxy CIDR. Fail closed: any misconfiguration returns null instead of
 // trusting headers.
-export function isProxySourceAllowed(remoteAddr: string | null | undefined, cidr: string): boolean {
-  if (cidr === '*') return true
-  if (!remoteAddr) return false
-  const addr = remoteAddr.trim()
-  if (cidr.includes('/')) {
-    const [base, bitsRaw] = cidr.split('/')
-    const bits = Number(bitsRaw)
-    if (!base || !Number.isInteger(bits)) return false
-    if (base.includes(':') || addr.includes(':')) return addr === base
-    const toInt = (ip: string): number | null => {
-      const parts = ip.split('.').map(Number)
-      if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null
-      return (
-        ((parts[0] as number) * 256 ** 3 +
-          (parts[1] as number) * 256 ** 2 +
-          (parts[2] as number) * 256 +
-          (parts[3] as number)) >>>
-        0
-      )
-    }
-    const baseInt = toInt(base)
-    const addrInt = toInt(addr)
-    if (baseInt === null || addrInt === null || bits < 0 || bits > 32) return false
-    const mask = bits === 0 ? 0 : (0xff_ff_ff_ff << (32 - bits)) >>> 0
-    return (baseInt & mask) === (addrInt & mask)
-  }
-  return addr === cidr
-}
-
 export async function resolveHeaderSession(request: Request, deps?: HeaderDeps): Promise<SessionPrincipal | null> {
   const settings = deps?.settings ?? getHeaderProviderSettings(deps?.authFile)
   if (!settings.AUTH_TRUST_PROXY) return null

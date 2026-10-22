@@ -9,12 +9,16 @@ Plugins are trusted server-side TypeScript modules. The host does not discover o
 ```ts
 import type { CommentPlugin } from '@/server/plugins/comment-plugins'
 import { filterPlugin } from '@/server/plugins/filter/filter.plugin'
+import { resolveClientIp } from '@/server/plugins/rate-limit/client-ip'
+import { getRateLimitPluginSettings } from '@/server/plugins/rate-limit/rate-limit.config'
 import { createRateLimitPlugin } from '@/server/plugins/rate-limit/rate-limit.plugin'
 import { turnstilePlugin } from '@/server/plugins/turnstile/turnstile.plugin'
 
 export const installedCommentPlugins = [
   turnstilePlugin,
-  createRateLimitPlugin((request) => request.headers.get('x-real-ip')),
+  createRateLimitPlugin((request) =>
+    resolveClientIp(request, { trustedCidrs: getRateLimitPluginSettings().trustedProxyCidrs }),
+  ),
   filterPlugin,
 ] satisfies readonly CommentPlugin[]
 ```
@@ -44,7 +48,7 @@ The manifest checks plugin IDs and API versions at startup. Removing a plugin fr
 
 ## Built-in plugins
 
-**Rate limiting** (enabled by default) caps creates (5/10 minutes), edits and deletes (20/10 minutes), and votes (60/minute) per site and requester. Signed-in requests key off the user ID; guests key off an HMAC of the resolved client IP (the raw IP is never stored, keyed by `BETTER_AUTH_SECRET`). The default IP resolver reads `x-real-ip` — configure the trusted ingress to overwrite this header, otherwise guests can spoof their rate-limit identity. DB errors fail closed with 503 and over-limit responses include `Retry-After`. To disable it, remove it from `installedCommentPlugins` and deploy after running the normal business migrations.
+**Rate limiting** (enabled by default) caps creates (5/10 minutes), edits and deletes (20/10 minutes), and votes (60/minute) per site and requester. Signed-in requests key off the user ID; guests key off an HMAC of the resolved client IP (the raw IP is never stored, keyed by `BETTER_AUTH_SECRET`). The client IP is the request's socket peer, except when the request came from a trusted ingress — then that ingress's client IP header is used (`CF-Connecting-IP` behind Cloudflare, otherwise `x-real-ip`). Trusted ingress is loopback and private networks by default; list your own with `RATE_LIMIT_TRUSTED_PROXY_CIDR` (comma-separated CIDRs, or `*` to trust every source), so a direct client cannot rotate the header to dodge the limit. DB errors fail closed with 503 and over-limit responses include `Retry-After`. To disable it, remove it from `installedCommentPlugins` and deploy after running the normal business migrations.
 
 **Turnstile verification** (enabled by default) checks guest comment tokens on the server. Set `TURNSTILE_SECRET_KEY` in the server environment and the public site key in `TURNSTILE_SITE_KEY` (or `src/server/plugins/turnstile/turnstile.config.ts`, which takes precedence); the consuming site renders a Turnstile widget with its public site key and sends the token as `verificationToken` in `POST /api/comments`. Signed-in comments skip verification. Guest verification is required by default (`verificationRequired` in the same file — `false` for local development), and guest submissions fail closed when no verification provider is available. Cloudflare's testing keys always pass and work on any domain, localhost included: `TURNSTILE_SITE_KEY=1x00000000000000000000AA` with `TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA`.
 

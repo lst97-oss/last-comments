@@ -61,13 +61,17 @@ The moderator composer posts through `{ target: 'comment-create', site, pageId, 
 Plugins are trusted server-side TypeScript modules, statically imported in `src/server/plugins/config.ts`. Installing a package does not activate it, and the host never downloads code at runtime.
 
 ```ts
+import { resolveClientIp } from '@/server/plugins/rate-limit/client-ip'
+import { getRateLimitPluginSettings } from '@/server/plugins/rate-limit/rate-limit.config'
 import { createRateLimitPlugin } from '@/server/plugins/rate-limit/rate-limit.plugin'
 import { turnstilePlugin } from '@/server/plugins/turnstile/turnstile.plugin'
 import { discordPlugin } from '@example/last-comments-plugin-discord'
 
 export const installedCommentPlugins = [
   turnstilePlugin,
-  createRateLimitPlugin((request) => request.headers.get('x-real-ip')),
+  createRateLimitPlugin((request) =>
+    resolveClientIp(request, { trustedCidrs: getRateLimitPluginSettings().trustedProxyCidrs }),
+  ),
   discordPlugin,
 ] satisfies readonly CommentPlugin[]
 ```
@@ -76,7 +80,7 @@ Capabilities: `validateComment` (ordered, five-second timeout), `beforeOperation
 
 ### Rate limiting
 
-The `rate-limit` plugin is enabled by default and allows creates 5/10 minutes, edits and deletes 20/10 minutes, and votes 60/minute per site and requester. Signed-in requests use the Better Auth user ID; guests use a keyed HMAC of the resolved client IP, keyed by `BETTER_AUTH_SECRET`; the raw IP is not stored. The default resolver reads `x-real-ip`, so a trusted ingress must overwrite that header. DB errors fail closed with 503; over-limit responses include `Retry-After`.
+The `rate-limit` plugin is enabled by default and allows creates 5/10 minutes, edits and deletes 20/10 minutes, and votes 60/minute per site and requester. Signed-in requests use the Better Auth user ID; guests use a keyed HMAC of the resolved client IP, keyed by `BETTER_AUTH_SECRET`; the raw IP is not stored. The client IP is the request's socket peer, except when the request came from a trusted ingress — then that ingress's client IP header is used (`CF-Connecting-IP` behind Cloudflare, otherwise `x-real-ip`). Trusted ingress is loopback and private networks by default; set `RATE_LIMIT_TRUSTED_PROXY_CIDR` for anything else, so a direct client cannot rotate the header to dodge the limit. DB errors fail closed with 503; over-limit responses include `Retry-After`.
 
 To remove it, delete it from `installedCommentPlugins` and deploy after running the normal business migrations. Its table and data remain; `bun run db:business:plugins:uninstall rate-limit` explicitly drops them.
 
@@ -167,4 +171,4 @@ Payload requires `PAYLOAD_SECRET`, `DATABASE_URL` and `PAYLOAD_PUBLIC_SERVER_URL
 ## Deploy
 
 - Vercel: default Nitro preset. Run `db:migrate` and `db:business:migrate` before rollout and run `plugins:work` as a separate worker.
-- Docker/Compose: `bun run stack:up`. The image includes the admin-grant and plugin worker entrypoints plus the business migration script. Set `NODE_ENV=production`, a public HTTPS `PAYLOAD_PUBLIC_SERVER_URL`/`BETTER_AUTH_URL`, real secrets and real Turnstile keys. Use a reverse proxy that overwrites `x-real-ip`, and back up the `last-comments-pgdata` volume. See [Self-hosting](/docs/self-hosting).
+- Docker/Compose: `bun run stack:up`. The image includes the admin-grant and plugin worker entrypoints plus the business migration script. Set `NODE_ENV=production`, a public HTTPS `PAYLOAD_PUBLIC_SERVER_URL`/`BETTER_AUTH_URL`, real secrets and real Turnstile keys. Use a reverse proxy that overwrites `x-real-ip` (the rate limit trusts it only from a trusted ingress — see `RATE_LIMIT_TRUSTED_PROXY_CIDR`), and back up the `last-comments-pgdata` volume. See [Self-hosting](/docs/self-hosting).

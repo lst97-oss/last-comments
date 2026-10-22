@@ -13,6 +13,7 @@ export type RateLimitWindow = {
   operation: CommentOperation
   windowStart: number
   now: number
+  retentionSeconds: number
 }
 export type RateLimitStore = (window: RateLimitWindow) => Promise<number>
 
@@ -44,11 +45,18 @@ async function requesterHash(
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-async function incrementRateLimitWindow({ siteKey, identityHash, operation, windowStart, now }: RateLimitWindow) {
+async function incrementRateLimitWindow({
+  siteKey,
+  identityHash,
+  operation,
+  windowStart,
+  now,
+  retentionSeconds,
+}: RateLimitWindow) {
   try {
     const [row] = (await getBusinessDb().execute(sql`
       WITH expired AS (
-        DELETE FROM comment_rate_limit.rate_limit_windows WHERE window_start < ${now - 86_400}
+        DELETE FROM comment_rate_limit.rate_limit_windows WHERE window_start < ${now - retentionSeconds}
       )
       INSERT INTO comment_rate_limit.rate_limit_windows (site_key, identity_hash, operation, window_start, count)
       VALUES (${siteKey}, ${identityHash}, ${operation}, ${windowStart}, 1)
@@ -73,6 +81,10 @@ export function createRateLimitPlugin(
   limits: Record<CommentOperation, { count: number; windowSeconds: number }> = rateLimits,
 ): CommentPlugin {
   const { secret } = getRateLimitPluginSettings()
+  // A row is only read while its window is open. Keep one extra window of
+  // headroom for clock skew; retaining a fixed day multiplies live rows by
+  // 60/600s per identity for no benefit.
+  const retentionSeconds = 2 * Math.max(...Object.values(limits).map((limit) => limit.windowSeconds))
   let missingSecretLogged = false
   return {
     id: 'rate-limit',
@@ -89,7 +101,7 @@ export function createRateLimitPlugin(
       const identityHash = await requesterHash(secret, userId, request, resolveClientIp)
       let used: number
       try {
-        used = await increment({ siteKey, identityHash, operation, windowStart, now })
+        used = await increment({ siteKey, identityHash, operation, windowStart, now, retentionSeconds })
       } catch {
         logger.error('rate_limit.storage_unavailable', { operation })
         throw new HttpError(503, 'RATE_LIMIT_UNAVAILABLE', 'Comment operations are temporarily unavailable', {

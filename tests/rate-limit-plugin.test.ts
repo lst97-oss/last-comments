@@ -17,7 +17,15 @@ function recordingLogger(logs: string[]): Logger {
 describe('rate-limit plugin', () => {
   test('validates the HMAC secret length from plugin environment', () => {
     expect(() => getRateLimitPluginSettings({ BETTER_AUTH_SECRET: 'too-short' })).toThrow()
-    expect(getRateLimitPluginSettings({})).toEqual({ secret: undefined })
+    expect(getRateLimitPluginSettings({}).secret).toBeUndefined()
+  })
+
+  test('reads the trusted ingress list from the environment', () => {
+    expect(
+      getRateLimitPluginSettings({ RATE_LIMIT_TRUSTED_PROXY_CIDR: '10.0.0.0/8, 192.168.0.0/16' }).trustedProxyCidrs,
+    ).toEqual(['10.0.0.0/8', '192.168.0.0/16'])
+    // Unset falls back to the loopback and private-network defaults.
+    expect(getRateLimitPluginSettings({}).trustedProxyCidrs).toContain('127.0.0.0/8')
   })
 
   test('uses a keyed requester hash and rejects the first create over the configured limit', async () => {
@@ -55,6 +63,7 @@ describe('rate-limit plugin', () => {
         code: 'RATE_LIMITED',
         headers: expect.objectContaining({ 'retry-after': expect.any(String) }),
       })
+      expect(windows[0]?.retentionSeconds).toBe(1200) // two of the longest (600s) window
       expect(windows[0]?.identityHash).toMatch(/^[a-f0-9]{64}$/)
       expect(windows[0]?.identityHash).not.toContain('user-1')
       expect(windows[0]?.siteKey).toBe('docs')

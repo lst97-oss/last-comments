@@ -72,7 +72,7 @@ Restore into a fresh volume with `psql` in the `postgres` service, then restart 
 
 - Set `NODE_ENV=production`, `PAYLOAD_PUBLIC_SERVER_URL=https://comments.example.com`, and `BETTER_AUTH_URL` to the same public origin.
 - Replace `PAYLOAD_SECRET`, `BETTER_AUTH_SECRET`, `POSTGRES_PASSWORD` and `BUSINESS_DB_PASSWORD`; update the URLs in `.env` to match.
-- Put a TLS reverse proxy in front of port 3000 and overwrite `x-real-ip`. The rate-limit plugin trusts that header; without a trusted proxy, guests can spoof their rate-limit identity.
+- Put a TLS reverse proxy in front of port 3000 and overwrite `x-real-ip`. The rate-limit plugin uses the socket peer address, and trusts the ingress headers only from a trusted ingress (loopback and private networks by default — set `RATE_LIMIT_TRUSTED_PROXY_CIDR` when the proxy sits elsewhere). Without a trusted proxy the headers are ignored, so guests cannot spoof their rate-limit identity.
 - Use real Turnstile keys and register the embedding origins in Cloudflare.
 - Run exactly one `worker` replica for the outbox, and run the `migrate` service once per release.
 - Back up both databases before upgrading. Keep the volume outside the container lifecycle.
