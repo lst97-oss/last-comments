@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { AboutContent } from '@/components/landing/about-content'
 import { LandingRail } from '@/components/landing/landing-rail'
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, ogImageAlt, ogImageUrl } from '@/lib/seo/og-image'
 import { GITHUB_URL } from '@/lib/site-links'
 
 const TITLE = 'About Last Comments · Universal self-hosted comment system'
@@ -23,7 +24,7 @@ export const Route = createFileRoute('/about')({
   head: ({ loaderData }) => {
     const baseUrl = loaderData?.baseUrl ?? ''
     const canonical = baseUrl ? `${baseUrl}/about` : '/about'
-    const image = baseUrl ? `${baseUrl}/og-image.png` : '/og-image.png'
+    const image = ogImageUrl(baseUrl, TITLE, DESCRIPTION)
     return {
       meta: [
         { title: TITLE },
@@ -33,6 +34,9 @@ export const Route = createFileRoute('/about')({
         { property: 'og:type', content: 'website' },
         { property: 'og:url', content: canonical },
         { property: 'og:image', content: image },
+        { property: 'og:image:alt', content: ogImageAlt(TITLE) },
+        { property: 'og:image:width', content: String(OG_IMAGE_WIDTH) },
+        { property: 'og:image:height', content: String(OG_IMAGE_HEIGHT) },
         { name: 'twitter:title', content: TITLE },
         { name: 'twitter:description', content: DESCRIPTION },
         { name: 'twitter:image', content: image },

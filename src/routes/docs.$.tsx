@@ -11,6 +11,7 @@ import { withDocTreeIcons } from '@/lib/docs/icons'
 import { baseOptions } from '@/lib/docs/layout-shared'
 import { serializeDocsPageTree } from '@/lib/docs/page-tree'
 import { docs, source } from '@/lib/docs/source'
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, ogImageAlt, ogImageUrl } from '@/lib/seo/og-image'
 import '@/styles/docs.css'
 
 export const Route = createFileRoute('/docs/$')({
@@ -22,18 +23,23 @@ export const Route = createFileRoute('/docs/$')({
     return data
   },
   head: ({ loaderData }) => {
-    const image = loaderData?.baseUrl ? `${loaderData.baseUrl.replace(/\/+$/, '')}/og-image.png` : '/og-image.png'
+    const title = loaderData?.title ? `${loaderData.title} · Last Comments` : 'Docs · Last Comments'
+    const description = loaderData?.description ?? 'Widget guides and API reference for Last Comments.'
+    const image = ogImageUrl(loaderData?.baseUrl ?? '', title, description)
     return {
       meta: [
-        { title: loaderData?.title ? `${loaderData.title} · Last Comments` : 'Docs · Last Comments' },
+        { title },
         {
           name: 'description',
-          content: loaderData?.description ?? 'Widget guides and API reference for Last Comments.',
+          content: description,
         },
         { property: 'og:type', content: 'article' },
         ...(loaderData?.canonical ? [{ property: 'og:url', content: loaderData.canonical }] : []),
         ...(loaderData?.title ? [{ property: 'og:title', content: `${loaderData.title} · Last Comments` }] : []),
         { property: 'og:image', content: image },
+        { property: 'og:image:alt', content: ogImageAlt(title) },
+        { property: 'og:image:width', content: String(OG_IMAGE_WIDTH) },
+        { property: 'og:image:height', content: String(OG_IMAGE_HEIGHT) },
         { name: 'twitter:image', content: image },
       ],
       links: loaderData?.canonical ? [{ rel: 'canonical', href: loaderData.canonical }] : [],

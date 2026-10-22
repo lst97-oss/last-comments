@@ -4,27 +4,34 @@ import { PostRow } from '@/components/blog/post-card'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { listBlogPostsServerFn } from '@/lib/blog/server-fns'
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, ogImageAlt, ogImageUrl } from '@/lib/seo/og-image'
 import { SiteNotFound } from '@/lib/site-not-found'
+
+const TITLE = 'Blog · Last Comments'
+const DESCRIPTION =
+  'Product notes and release write-ups for Last Comments, with the comment thread embedded on every post.'
 
 export const Route = createFileRoute('/blog/')({
   loader: async () => await listBlogPostsServerFn({ data: {} }),
   head: ({ loaderData }) => {
     const baseUrl = loaderData?.baseUrl?.replace(/\/+$/, '') ?? ''
     const canonical = baseUrl ? `${baseUrl}/blog` : '/blog'
-    const image = baseUrl ? `${baseUrl}/og-image.png` : '/og-image.png'
+    const image = ogImageUrl(baseUrl, TITLE, DESCRIPTION)
     return {
       meta: [
-        { title: 'Blog · Last Comments' },
+        { title: TITLE },
         {
           name: 'description',
-          content:
-            'Product notes and release write-ups for Last Comments, with the comment thread embedded on every post.',
+          content: DESCRIPTION,
         },
         { property: 'og:type', content: 'website' },
         { property: 'og:url', content: canonical },
-        { property: 'og:title', content: 'Blog · Last Comments' },
+        { property: 'og:title', content: TITLE },
         { property: 'og:image', content: image },
-        { name: 'twitter:title', content: 'Blog · Last Comments' },
+        { property: 'og:image:alt', content: ogImageAlt(TITLE) },
+        { property: 'og:image:width', content: String(OG_IMAGE_WIDTH) },
+        { property: 'og:image:height', content: String(OG_IMAGE_HEIGHT) },
+        { name: 'twitter:title', content: TITLE },
         { name: 'twitter:image', content: image },
       ],
       links: [{ rel: 'canonical', href: canonical }],

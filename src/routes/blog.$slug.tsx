@@ -7,6 +7,7 @@ import { PostMeta } from '@/components/blog/post-meta'
 import { ThreadComments } from '@/components/blog/thread-comments'
 import { absoluteCoverUrl, buildBlogPostingJsonLd, postCanonicalUrl, postSeoDescription } from '@/lib/blog/blog-seo'
 import { blogPostServerFn } from '@/lib/blog/server-fns'
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, ogImageAlt, ogImageUrl } from '@/lib/seo/og-image'
 import { SiteNotFound } from '@/lib/site-not-found'
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -28,7 +29,7 @@ export const Route = createFileRoute('/blog/$slug')({
     const canonical = postCanonicalUrl(commentConfig.baseUrl, post.slug)
     const description = postSeoDescription(post)
     const cover = absoluteCoverUrl(commentConfig.baseUrl, post.coverUrl)
-    const image = cover ?? absoluteCoverUrl(commentConfig.baseUrl, '/og-image.png')
+    const image = cover ?? ogImageUrl(commentConfig.baseUrl, post.title, description)
     return {
       meta: [
         { title: `${post.title} · Last Comments` },
@@ -38,11 +39,21 @@ export const Route = createFileRoute('/blog/$slug')({
         { property: 'og:site_name', content: 'Last Comments' },
         { property: 'og:title', content: post.title },
         { property: 'og:description', content: description },
-        ...(image ? [{ property: 'og:image', content: image }] : []),
+        { property: 'og:image', content: image },
+        {
+          property: 'og:image:alt',
+          content: cover ? (post.coverAlt ?? post.title) : ogImageAlt(post.title),
+        },
+        ...(cover
+          ? []
+          : [
+              { property: 'og:image:width', content: String(OG_IMAGE_WIDTH) },
+              { property: 'og:image:height', content: String(OG_IMAGE_HEIGHT) },
+            ]),
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: post.title },
         { name: 'twitter:description', content: description },
-        ...(image ? [{ name: 'twitter:image', content: image }] : []),
+        { name: 'twitter:image', content: image },
         ...(post.publishedAt ? [{ property: 'article:published_time', content: post.publishedAt }] : []),
         ...(post.authorName ? [{ property: 'article:author', content: post.authorName }] : []),
         {
