@@ -43,7 +43,7 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -52,13 +52,13 @@ services:
 
   migrate:
     <<: *app-service
-    command: ['sh', '-c', 'bun run db:migrate && bun run db:business:migrate']
+    command: ["sh", "-c", "bun run db:migrate && bun run db:business:migrate"]
     healthcheck:
       disable: true
     depends_on:
       postgres:
         condition: service_healthy
-    restart: 'no'
+    restart: "no"
 
   app:
     <<: *app-service
@@ -67,7 +67,7 @@ services:
       args:
         BUN_VERSION: ${BUN_VERSION:-1.4.3}
     ports:
-      - '3000:3000'
+      - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,7 +77,7 @@ services:
 
   worker:
     <<: *app-service
-    command: ['bun', 'scripts/plugin-worker.ts']
+    command: ["bun", "scripts/plugin-worker.ts"]
     healthcheck:
       disable: true
     depends_on:

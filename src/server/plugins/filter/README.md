@@ -4,10 +4,10 @@ Advisory comment screening that holds violations for review (`status:
 'hidden'`) instead of rejecting the write. Two engines, each independently
 switchable — enable either, both, or neither:
 
-| Engine | What | Cost | Config |
-| --- | --- | --- | --- |
-| `bad-words` | Lexical blocklist + default profanity wordlist | Zero (sync) | `engines.badwords`, `blocklist`, `allowlist` |
-| LLM decider | `perplexity/pplx-decider-v1.2` via `@openrouter/sdk`, text + markdown images | ~1 chat call per screened comment | `engines.llm`, `schemas.*`, `openrouter.*` |
+| Engine      | What                                                                         | Cost                              | Config                                       |
+| ----------- | ---------------------------------------------------------------------------- | --------------------------------- | -------------------------------------------- |
+| `bad-words` | Lexical blocklist + default profanity wordlist                               | Zero (sync)                       | `engines.badwords`, `blocklist`, `allowlist` |
+| LLM decider | `perplexity/pplx-decider-v1.2` via `@openrouter/sdk`, text + markdown images | ~1 chat call per screened comment | `engines.llm`, `schemas.*`, `openrouter.*`   |
 
 All tuning lives in [`filter.config.ts`](./filter.config.ts) (standard
 per-plugin TS config — see `../plugin-config.ts`). The only environment

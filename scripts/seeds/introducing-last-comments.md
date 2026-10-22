@@ -7,7 +7,6 @@ This post is itself seeded from `scripts/seeds/introducing-last-comments.md` (vi
 ## What it is
 
 A Payload v4 + TanStack Start app, extended with a separate comments service:
-
 - **Payload remains the admin** — `users`-only collection, `posts` + `media` for the blog, Postgres with `push: false` + committed migrations. Create the first admin at `/admin`.
 - **Comments live elsewhere** — a dedicated business Postgres (`BUSINESS_DATABASE_URL`) holds comments, pages, votes, sites, API keys, and Better Auth tables. It migrates independently (`bun run db:business:migrate`), including per-plugin migrations.
 - **One widget, four frameworks** — `@lst97-oss/last-comments-widgets` ships `/react`, `/vue`, `/angular`, and `/vanilla` on one shared client. Hosts embed a site key and a page URL; the server is the trust boundary for every error code.
@@ -104,7 +103,6 @@ sequenceDiagram
 ## Goal
 
 Stay minimal and portable: every file must justify itself for boot (`/`, `/admin`, `/api/*`). No chat, no RAG, no storage abstractions — those belong in a downstream product. What ships is the smallest kernel that makes self-hosted comments boring:
-
 - Framework-agnostic embeds with one API contract and one theme.
 - Payload-native publishing with stable `pageKey` threads.
 - A moderation story that works without leaving the repo.

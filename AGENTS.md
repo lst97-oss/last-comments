@@ -17,7 +17,6 @@ Self-hosted comment threads built on Payload v4 (`4.0.0-beta.2`) + TanStack Star
 
 Read the matching skill before writing admin React or admin UI — they carry
 the rules that are easy to get wrong and hard to notice.
-
 - `.agents/skills/react-admin-patterns/` — server state through `useQuery`,
   writes through `useMutation`, what may be an effect, keys and memoization,
   the `'use memo'` placement, and the shared admin component catalogue.

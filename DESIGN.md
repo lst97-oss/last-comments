@@ -82,7 +82,6 @@ Avoid unnecessarily long or repetitive Tailwind class lists.
 Creating large class lists simply to achieve small visual differences.
 
 Do not use multiple conflicting utilities such as:
-
 - `p-4 p-6`
 - `bg-primary bg-secondary`
 - `text-sm text-lg`
@@ -93,7 +92,6 @@ unless they are intentionally separated by responsive or state variants.
 ### Preferred Approach
 
 When styling becomes difficult to read:
-
 1. Remove unnecessary or conflicting utilities.
 2. Replace arbitrary values with existing design tokens.
 3. Extract repeated structures into reusable components.
@@ -178,14 +176,12 @@ Colours must communicate purpose rather than serve as arbitrary decoration.
 ### Primary
 
 Use for:
-
 - Main call-to-action buttons.
 - Primary interactive elements.
 - Important brand-related interactions.
 - Active states when appropriate.
 
 Avoid:
-
 - Applying the primary colour to every component.
 - Excessively highlighting unrelated elements.
 - Using primary backgrounds throughout large sections without a design reason.
@@ -193,7 +189,6 @@ Avoid:
 ### Secondary
 
 Use for:
-
 - Secondary actions.
 - Lower-emphasis interactive components.
 - Supporting controls.
@@ -203,7 +198,6 @@ Avoid competing visually with primary actions.
 ### Accent
 
 Use for:
-
 - Hover highlights.
 - Selected surfaces.
 - Subtle decorative emphasis.
@@ -214,7 +208,6 @@ Accent should not automatically replace primary.
 ### Muted
 
 Use for:
-
 - Secondary surfaces.
 - Disabled-looking decorative surfaces.
 - Supporting information.
@@ -225,7 +218,6 @@ Do not rely on muted colours alone to communicate disabled states.
 ### Success
 
 Use only when communicating:
-
 - Successful operations.
 - Completed actions.
 - Approved statuses.
@@ -237,7 +229,6 @@ Do not use success colours for ordinary decorative elements.
 ### Warning
 
 Use only when communicating:
-
 - Potential problems.
 - Pending attention.
 - Cautionary conditions.
@@ -248,7 +239,6 @@ Do not use warning colours for general highlighting.
 ### Error
 
 Use only when communicating:
-
 - Failed operations.
 - Validation errors.
 - Invalid states.
@@ -257,7 +247,6 @@ Use only when communicating:
 ### Destructive
 
 Use for:
-
 - Delete actions.
 - Account removal.
 - Irreversible operations.
@@ -268,7 +257,6 @@ Distinguish destructive actions from ordinary error messages.
 ### Info
 
 Use for:
-
 - Informational notices.
 - Neutral system messages.
 - Additional guidance.
@@ -312,14 +300,12 @@ Use semantic status tokens consistently.
 ### Status Alerts
 
 Prefer:
-
 - Muted semantic background.
 - Readable foreground text.
 - A status icon when useful.
 - A subtle semantic border or indicator.
 
 Avoid:
-
 - Excessively saturated backgrounds.
 - Multiple competing status colours.
 - Unnecessary gradients.
@@ -368,7 +354,6 @@ Keep component styling predictable and maintainable.
 ### Recommended Component Variants
 
 Buttons may support:
-
 - `primary`
 - `secondary`
 - `outline`
@@ -376,7 +361,6 @@ Buttons may support:
 - `destructive`
 
 Alerts may support:
-
 - `default`
 - `success`
 - `warning`
@@ -513,7 +497,6 @@ Do not introduce unnecessary complexity into the styling architecture.
 ## 14. Existing Project Compatibility
 
 When modifying an existing project:
-
 1. Inspect the current styling architecture.
 2. Identify the installed Tailwind version.
 3. Review existing design tokens.
@@ -532,7 +515,6 @@ Changes should improve maintainability without creating unnecessary code churn.
 ## 15. Styling Decision Checklist
 
 Before implementing styling, evaluate:
-
 1. Can existing design tokens satisfy the requirement?
 2. Can existing components or variants be reused?
 3. Is Tailwind the clearest implementation?
@@ -553,7 +535,6 @@ If the implementation becomes unnecessarily complicated, simplify it before cons
 ## 16. Final Implementation Principles
 
 Follow these priorities in order:
-
 1. Correctness and accessibility.
 2. Consistency with the existing design system.
 3. Maintainability and readability.

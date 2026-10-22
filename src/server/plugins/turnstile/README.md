@@ -4,7 +4,6 @@ Cloudflare Turnstile guest verification. Implements `verificationProvider` +
 `validateComment`: with `verificationRequired` on (the default in
 `turnstile.config.ts`), guest posts must present a token that verifies against
 `siteverify` for the thread's hostname; signed-in posts skip verification.
-
 - Fails closed: missing `TURNSTILE_SECRET_KEY` or unreachable Siteverify →
   `503 COMMENT_VERIFICATION_UNAVAILABLE`; bad token or hostname mismatch →
   `403 COMMENT_VERIFICATION_FAILED`.
@@ -12,7 +11,6 @@ Cloudflare Turnstile guest verification. Implements `verificationProvider` +
   without a token).
 
 Keys:
-
 - `TURNSTILE_SECRET_KEY` (env) — the secret. `TURNSTILE_SITE_KEY` (env) is the
   public site key; the file config's `siteKey` wins over it, so a host that
   edits `turnstile.config.ts` never depends on the environment.

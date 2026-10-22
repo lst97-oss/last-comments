@@ -1,4 +1,5 @@
 # last-comments
+
 <img width="1100" height="768" alt="Screenshot 2026-10-22 at 1 12 16 am" src="https://github.com/user-attachments/assets/defdb475-b97e-4cf5-8f56-306bba7eda38" />
 
 Self-hosted comment threads for any page: a Payload CMS admin for content, a TanStack Start site with docs and blog, and a Bun/Drizzle comments service with Better Auth, a moderation dashboard, publisher API keys, and a server plugin system. Payload owns `/admin`; comments, sites, votes, API keys and auth sessions live in a separate business database.
@@ -41,7 +42,6 @@ Auth providers are configured in `src/server/auth/auth.config.ts` (`better-auth`
 ## Public comments API
 
 `GET|POST /api/comments` takes a `site` plus the absolute page `url`; register the page origin as an allowed origin for that site first. Guests provide a display name and, when verification is enabled, a Turnstile token. Responses include vote `score`, the signed-in viewer's `viewerVote`, and the author's site role as `authorRole` (`admin` | `moderator` | `null`).
-
 - `PUT /api/comments/vote` casts or switches a vote; `DELETE /api/comments/vote?site=…&commentId=…` clears it. Voting needs a session through the first-party deployment or a same-origin proxy.
 - Signed-in authors may edit their own comments at any time via `PATCH /api/comments/:id`. Guests receive a one-time `editKey` in the create response and may use it within the guest edit window (`comment-policy.config.ts`, default 10 minutes; `0` = unlimited). Expired guest edits fail with 403 `EDIT_WINDOW_EXPIRED`.
 - Delete stays session-only via `DELETE /api/comments/:id?site=…`.
@@ -52,7 +52,7 @@ Run `bun run plugins:work` as a separate process to deliver plugin events unless
 
 ## Moderation dashboard
 
-`/moderation` → Pages → *View comments* renders a thread with `@lst97-oss/last-comments-widgets` (`/react` entry plus its scoped stylesheet): markdown bodies, `hidden`/`deleted` badges, nested replies, pinned comments first, and the moderation row. Only rendering and the composer come from the package; every action still posts to this repo's `/api/moderation`.
+`/moderation` → Pages → _View comments_ renders a thread with `@lst97-oss/last-comments-widgets` (`/react` entry plus its scoped stylesheet): markdown bodies, `hidden`/`deleted` badges, nested replies, pinned comments first, and the moderation row. Only rendering and the composer come from the package; every action still posts to this repo's `/api/moderation`.
 
 The moderator composer posts through `{ target: 'comment-create', site, pageId, parentId?, bodyMarkdown }`. It skips the public origin, guest-name and Turnstile gates because the session is the verification, while remaining site-scoped: unknown `pageId` → 404 `PAGE_NOT_FOUND`, hidden/deleted parent → 404 `PARENT_NOT_FOUND`, locked page → 409 `PAGE_LOCKED`. Bodies are capped at 10,000 characters (`COMMENT_BODY_LIMIT` in `src/lib/comment-schema.ts`), counted before trimming and passed to the widget as `bodyLimit`.
 
@@ -97,23 +97,23 @@ The `filter` plugin is installed but **off by default** (`enabled: false` in `fi
 
 ## Scripts
 
-| Script | Purpose |
-|---|---|
-| `dev` | Vite dev server on `:3000` |
-| `build` | Generate routes, Scalar, admin CSS, types and import map, then `vite build` |
-| `start` | Run the Nitro output for the active preset |
-| `generate:types` / `generate:importmap` | Regenerate `payload-types.ts` / `src/payload-import-map.ts` |
-| `generate-routes` | Regenerate `src/routeTree.gen.ts` |
-| `generate:payload-admin-css` | Regenerate `src/styles/payload-admin-generated.css` (also runs in `build`) |
-| `db:up` / `db:down` | Start/stop the Compose Postgres service |
-| `db:migrate` | Apply Payload migrations (`src/migrations/`) |
-| `db:business:migrate` | Apply core business migrations and installed-plugin migrations |
-| `db:business:plugins:uninstall <id>` | Drop a supported plugin's data and migration history |
-| `db:business:grant-admin` | Grant instance admin to an existing business account |
-| `plugins:work` | Deliver plugin outbox events |
-| `stack:up` / `stack:down` | Build/start or stop the full Compose stack |
-| `smoke` | Boot-contract check against a running server |
-| `typecheck` | `bun check` (Bun's native checker) |
+| Script                                  | Purpose                                                                     |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| `dev`                                   | Vite dev server on `:3000`                                                  |
+| `build`                                 | Generate routes, Scalar, admin CSS, types and import map, then `vite build` |
+| `start`                                 | Run the Nitro output for the active preset                                  |
+| `generate:types` / `generate:importmap` | Regenerate `payload-types.ts` / `src/payload-import-map.ts`                 |
+| `generate-routes`                       | Regenerate `src/routeTree.gen.ts`                                           |
+| `generate:payload-admin-css`            | Regenerate `src/styles/payload-admin-generated.css` (also runs in `build`)  |
+| `db:up` / `db:down`                     | Start/stop the Compose Postgres service                                     |
+| `db:migrate`                            | Apply Payload migrations (`src/migrations/`)                                |
+| `db:business:migrate`                   | Apply core business migrations and installed-plugin migrations              |
+| `db:business:plugins:uninstall <id>`    | Drop a supported plugin's data and migration history                        |
+| `db:business:grant-admin`               | Grant instance admin to an existing business account                        |
+| `plugins:work`                          | Deliver plugin outbox events                                                |
+| `stack:up` / `stack:down`               | Build/start or stop the full Compose stack                                  |
+| `smoke`                                 | Boot-contract check against a running server                                |
+| `typecheck`                             | `bun check` (Bun's native checker)                                          |
 
 ## Structure
 
@@ -150,9 +150,9 @@ Use `@/` imports only. Server work belongs in `createServerFn` handlers under `s
 ## Adding a Payload collection
 
 Payload currently owns `users`, `media` and `posts`. For a new collection:
-
 1. Add it to `payload.config.ts` with fields, `admin.useAsTitle` and `access`.
 2. Create a migration — never dev auto-push (`push: false`):
+
    ```bash
    bun run payload migrate:create   # split value/type imports per AGENTS.md trap
    bun run db:migrate
