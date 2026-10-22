@@ -37,8 +37,9 @@ export const filterConfigDef = definePluginConfig({
   id: 'filter',
   fileSchema: filterFileSchema,
   defaults: {
-    // Opt-in; set OPENROUTER_API_KEY before enabling LLM screening.
-    enabled: false,
+    // Screening is on by default; the LLM engine needs OPENROUTER_API_KEY and
+    // resolves through failOpen without it.
+    enabled: true,
     engines: { badwords: true, llm: true },
     schemas: { text: 'all', image: 'all' },
     hideThreshold: 0.7,
