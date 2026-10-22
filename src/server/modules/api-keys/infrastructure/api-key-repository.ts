@@ -94,14 +94,19 @@ export async function inspectServiceKey(request: Request): Promise<ResolvedServi
   }
 }
 
+// Service keys live in `x-api-key` or in `Authorization`. Only the
+// `lck_` prefix marks an Authorization header as a service key: an OIDC/IdP
+// bearer token must fall through to the session adapters, not to key
+// verification.
+const API_KEY_PREFIX = 'lck_'
+
 function extractBearer(request: Request): string | null {
-  const raw = request.headers.get('x-api-key') ?? request.headers.get('authorization')
+  const explicit = request.headers.get('x-api-key')?.trim()
+  if (explicit) return explicit
+  const raw = request.headers.get('authorization')?.trim()
   if (!raw) return null
-  if (raw.startsWith('Bearer ')) {
-    const secret = raw.slice('Bearer '.length).trim()
-    return secret ? secret : null
-  }
-  return raw
+  const secret = /^bearer\s+/i.test(raw) ? raw.replace(/^bearer\s+/i, '').trim() : raw
+  return secret.startsWith(API_KEY_PREFIX) ? secret : null
 }
 
 export function hasServiceKey(request: Request): boolean {
