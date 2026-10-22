@@ -8,19 +8,22 @@ import {
   createAdminSite,
   hasInstanceAdmin,
   listAdminSites,
+  listAdminSitesForUser,
 } from '@/server/modules/admin/infrastructure/admin-repository'
 import { hasServiceKey, requireServiceKey } from '@/server/modules/api-keys/infrastructure/api-key-repository'
 
 const SITE_MANAGEMENT_ORIGIN_MESSAGE = 'Site management must use the application origin'
 
-async function requireSiteReader(request: Request): Promise<void> {
+// The session user the list is scoped to, or null for a service key (an
+// instance-level key that may read every site).
+async function requireSiteReader(request: Request): Promise<string | null> {
   if (hasServiceKey(request)) {
     await requireServiceKey(request, 'sites:read')
-    return
+    return null
   }
   // Reads take no same-origin check: browsers omit Origin on same-origin GET,
   // and a cross-origin caller cannot read the JSON without CORS headers.
-  await requireSessionUserId(request, 'Sign in to manage sites')
+  return requireSessionUserId(request, 'Sign in to manage sites')
 }
 
 async function requireSiteCreator(request: Request): Promise<string | null> {
@@ -39,12 +42,16 @@ async function requireSiteCreator(request: Request): Promise<string | null> {
 export const Route = createFileRoute('/api/admin/sites')({
   server: {
     handlers: {
-      // List all sites. Session callers see every site here; row-level
-      // filtering happens in the dashboard via membership roles.
+      // List the sites the caller may see: instance admins get every site, a
+      // member only the sites they belong to. Service keys are
+      // instance-level and keep the full list.
       GET: ({ request }) =>
         withContext(async () => {
-          await requireSiteReader(request)
-          return { sites: await listAdminSites() }
+          const userId = await requireSiteReader(request)
+          if (userId === null || (await hasInstanceAdmin(userId))) {
+            return { sites: await listAdminSites() }
+          }
+          return { sites: await listAdminSitesForUser(userId) }
         })({ request }),
       POST: ({ request }) =>
         withContext(async () => {

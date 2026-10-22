@@ -263,7 +263,9 @@ registry.registerPath({
   method: 'get',
   path: '/api/admin/sites',
   tags: ['sites'],
-  summary: 'List every site with its allowed origins',
+  summary: 'List the sites you may see with their allowed origins',
+  description:
+    'Instance admins see every site; a site member sees only the sites they belong to. A service key with the `sites:read` scope is instance-level and sees every site.',
   request: {},
   security: sessionOrServiceKey,
   responses: {
@@ -407,14 +409,14 @@ registry.registerPath({
   tags: ['users'],
   summary: 'List the user directory of a site',
   description:
-    'Everyone relevant to one site — commenters, site members and actively blocked users — newest registration first. Guests never appear. Session-only: names and emails are never served to service keys.',
+    'Everyone relevant to one site — commenters, site members and actively blocked users — newest registration first. Guests never appear. Session-only: names and emails are never served to service keys, and site moderators are excluded — only instance admins and site admins may read the directory.',
   request: { query: usersQuerySchema },
   security: [sessionCookie],
   responses: {
     200: ok(z.strictObject({ users: z.array(SiteUser), total: z.number().int() })),
     400: errorResponse('Invalid query parameters'),
     401: errorResponse('No session'),
-    403: errorResponse('Not a member of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },

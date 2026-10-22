@@ -27,11 +27,11 @@ Successful responses are `{"data": ...}` and failures are `{"error": {"code": ".
 | DELETE | `/api/comments/vote` | Clear your vote on a comment (session required) |
 | GET | `/api/moderation` | List sites, threads and comments for the moderation dashboard (session required) |
 | POST | `/api/moderation` | Run a moderation action: hide/restore/delete/pin a comment, lock a page, block a user, post as moderator, edit, vote (session required) |
-| GET | `/api/admin/sites` | List every site with its allowed origins (session or service key) |
+| GET | `/api/admin/sites` | List the sites you may see with their allowed origins — instance admins see every site, a member only their own (session or service key) |
 | POST | `/api/admin/sites` | Create a site with its first allowed origin (instance admin or service key) |
 | GET | `/api/admin/pages` | List the registered page threads of one site with recent-window activity (`?recentDays=0..90&preview=1..5`, `0` = all time, session or service key) |
 | GET | `/api/admin/pages/{pageId}` | Read one page thread with its totals, daily trend, top authors and moderation activity (session or service key) |
-| GET | `/api/admin/users` | List the user directory of one site — commenters, members, blocked users (`?search=&filter=all|blocked&limit=&offset=`, session required) |
+| GET | `/api/admin/users` | List the user directory of one site — commenters, members, blocked users (`?search=&filter=all|blocked&limit=&offset=`, instance admin or site admin, session required) |
 | GET | `/api/admin/users/{userId}/comments` | Read one user's comment history on a site, hidden and deleted included (session required) |
 | GET | `/api/admin/settings` | Read the read-only instance settings snapshot: plugin status, providers, comment settings (instance admin, session required) |
 | GET | `/api/admin/stats` | Dashboard totals, daily trend, top threads and moderation activity for one site |
