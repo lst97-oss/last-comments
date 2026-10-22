@@ -256,7 +256,7 @@ function ModerationPage() {
               )
             }
             onRefreshPages={() => void pagesQuery.refetch()}
-            onAct={(action) => void actMutation.mutateAsync(action).catch(() => undefined)}
+            onAct={(action) => actMutation.mutateAsync(action).catch(() => undefined)}
             onNavigateView={(next) => void navigate({ to: '/moderation', search: { view: next } })}
           />
         )}
@@ -279,7 +279,7 @@ type ViewContentProps = {
   onRenameSite: (siteKey: string, name: string) => Promise<boolean>
   onDeleteSite: (siteKey: string) => Promise<boolean>
   onRefreshPages: () => void
-  onAct: (action: Record<string, string | boolean>) => void
+  onAct: (action: Record<string, string | boolean>) => Promise<void>
   onNavigateView: (view: ModerationView) => void
 }
 

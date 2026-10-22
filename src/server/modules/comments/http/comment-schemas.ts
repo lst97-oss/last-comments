@@ -23,7 +23,8 @@ export const siteQuerySchema = z.strictObject({ site: z.string().min(1).max(100)
 
 export const pagesQuerySchema = z.strictObject({
   site: z.string().min(1).max(100),
-  recentDays: z.coerce.number().int().min(1).max(30).default(7),
+  // 0 means "all time": the recent window is unbounded.
+  recentDays: z.coerce.number().int().min(0).max(90).default(7).describe('Window in days; 0 means all time.'),
   preview: z.coerce.number().int().min(1).max(5).default(3),
 })
 

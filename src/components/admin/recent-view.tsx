@@ -1,8 +1,10 @@
 'use client'
 
 import { Link } from '@tanstack/react-router'
-import { EyeOff, Pin, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, Pin, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 
+import { Pager } from '@/components/admin/pages-view'
 import { ThreadStatusBadge } from '@/components/admin/thread-status-badge'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from '@/components/ui/avatar'
@@ -11,13 +13,21 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
+import { Spinner } from '@/components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { authorInitials, timeAgo } from '@/lib/admin-format'
 import { PAGE_LIST_LIMIT, type PageSummary } from '@/lib/page-thread'
 
-const RECENT_WINDOWS = [1, 7, 30] as const
+// The recent window of the Recent tab. 0 is "all time": the window is
+// unbounded, so every comment of every thread counts.
+const RECENT_WINDOWS = [0, 1, 7, 30] as const
 
-const TAKEDOWN_LIST_SIZE = 20
+const TAKEDOWN_PAGE_SIZE = 10
+
+function windowOptionLabel(days: number) {
+  if (days === 0) return 'ALL'
+  return days === 1 ? '24H' : `${days}D`
+}
 
 function RecentStatusBadge({ status }: { status: 'visible' | 'hidden' | 'deleted' }) {
   if (status === 'hidden') return <Badge variant="destructive">Hidden</Badge>
@@ -35,12 +45,19 @@ export function RecentView({
   site,
   recentDays,
   onRecentDays,
+  onAct,
 }: {
   pages: PageSummary[]
   site: string
   recentDays: number
   onRecentDays: (days: number) => void
+  onAct: (action: Record<string, string | boolean>) => Promise<void>
 }) {
+  // The takedown list is client-paged: the rows come from the pages the
+  // server already summarized, so a busy site stays one screenful.
+  const [takedownPage, setTakedownPage] = useState(0)
+  // The comment being restored, so only that row shows the loading state.
+  const [restoringId, setRestoringId] = useState<string | null>(null)
   if (pages.length === 0) {
     return (
       <Card>
@@ -58,7 +75,9 @@ export function RecentView({
       </Card>
     )
   }
-  const windowLabel = recentDays === 1 ? 'last 24 hours' : `last ${recentDays} days`
+  const windowLabel =
+    recentDays === 0 ? 'all time' : recentDays === 1 ? 'the last 24 hours' : `the last ${recentDays} days`
+  const windowShortLabel = recentDays === 0 ? 'all time' : recentDays === 1 ? 'the last 24h' : `the last ${recentDays}d`
   const takedowns = pages
     .flatMap((page) =>
       page.recent.preview.map((comment) => ({
@@ -70,25 +89,41 @@ export function RecentView({
     )
     .filter((row) => row.comment.status !== 'visible')
     .sort((a, b) => +new Date(b.comment.createdAt) - +new Date(a.comment.createdAt))
-  const shownTakedowns = takedowns.slice(0, TAKEDOWN_LIST_SIZE)
+  const takedownLastPage = Math.max(0, Math.ceil(takedowns.length / TAKEDOWN_PAGE_SIZE) - 1)
+  const takedownCurrent = Math.min(takedownPage, takedownLastPage)
+  const shownTakedowns = takedowns.slice(
+    takedownCurrent * TAKEDOWN_PAGE_SIZE,
+    takedownCurrent * TAKEDOWN_PAGE_SIZE + TAKEDOWN_PAGE_SIZE,
+  )
+
+  // Restore puts the comment back on the thread; the page list refetches
+  // afterwards, so the row leaves this list on its own.
+  async function restore(commentId: string) {
+    setRestoringId(commentId)
+    try {
+      await onAct({ target: 'comment', commentId, action: 'restore' })
+    } finally {
+      setRestoringId(null)
+    }
+  }
   return (
     <>
       <section aria-label="Recent threads" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            {pages.length} {pages.length === 1 ? 'thread' : 'threads'} · updates in the {windowLabel}
+            {pages.length} {pages.length === 1 ? 'thread' : 'threads'} · updates in {windowLabel}
           </p>
           <ToggleGroup
             aria-label="Recent window"
             value={[String(recentDays)]}
             onValueChange={(next) => {
               const picked = Number(next[0])
-              if (picked === 1 || picked === 7 || picked === 30) onRecentDays(picked)
+              if (RECENT_WINDOWS.includes(picked as (typeof RECENT_WINDOWS)[number])) onRecentDays(picked)
             }}
           >
             {RECENT_WINDOWS.map((option) => (
               <ToggleGroupItem key={option} value={String(option)} variant="outline" size="sm">
-                {option === 1 ? '24H' : `${option}D`}
+                {windowOptionLabel(option)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -126,12 +161,10 @@ export function RecentView({
                 <div className="flex flex-wrap items-center gap-2">
                   {recent.count > 0 ? (
                     <Badge variant="secondary">
-                      +{recent.count} in the {recentDays === 1 ? 'last 24h' : `last ${recentDays}d`}
+                      +{recent.count} in {windowShortLabel}
                     </Badge>
                   ) : (
-                    <Badge variant="outline">
-                      No updates in the {recentDays === 1 ? 'last 24h' : `last ${recentDays}d`}
-                    </Badge>
+                    <Badge variant="outline">No updates in {windowShortLabel}</Badge>
                   )}
                   {authorNames.length > 0 && (
                     <>
@@ -237,8 +270,8 @@ export function RecentView({
             <CardTitle>Hidden &amp; removed</CardTitle>
             <CardDescription>
               {takedowns.length === 0
-                ? `Nothing was hidden or removed in the ${windowLabel}.`
-                : `${takedowns.length} ${takedowns.length === 1 ? 'comment' : 'comments'} taken down in the ${windowLabel}`}
+                ? `Nothing was hidden or removed in ${windowLabel}.`
+                : `${takedowns.length} ${takedowns.length === 1 ? 'comment' : 'comments'} taken down in ${windowLabel}`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -250,61 +283,81 @@ export function RecentView({
                   </EmptyMedia>
                   <EmptyTitle>Nothing taken down</EmptyTitle>
                   <EmptyDescription>
-                    Hidden and deleted comments from the {windowLabel} appear here for review.
+                    Hidden and deleted comments from {windowLabel} appear here for review.
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
             ) : (
-              <div className="flex flex-col gap-2">
-                {shownTakedowns.map((row) => (
-                  <div
-                    key={row.key}
-                    className="flex flex-wrap items-center gap-3 rounded-md border-l-2 border-l-destructive bg-muted/50 p-3"
-                  >
-                    {row.comment.status === 'hidden' ? (
-                      <EyeOff className="size-4 shrink-0 text-destructive" aria-label="Hidden" />
-                    ) : (
-                      <Trash2 className="size-4 shrink-0 text-muted-foreground" aria-label="Deleted" />
-                    )}
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <p className="text-sm">
-                        <span className="font-medium">{row.comment.authorName}</span>{' '}
-                        <span className="text-muted-foreground">
-                          on{' '}
-                          <Link
-                            to="/moderation/$pageId"
-                            params={{ pageId: row.pageId }}
-                            search={{ site }}
-                            className="underline"
-                          >
-                            {row.threadTitle}
-                          </Link>
-                        </span>{' '}
-                        <time
-                          dateTime={row.comment.createdAt}
-                          className="text-xs text-muted-foreground"
-                          title={new Date(row.comment.createdAt).toLocaleString()}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
+                  {shownTakedowns.map((row) => (
+                    <div
+                      key={row.key}
+                      className="flex flex-col gap-2 rounded-md border-l-2 border-l-destructive bg-muted/50 p-3 sm:flex-row sm:items-center sm:gap-3"
+                    >
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        {row.comment.status === 'hidden' ? (
+                          <EyeOff className="mt-0.5 size-4 shrink-0 text-destructive" aria-label="Hidden" />
+                        ) : (
+                          <Trash2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label="Deleted" />
+                        )}
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <p className="text-sm">
+                            <span className="font-medium">{row.comment.authorName}</span>{' '}
+                            <span className="text-muted-foreground">
+                              on{' '}
+                              <Link
+                                to="/moderation/$pageId"
+                                params={{ pageId: row.pageId }}
+                                search={{ site }}
+                                className="underline"
+                              >
+                                {row.threadTitle}
+                              </Link>
+                            </span>{' '}
+                            <time
+                              dateTime={row.comment.createdAt}
+                              className="text-xs text-muted-foreground"
+                              title={new Date(row.comment.createdAt).toLocaleString()}
+                            >
+                              {timeAgo(row.comment.createdAt)}
+                            </time>
+                          </p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {threadPreviewExcerpt(row.comment.bodyMarkdown, 140)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 sm:justify-end">
+                        {row.comment.status === 'hidden' ? (
+                          <Badge variant="destructive">Hidden</Badge>
+                        ) : (
+                          <Badge variant="outline">Deleted</Badge>
+                        )}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={restoringId !== null}
+                          onClick={() => void restore(row.comment.id)}
                         >
-                          {timeAgo(row.comment.createdAt)}
-                        </time>
-                      </p>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {threadPreviewExcerpt(row.comment.bodyMarkdown, 140)}
-                      </p>
+                          {restoringId === row.comment.id ? <Spinner data-icon="inline-start" /> : <Eye aria-hidden />}
+                          Restore
+                        </Button>
+                      </div>
                     </div>
-                    {row.comment.status === 'hidden' ? (
-                      <Badge variant="destructive">Hidden</Badge>
-                    ) : (
-                      <Badge variant="outline">Deleted</Badge>
-                    )}
-                  </div>
-                ))}
-                {takedowns.length > shownTakedowns.length && (
-                  <p className="pt-1 text-xs text-muted-foreground">
-                    Showing {shownTakedowns.length} of {takedowns.length} takedowns — open the threads for the full
-                    list.
-                  </p>
-                )}
+                  ))}
+                </div>
+                <Pager
+                  total={takedowns.length}
+                  page={takedownCurrent}
+                  size={TAKEDOWN_PAGE_SIZE}
+                  onPage={setTakedownPage}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Restoring puts the comment back on its thread. Only the most recent comments of each thread are listed
+                  — open the thread for its full history.
+                </p>
               </div>
             )}
           </CardContent>

@@ -671,19 +671,20 @@ export async function listModerationPages(
   const latestById = new Map(latestRows.map((row) => [row.id, row]))
   const windowDays = options.recentDays ?? 7
   const previewCap = Math.min(Math.max(options.previewLimit ?? 3, 1), 5)
-  const windowStart = new Date(Date.now() - windowDays * 86_400_000)
+  // `recentDays: 0` is "all time": the window drops its lower bound.
+  const windowStart = windowDays > 0 ? new Date(Date.now() - windowDays * 86_400_000) : null
   const pageIds = rows.map((row) => row.id)
   const [windowCounts, authorGroups, windowRows] = pageIds.length
     ? await Promise.all([
         db
           .select({ pageId: comments.pageId, count: count(comments.id) })
           .from(comments)
-          .where(and(inArray(comments.pageId, pageIds), gte(comments.createdAt, windowStart)))
+          .where(and(inArray(comments.pageId, pageIds), windowStart ? gte(comments.createdAt, windowStart) : undefined))
           .groupBy(comments.pageId),
         db
           .select({ pageId: comments.pageId, authorName: comments.authorName, count: count(comments.id) })
           .from(comments)
-          .where(and(inArray(comments.pageId, pageIds), gte(comments.createdAt, windowStart)))
+          .where(and(inArray(comments.pageId, pageIds), windowStart ? gte(comments.createdAt, windowStart) : undefined))
           .groupBy(comments.pageId, comments.authorName),
         db
           .select({
@@ -695,7 +696,7 @@ export async function listModerationPages(
             createdAt: comments.createdAt,
           })
           .from(comments)
-          .where(and(inArray(comments.pageId, pageIds), gte(comments.createdAt, windowStart)))
+          .where(and(inArray(comments.pageId, pageIds), windowStart ? gte(comments.createdAt, windowStart) : undefined))
           .orderBy(desc(comments.createdAt), desc(comments.id))
           .limit(pageIds.length * previewCap),
       ])
