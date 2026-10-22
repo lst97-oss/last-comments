@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache,sharing=locked bun instal
 FROM base AS build
 COPY --link --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NITRO_PRESET=node-server \
+ENV NITRO_PRESET=bun \
   NODE_ENV=production
 # Dummy values exist only for this RUN layer; nothing is baked into the image.
 RUN export PAYLOAD_SECRET=build-only-dummy-secret-override-at-runtime-1234567890 \

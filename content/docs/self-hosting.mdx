@@ -34,8 +34,9 @@ Open [http://localhost:3000](http://localhost:3000). The Compose file works with
 | --- | --- |
 | `postgres` | `postgres:18-alpine`; Payload database `template_demo`, business database `business_comments` |
 | `migrate` | One-shot `bun run db:migrate` + `bun run db:business:migrate`; `app` and `worker` wait for it |
-| `app` | The Nitro server on `:3000` |
+| `app` | The Nitro server on `:3000`, published on `127.0.0.1:${APP_PORT}` only |
 | `worker` | `bun scripts/plugin-worker.ts`, delivering the plugin outbox |
+| `tunnel` | `cloudflare/cloudflared` public ingress; only with `--profile tunnel` and `CLOUDFLARE_TUNNEL_TOKEN` set |
 
 ## First users
 
@@ -75,6 +76,51 @@ Restore into a fresh volume with `psql` in the `postgres` service, then restart 
 - Use real Turnstile keys and register the embedding origins in Cloudflare.
 - Run exactly one `worker` replica for the outbox, and run the `migrate` service once per release.
 - Back up both databases before upgrading. Keep the volume outside the container lifecycle.
+
+## Continuous deployment (GitHub Actions)
+
+`.github/workflows/cd.yml` deploys every green `ci` run on `main`, and can be dispatched by hand to re-deploy the current commit. The runner joins the tailnet with a Tailscale OAuth client, then SSHes to the host — production exposes no public SSH port.
+
+Each deploy:
+
+1. clones `https://github.com/lst97-oss/last-comments.git` into `~/last-comments/production` on the first run, then checks out the deployed commit;
+2. rewrites `~/last-comments/production/.env` from the GitHub `production` environment;
+3. logs in to GHCR, pulls `ghcr.io/lst97-oss/last-comments:<commit>`, and runs `docker compose --profile tunnel up -d`;
+4. waits for `/api/ready`, then checks `https://last-comments.lst97.dev/`.
+
+The image is built and pushed by the `docker` job in `ci.yml`, tagged with the commit SHA and `latest`. Nothing on the host is hand-edited: the checkout and `.env` are regenerated from the repository and the environment on every deploy.
+
+### GitHub `production` environment
+
+Secrets:
+
+| Secret | Purpose |
+| --- | --- |
+| `TAILSCALE_OAUTH_CLIENT_ID` | Tailscale OAuth client; needs the `auth_keys` write scope and `tag:ci` in its tag list |
+| `TAILSCALE_OAUTH_CLIENT_SECRET` | OAuth client secret |
+| `SSH_KEY_B64` | base64 of the private key whose public half is in the host's `authorized_keys` |
+| `PAYLOAD_SECRET` | Payload secret, 32+ characters |
+| `BETTER_AUTH_SECRET` | better-auth secret, 32+ characters |
+| `POSTGRES_PASSWORD` | Compose Postgres password for the `demo` user |
+| `BUSINESS_DB_PASSWORD` | Compose Postgres password for the `business` user |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Real Turnstile widget; the testing keys pass but verify nothing |
+| `CLOUDFLARE_TUNNEL_TOKEN` | Token for the `tunnel` profile |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional; set both or neither |
+| `BLOG_SITE_KEY`, `BLOG_PUBLISHER_API_KEY` | Optional; enables the blog comment widget |
+| `OPENROUTER_API_KEY` | Optional; filter plugin |
+| `GHCR_TOKEN` | Optional PAT with `read:packages`; defaults to `GITHUB_TOKEN` |
+
+Variables: `TAILSCALE_HOST` (the host's tailnet address, e.g. `100.102.247.97`), `SSH_USER` (defaults to `lst97`), `APP_PORT` (defaults to `3000`).
+
+### DNS and the tunnel
+
+`last-comments.lst97.dev` needs a proxied `CNAME` to `<tunnel-uuid>.cfargotunnel.com` in Cloudflare, and that tunnel's public hostname must route to `http://app:3000` (the Compose service) or `http://localhost:3000`. Until the name resolves, the deploy's final check logs a notice and skips.
+
+## Cloudflare Tunnel
+
+`cloudflared` runs on the same host — the bundled `tunnel` service, or a separate install — and reaches the app over `http://app:3000` (Compose network) or `http://localhost:3000`. Either peer is a private or loopback address, trusted by default, so `RATE_LIMIT_TRUSTED_PROXY_CIDR` can stay unset. Run the tunnel on another host and the peer is that host's address: list it (`RATE_LIMIT_TRUSTED_PROXY_CIDR=203.0.113.10/32`), or every guest shares one rate-limit bucket.
+
+Cloudflare sends `CF-Connecting-IP` (the visitor IP) and `X-Forwarded-For`, but never `X-Real-IP` — the rate-limit plugin reads `CF-Connecting-IP` first, so a tunnel needs no extra header setup and every visitor gets their own bucket (the Cloudflare header wins over an `X-Real-IP` some intermediary injected with the address it saw). If Cloudflare's **Remove visitor IP headers** transform is on, no visitor IP reaches the origin and the tunnel's address becomes the identity again; leave that transform off for this hostname.
 
 ## Upgrades
 

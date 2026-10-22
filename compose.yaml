@@ -67,7 +67,12 @@ services:
       args:
         BUN_VERSION: ${BUN_VERSION:-1.4.3}
     ports:
-      - "3000:3000"
+      # Loopback only: the ingress (cloudflared tunnel, or a reverse proxy on
+      # the host) reaches the app over the Compose network or 127.0.0.1.
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      # Payload uploads (`media` collection); survives `docker compose up`.
+      - media:/app/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,6 +92,24 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # Public ingress: `docker compose --profile tunnel up -d` with
+  # CLOUDFLARE_TUNNEL_TOKEN set. Needs a Cloudflare tunnel whose public
+  # hostname points at http://app:3000 (or http://localhost:3000).
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_started
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
 volumes:
   pgdata:
     name: last-comments-pgdata
+  media:
+    name: last-comments-media

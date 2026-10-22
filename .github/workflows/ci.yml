@@ -53,8 +53,8 @@ jobs:
       # Production builds reject loopback origins.
       PAYLOAD_PUBLIC_SERVER_URL: https://example.com
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v7.0.1
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
@@ -68,7 +68,7 @@ jobs:
       - run: bun run db:business:migrate
       - run: bun test
       - run: |
-          export NITRO_PRESET=node-server
+          export NITRO_PRESET=bun
           bun run build
           (bun scripts/start.ts & echo $! > /tmp/last-comments-server.pid)
           for i in $(seq 1 30); do
@@ -82,21 +82,43 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # `cd` deploys the image this job publishes; pull uses packages: read.
+      packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Read Bun version
         run: echo "BUN_VERSION=$(cat .bun-version)" >> "$GITHUB_ENV"
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # main publishes the image the CD pulls; PRs only load it for the stack
+      # smoke test below (buildx cannot load and push in one step).
       - name: Build image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
-          load: true
-          tags: last-comments:ci
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          tags: |
+            last-comments:ci
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}:latest
           build-args: |
             BUN_VERSION=${{ env.BUN_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Reuse the published image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker pull "ghcr.io/${{ github.repository }}:${{ github.sha }}"
+          docker tag "ghcr.io/${{ github.repository }}:${{ github.sha }}" last-comments:ci
       - name: Validate Compose
         run: docker compose config --quiet
       - name: Start stack
