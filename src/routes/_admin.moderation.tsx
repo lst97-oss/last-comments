@@ -148,6 +148,24 @@ function ModerationPage() {
     onError: (cause) => reportFailure('Could not update site', cause),
   })
 
+  const deletePageMutation = useMutation({
+    mutationFn: async (page: PageSummary) => {
+      const response = await fetch(`/api/admin/pages/${encodeURIComponent(page.id)}?site=${encodeURIComponent(site)}`, {
+        method: 'DELETE',
+      })
+      return readApiData<{ deleted: boolean; comments: number; replies: number; votes: number }>(response)
+    },
+    onSuccess: async (result, page) => {
+      await pagesQuery.refetch()
+      toast.add({
+        title: 'Page deleted',
+        description: `${page.canonicalUrl} · ${result.comments} comments removed`,
+        type: 'success',
+      })
+    },
+    onError: (cause) => reportFailure('Could not delete page', cause),
+  })
+
   const deleteSiteMutation = useMutation({
     mutationFn: async (siteKey: string) => {
       const response = await fetch(`/api/admin/sites/${encodeURIComponent(siteKey)}`, { method: 'DELETE' })
@@ -280,6 +298,12 @@ function ModerationPage() {
             }
             onRefreshPages={() => void pagesQuery.refetch()}
             onAct={(action) => actMutation.mutateAsync(action).catch(() => undefined)}
+            onDeletePage={(page) =>
+              deletePageMutation.mutateAsync(page).then(
+                () => true,
+                () => false,
+              )
+            }
             onNavigateView={(next) => void navigate({ to: '/moderation', search: { view: next } })}
           />
         )}
@@ -304,6 +328,7 @@ type ViewContentProps = {
   onCreateOpen: (open: boolean) => void
   onCreateSite: (values: SiteForm) => Promise<boolean>
   onEditSite: (siteKey: string, values: { name: string; bodyLimit: number | null }) => Promise<boolean>
+  onDeletePage: (page: PageSummary) => Promise<boolean>
   onDeleteSite: (siteKey: string) => Promise<boolean>
   onRefreshPages: () => void
   onAct: (action: Record<string, string | boolean>) => Promise<void>

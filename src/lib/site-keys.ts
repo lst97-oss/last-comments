@@ -29,9 +29,12 @@ export type Site = {
   bodyLimit?: number | null
 }
 
-// Scopes a key bound to one site can hold. Also the least-privilege default
-// for a new key: register and read that site's page threads, nothing else.
+// Scopes a key bound to one site can hold, listed in the key editor.
 export const SITE_KEY_SCOPES = API_KEY_SCOPES.filter((scope) => scope.startsWith('pages:'))
+
+// The least-privilege default for a new key: register and read that site's page
+// threads. Deleting pages stays an explicit grant.
+export const DEFAULT_SITE_KEY_SCOPES: ApiKeyScope[] = ['pages:read', 'pages:write']
 
 export const keyFormSchema = z.object({
   name: z.string().trim().min(1, 'Enter a key name').max(120),
@@ -48,6 +51,7 @@ export const SCOPE_LABELS: Record<ApiKeyScope, string> = {
   'sites:delete': 'Delete sites',
   'pages:read': 'List the site’s pages',
   'pages:write': 'Register pages',
+  'pages:delete': 'Delete pages',
 }
 
 export const SCOPE_DESCRIPTIONS: Record<ApiKeyScope, string> = {
@@ -57,6 +61,7 @@ export const SCOPE_DESCRIPTIONS: Record<ApiKeyScope, string> = {
   'sites:delete': 'Delete a site and every comment in it.',
   'pages:read': 'List a site’s pages with their comment counts.',
   'pages:write': 'Register a page URL before its first comment.',
+  'pages:delete': 'Delete a page, with all its comments, replies and votes. Permanent.',
 }
 
 export function scopesEqual(a: readonly ApiKeyScope[], b: readonly ApiKeyScope[]): boolean {

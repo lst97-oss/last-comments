@@ -8,5 +8,8 @@ export const API_KEY_SCOPES = [
   'sites:delete',
   'pages:read',
   'pages:write',
+  // Deleting a page removes its whole thread, so it is a separate grant from
+  // pages:write: existing write-only keys cannot delete until they are granted it.
+  'pages:delete',
 ] as const
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number]

@@ -12,6 +12,7 @@ export type CommentEventType =
   | 'comment.pinned'
   | 'page.locked'
   | 'page.unlocked'
+  | 'page.deleted'
   | 'user.blocked'
   | 'user.unblocked'
   | 'user.verified'

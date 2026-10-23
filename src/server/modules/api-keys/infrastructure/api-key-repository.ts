@@ -16,6 +16,7 @@ const SCOPE_TO_PERMISSION: Record<ApiKeyScope, { resource: string; action: strin
   'sites:delete': { resource: 'sites', action: 'delete' },
   'pages:read': { resource: 'pages', action: 'read' },
   'pages:write': { resource: 'pages', action: 'write' },
+  'pages:delete': { resource: 'pages', action: 'delete' },
 }
 
 export function scopesToPermissions(scopes: ApiKeyScope[]): Record<string, string[]> {
@@ -33,7 +34,7 @@ export function assertValidScopeSet(siteKey: string | null, scopes: ApiKeyScope[
   const allowed =
     siteKey === null
       ? (['sites:create', 'sites:read', 'sites:update', 'sites:delete'] as const)
-      : (['pages:read', 'pages:write'] as const)
+      : (['pages:read', 'pages:write', 'pages:delete'] as const)
   if (scopes.length === 0 || !scopes.every((scope) => (allowed as readonly string[]).includes(scope))) {
     throw new HttpError(400, 'INVALID_SCOPE_SET', 'Scope set is not valid for this key type')
   }

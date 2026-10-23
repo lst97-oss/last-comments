@@ -1580,6 +1580,67 @@ export async function setPageLocked(
   })
 }
 
+// Permanent. The page, its comments, their replies and their votes go in one
+// transaction (the foreign keys cascade). Site-level state (blocks, verifications,
+// memberships, origins) stays. The audit row keeps the URL, so the record reads
+// correctly after the page is gone. The counts are taken first, for the response.
+export async function deletePage(
+  siteId: string,
+  actorUserId: string,
+  target: { pageId: string } | { pageKey: string } | { url: string },
+  db: Db = getBusinessDb(),
+): Promise<{ deleted: true; comments: number; replies: number; votes: number }> {
+  return db.transaction(async (tx) => {
+    const match =
+      'pageId' in target
+        ? eq(pages.id, target.pageId)
+        : 'pageKey' in target
+          ? eq(pages.pageKey, normalizePageKey(target.pageKey))
+          : eq(pages.canonicalUrl, normalizePageUrl(target.url))
+    const [page] = await tx
+      .select({ id: pages.id, canonicalUrl: pages.canonicalUrl })
+      .from(pages)
+      .where(and(eq(pages.siteId, siteId), match))
+      .limit(1)
+    if (!page) throw new HttpError(404, 'PAGE_NOT_FOUND', 'Page was not found')
+
+    const [totals] = await tx
+      .select({
+        comments: count(comments.id),
+        replies: sql<number>`count(*) filter (where ${comments.parentId} is not null)`,
+      })
+      .from(comments)
+      .where(eq(comments.pageId, page.id))
+    const [voteTotals] = await tx
+      .select({ votes: count(votes.id) })
+      .from(votes)
+      .innerJoin(comments, eq(votes.commentId, comments.id))
+      .where(eq(comments.pageId, page.id))
+
+    await tx.delete(pages).where(and(eq(pages.siteId, siteId), eq(pages.id, page.id)))
+    await tx.insert(moderationEvents).values({
+      siteId,
+      actorUserId,
+      action: 'page.delete',
+      targetType: 'page',
+      targetId: page.id,
+      reason: page.canonicalUrl,
+    })
+    await enqueuePluginEvent(tx, {
+      siteId,
+      type: 'page.deleted',
+      aggregateId: page.id,
+      payload: { pageId: page.id, canonicalUrl: page.canonicalUrl },
+    })
+    return {
+      deleted: true,
+      comments: Number(totals?.comments ?? 0),
+      replies: Number(totals?.replies ?? 0),
+      votes: Number(voteTotals?.votes ?? 0),
+    }
+  })
+}
+
 export async function setUserBlocked(
   siteId: string,
   actorUserId: string,

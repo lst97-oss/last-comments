@@ -10,6 +10,7 @@ import {
   editBodySchema,
   listQuerySchema,
   pageBodySchema,
+  pageDeleteQuerySchema,
   pagesQuerySchema,
   searchSchema,
   siteQuerySchema,
@@ -39,6 +40,7 @@ import {
   moderationPageResultSchema,
   moderationPageSummarySchema,
   moderationTakedownSchema,
+  pageDeletedSchema,
   pageThreadStatsSchema,
   sessionPrincipalSchema,
   siteDashboardStatsSchema,
@@ -383,6 +385,42 @@ registry.registerPath({
     404: errorResponse('The site does not exist'),
     409: errorResponse('The page key belongs to another page'),
     503: errorResponse('The database is temporarily unavailable'),
+  },
+})
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/admin/pages/{pageId}',
+  tags: ['pages'],
+  summary: 'Delete a page permanently, with its comments, replies and votes',
+  description:
+    'Permanent and audited. The page, every comment and reply on it, and their votes are removed in one transaction. The site’s blocks, verifications, memberships and origins are kept. The audit row keeps the page URL. Deleting a page that does not exist returns 404 PAGE_NOT_FOUND.',
+  request: { params: z.strictObject({ pageId: commentIdSchema }), query: siteQuerySchema },
+  security: sessionOrServiceKey,
+  responses: {
+    200: ok(pageDeletedSchema),
+    400: errorResponse('Invalid query parameters'),
+    401: errorResponse('No session'),
+    403: errorResponse('Not a site admin (sessions) or a pages:delete key bound to another site'),
+    404: errorResponse('The page does not exist on this site'),
+  },
+})
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/admin/pages',
+  tags: ['pages'],
+  summary: 'Delete a page by its pageKey or URL, permanently',
+  description:
+    'Same effect as deleting by pageId. Give exactly one of pageKey (the stable key a publisher registered) or url (the page’s canonical URL). Use pageKey for a CMS, where the key outlives slug changes.',
+  request: { query: pageDeleteQuerySchema },
+  security: sessionOrServiceKey,
+  responses: {
+    200: ok(pageDeletedSchema),
+    400: errorResponse('Invalid query, or neither or both of pageKey and url'),
+    401: errorResponse('No session'),
+    403: errorResponse('Not a site admin (sessions) or a pages:delete key bound to another site'),
+    404: errorResponse('The page does not exist on this site'),
   },
 })
 

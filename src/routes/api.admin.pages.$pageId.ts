@@ -6,8 +6,9 @@ import { parseSearchParams, parseWith } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
 import { hasServiceKey, requireServiceKey } from '@/server/modules/api-keys/infrastructure/api-key-repository'
-import { commentIdSchema, statsQuerySchema } from '@/server/modules/comments/http/comment-schemas'
-import { getPageThread, getSiteId } from '@/server/modules/comments/infrastructure/comment-repository'
+import { commentIdSchema, siteQuerySchema, statsQuerySchema } from '@/server/modules/comments/http/comment-schemas'
+import { requirePageDeleteAccess } from '@/server/modules/comments/http/page-delete-access'
+import { deletePage, getPageThread, getSiteId } from '@/server/modules/comments/infrastructure/comment-repository'
 
 // Session callers are instance admins or members of the target site; service
 // keys need pages:read bound to that exact site. Reads take no same-origin
@@ -33,6 +34,13 @@ export const Route = createFileRoute('/api/admin/pages/$pageId')({
           const { site, days } = parseSearchParams(request.url, statsQuerySchema)
           await requirePageDetailAccess(request, site)
           return getPageThread(await getSiteId(site), pageId, Number(days) as 7 | 30 | 90)
+        })({ request }),
+      DELETE: ({ request, params }) =>
+        withContext(async () => {
+          const pageId = parseWith(commentIdSchema, params.pageId)
+          const { site } = parseSearchParams(request.url, siteQuerySchema)
+          const actorUserId = await requirePageDeleteAccess(request, site)
+          return deletePage(await getSiteId(site), actorUserId, { pageId })
         })({ request }),
     },
   },
