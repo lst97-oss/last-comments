@@ -6,7 +6,6 @@ import { Copy, ExternalLink, Lock, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
 import { AdminQueryError } from '@/components/admin/admin-query-error'
-import { DashboardShell } from '@/components/admin/dashboard-shell'
 import { Hint } from '@/components/admin/hint'
 import { Leaderboard } from '@/components/admin/leaderboard'
 import { RangeToggle } from '@/components/admin/range-toggle'
@@ -45,7 +44,7 @@ import { setupStatusServerFn } from '@/lib/setup-status'
 // The thread of one page: the moderation dashboard's detail view. The
 // underscore keeps this a sibling of /moderation instead of a child of it,
 // so the page list and this view never render together.
-export const Route = createFileRoute('/moderation_/$pageId')({
+export const Route = createFileRoute('/_admin/moderation_/$pageId')({
   validateSearch: (search: Record<string, unknown>) => ({
     site: typeof search.site === 'string' ? search.site : '',
   }),
@@ -132,7 +131,7 @@ function PageThreadPage() {
   const title = page ? (page.title ?? page.canonicalUrl) : 'Thread'
 
   return (
-    <DashboardShell>
+    <>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 text-foreground">
         <Breadcrumb>
           <BreadcrumbList>
@@ -243,7 +242,7 @@ function PageThreadPage() {
           <SkeletonCards />
         ) : null}
       </main>
-    </DashboardShell>
+    </>
   )
 }
 

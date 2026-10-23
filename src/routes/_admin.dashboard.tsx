@@ -3,7 +3,6 @@ import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { AdminQueryError } from '@/components/admin/admin-query-error'
-import { DashboardShell } from '@/components/admin/dashboard-shell'
 import { Leaderboard } from '@/components/admin/leaderboard'
 import { RangeToggle } from '@/components/admin/range-toggle'
 import {
@@ -27,7 +26,7 @@ import { describeApiError, readApiData } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
 import { setupStatusServerFn } from '@/lib/setup-status'
 
-export const Route = createFileRoute('/dashboard')({
+export const Route = createFileRoute('/_admin/dashboard')({
   beforeLoad: async () => {
     const { setupAvailable } = await setupStatusServerFn()
     if (setupAvailable) throw redirect({ to: '/create-admin-user' })
@@ -91,7 +90,7 @@ function DashboardPage() {
   const range = Number(days) as 7 | 30 | 90
 
   return (
-    <DashboardShell>
+    <>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 text-foreground">
         <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
           <div>
@@ -167,7 +166,7 @@ function DashboardPage() {
           <DashboardContent stats={statsQuery.data ?? null} loading={statsQuery.isFetching} days={range} site={site} />
         )}
       </main>
-    </DashboardShell>
+    </>
   )
 }
 

@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Blocks, KeyRound, Settings as SettingsIcon, ShieldCheck, Users } from 'lucide-react'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
-import { DashboardShell } from '@/components/admin/dashboard-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,7 +15,7 @@ import { describeApiError, readApiData } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
 import { type InstanceSettings } from '@/lib/site-users'
 
-export const Route = createFileRoute('/settings')({
+export const Route = createFileRoute('/_admin/settings')({
   component: SettingsPage,
   errorComponent: BusinessRouteError,
 })
@@ -34,7 +33,7 @@ function SettingsPage() {
   const failure = describeApiError(settingsQuery.error, 'Could not load settings')
 
   return (
-    <DashboardShell>
+    <>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 text-foreground">
         <header className="border-b border-border pb-5">
           <p className="text-sm text-muted-foreground">Last Comments</p>
@@ -323,6 +322,6 @@ function SettingsPage() {
           </>
         )}
       </main>
-    </DashboardShell>
+    </>
   )
 }

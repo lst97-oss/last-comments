@@ -16,13 +16,13 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, 
 import { Spinner } from '@/components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { authorInitials, timeAgo } from '@/lib/admin-format'
-import { PAGE_LIST_LIMIT, type PageSummary } from '@/lib/page-thread'
+import { PAGE_LIST_LIMIT, type PageSummary, type TakedownPage } from '@/lib/page-thread'
 
 // The recent window of the Recent tab. 0 is "all time": the window is
 // unbounded, so every comment of every thread counts.
 const RECENT_WINDOWS = [0, 1, 7, 30] as const
 
-const TAKEDOWN_PAGE_SIZE = 10
+export const TAKEDOWN_PAGE_SIZE = 10
 
 function windowOptionLabel(days: number) {
   if (days === 0) return 'ALL'
@@ -46,16 +46,23 @@ export function RecentView({
   recentDays,
   onRecentDays,
   onAct,
+  takedowns,
+  takedownPage,
+  takedownsFailed,
+  onTakedownPage,
 }: {
   pages: PageSummary[]
   site: string
   recentDays: number
   onRecentDays: (days: number) => void
   onAct: (action: Record<string, string | boolean>) => Promise<void>
+  // One server-paged slice of the hidden and deleted comments, undefined until
+  // the first page arrives. The parent owns the query so a restore can refresh it.
+  takedowns: TakedownPage | undefined
+  takedownPage: number
+  takedownsFailed: boolean
+  onTakedownPage: (page: number) => void
 }) {
-  // The takedown list is client-paged: the rows come from the pages the
-  // server already summarized, so a busy site stays one screenful.
-  const [takedownPage, setTakedownPage] = useState(0)
   // The comment being restored, so only that row shows the loading state.
   const [restoringId, setRestoringId] = useState<string | null>(null)
   if (pages.length === 0) {
@@ -78,26 +85,23 @@ export function RecentView({
   const windowLabel =
     recentDays === 0 ? 'all time' : recentDays === 1 ? 'the last 24 hours' : `the last ${recentDays} days`
   const windowShortLabel = recentDays === 0 ? 'all time' : recentDays === 1 ? 'the last 24h' : `the last ${recentDays}d`
-  const takedowns = pages
-    .flatMap((page) =>
-      page.recent.preview.map((comment) => ({
-        key: `${comment.id}-${page.id}`,
-        comment,
-        threadTitle: page.title ?? page.canonicalUrl,
-        pageId: page.id,
-      })),
-    )
-    .filter((row) => row.comment.status !== 'visible')
-    .sort((a, b) => +new Date(b.comment.createdAt) - +new Date(a.comment.createdAt))
-  const takedownLastPage = Math.max(0, Math.ceil(takedowns.length / TAKEDOWN_PAGE_SIZE) - 1)
-  const takedownCurrent = Math.min(takedownPage, takedownLastPage)
-  const shownTakedowns = takedowns.slice(
-    takedownCurrent * TAKEDOWN_PAGE_SIZE,
-    takedownCurrent * TAKEDOWN_PAGE_SIZE + TAKEDOWN_PAGE_SIZE,
-  )
+  const takedownTotal = takedowns?.total ?? 0
+  const shownTakedowns = (takedowns?.takedowns ?? []).map((row) => ({
+    key: row.id,
+    comment: row,
+    threadTitle: row.pageTitle ?? row.canonicalUrl,
+    pageId: row.pageId,
+  }))
+  let takedownDescription = takedownsFailed ? 'Could not load the list.' : 'Loading…'
+  if (takedowns) {
+    takedownDescription =
+      takedownTotal === 0
+        ? `Nothing was hidden or removed in ${windowLabel}.`
+        : `${takedownTotal} ${takedownTotal === 1 ? 'comment' : 'comments'} taken down in ${windowLabel}`
+  }
 
-  // Restore puts the comment back on the thread; the page list refetches
-  // afterwards, so the row leaves this list on its own.
+  // Restore puts the comment back on the thread; the mutation refreshes this
+  // list, so the row leaves on its own.
   async function restore(commentId: string) {
     setRestoringId(commentId)
     try {
@@ -105,6 +109,8 @@ export function RecentView({
     } finally {
       setRestoringId(null)
     }
+    // Restoring the last row of a later page empties that page, so step back.
+    if (shownTakedowns.length === 1 && takedownPage > 0) onTakedownPage(takedownPage - 1)
   }
   return (
     <>
@@ -245,6 +251,7 @@ export function RecentView({
                   <span className="text-xs text-muted-foreground">
                     {page.total} total · {page.visible} visible
                     {page.hidden > 0 && <span className="text-destructive"> · {page.hidden} hidden</span>}
+                    {page.deleted > 0 && <span> · {page.deleted} deleted</span>}
                   </span>
                   <Button
                     size="sm"
@@ -268,14 +275,15 @@ export function RecentView({
         <Card>
           <CardHeader>
             <CardTitle>Hidden &amp; removed</CardTitle>
-            <CardDescription>
-              {takedowns.length === 0
-                ? `Nothing was hidden or removed in ${windowLabel}.`
-                : `${takedowns.length} ${takedowns.length === 1 ? 'comment' : 'comments'} taken down in ${windowLabel}`}
-            </CardDescription>
+            <CardDescription>{takedownDescription}</CardDescription>
           </CardHeader>
           <CardContent>
-            {takedowns.length === 0 ? (
+            {takedowns === undefined ? (
+              <p aria-live="polite" className="flex items-center gap-2 text-sm text-muted-foreground">
+                {takedownsFailed ? null : <Spinner data-icon="inline-start" />}
+                {takedownsFailed ? 'Could not load the list.' : 'Loading…'}
+              </p>
+            ) : takedownTotal === 0 ? (
               <Empty>
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -348,15 +356,10 @@ export function RecentView({
                     </div>
                   ))}
                 </div>
-                <Pager
-                  total={takedowns.length}
-                  page={takedownCurrent}
-                  size={TAKEDOWN_PAGE_SIZE}
-                  onPage={setTakedownPage}
-                />
+                <Pager total={takedownTotal} page={takedownPage} size={TAKEDOWN_PAGE_SIZE} onPage={onTakedownPage} />
                 <p className="text-xs text-muted-foreground">
-                  Restoring puts the comment back on its thread. Only the most recent comments of each thread are listed
-                  — open the thread for its full history.
+                  Restoring puts the comment back on its thread. Every hidden and deleted comment in this window is
+                  listed, newest first.
                 </p>
               </div>
             )}

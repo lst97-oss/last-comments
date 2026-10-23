@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { AdminLoginForm } from '@/components/admin/admin-login'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
 import { ConfirmDeleteDialog } from '@/components/admin/confirm-delete-dialog'
-import { DashboardShell } from '@/components/admin/dashboard-shell'
 import { SiteKeyCreateDialog } from '@/components/admin/site-key-dialog'
 import { SiteKeyRow } from '@/components/admin/site-key-row'
 import { Button } from '@/components/ui/button'
@@ -20,7 +19,7 @@ import { describeApiError } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
 import { scopesEqual, scopesOfKey } from '@/lib/site-keys'
 
-export const Route = createFileRoute('/api-keys')({
+export const Route = createFileRoute('/_admin/api-keys')({
   component: ApiKeysPage,
   errorComponent: BusinessRouteError,
 })
@@ -67,7 +66,7 @@ function ApiKeysPage() {
   const siteKeys = keys.filter((key) => key.metadata?.siteKey)
 
   return (
-    <DashboardShell>
+    <>
       <main className="mx-auto grid w-full max-w-3xl gap-6 text-foreground">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -185,6 +184,6 @@ function ApiKeysPage() {
         onOpenChange={(open) => !open && cancelDelete()}
         onConfirm={() => void confirmDelete()}
       />
-    </DashboardShell>
+    </>
   )
 }
