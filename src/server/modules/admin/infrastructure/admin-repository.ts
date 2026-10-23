@@ -1,9 +1,10 @@
-import { asc, count, eq, inArray } from 'drizzle-orm'
+import { asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { getBusinessDb, getBusinessSql } from '@/server/db/business-sql'
-import { apikey, instanceAdmins, siteMemberships, siteOrigins, sites, user } from '@/server/db/schema'
+import { apikey, comments, instanceAdmins, pages, siteMemberships, siteOrigins, sites, user } from '@/server/db/schema'
 import { HttpError } from '@/server/http/errors'
 import { canCreateInitialAdmin } from '@/server/modules/admin/domain/initial-setup'
 import { attachOrigins } from '@/server/modules/comments/infrastructure/comment-repository'
+import { getRequestLogger } from '@/server/observability/logger'
 
 export async function hasInstanceAdmin(userId?: string): Promise<boolean> {
   const db = getBusinessDb()
@@ -122,14 +123,37 @@ function siteKeyFromMetadata(metadata: unknown): string | null {
   return typeof value.siteKey === 'string' ? value.siteKey : null
 }
 
-// Cascades to pages, comments, origins, memberships, and site keys.
+// One transaction, so a failure leaves nothing half-deleted. The site row cascades
+// to its origins, memberships, pages, comments, votes, blocks, verifications,
+// moderation events and plugin events. The site's API keys are removed too, because
+// their binding lives in JSON metadata the database cannot cascade on. The rate-limit
+// windows are keyed by the site key, so they go as well. The counts are taken first,
+// since the cascade removes the rows they describe, and the summary is logged.
 export async function deleteAdminSite(siteKey: string): Promise<void> {
   const db = getBusinessDb()
-  const deleted = await db.delete(sites).where(eq(sites.key, siteKey)).returning({ id: sites.id })
-  if (deleted.length === 0) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
-  // Plugin apikey rows carry the site binding in metadata JSON, which the
-  // database cannot cascade on — delete them explicitly.
-  const keys = await db.select({ id: apikey.id, metadata: apikey.metadata }).from(apikey)
-  const orphaned = keys.filter((key) => siteKeyFromMetadata(key.metadata) === siteKey).map((key) => key.id)
-  if (orphaned.length > 0) await db.delete(apikey).where(inArray(apikey.id, orphaned))
+  const summary = await db.transaction(async (tx) => {
+    const [site] = await tx.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey)).limit(1)
+    if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
+
+    const [pageTotal] = await tx.select({ value: count() }).from(pages).where(eq(pages.siteId, site.id))
+    const [commentTotal] = await tx
+      .select({ value: count() })
+      .from(comments)
+      .innerJoin(pages, eq(comments.pageId, pages.id))
+      .where(eq(pages.siteId, site.id))
+
+    const keys = await tx.select({ id: apikey.id, metadata: apikey.metadata }).from(apikey)
+    const orphaned = keys.filter((key) => siteKeyFromMetadata(key.metadata) === siteKey).map((key) => key.id)
+    if (orphaned.length > 0) await tx.delete(apikey).where(inArray(apikey.id, orphaned))
+
+    await tx.execute(sql`delete from comment_rate_limit.rate_limit_windows where site_key = ${siteKey}`)
+    await tx.delete(sites).where(eq(sites.id, site.id))
+
+    return {
+      pages: Number(pageTotal?.value ?? 0),
+      comments: Number(commentTotal?.value ?? 0),
+      apiKeys: orphaned.length,
+    }
+  })
+  getRequestLogger().info('site.deleted', { siteKey, ...summary })
 }
