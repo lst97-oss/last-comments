@@ -137,7 +137,6 @@ jobs:
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           load: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           tags: |
-            last-comments:ci
             ghcr.io/${{ github.repository }}:${{ github.sha }}
             ghcr.io/${{ github.repository }}:latest
           build-args: |
@@ -146,14 +145,12 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Reuse the published image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          docker pull "ghcr.io/${{ github.repository }}:${{ github.sha }}"
-          docker tag "ghcr.io/${{ github.repository }}:${{ github.sha }}" last-comments:ci
+        run: docker pull "ghcr.io/${{ github.repository }}:${{ github.sha }}"
       - name: Validate Compose
         run: docker compose config --quiet
       - name: Start stack
         env:
-          LAST_COMMENTS_IMAGE: last-comments:ci
+          LAST_COMMENTS_IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
         # The one-shot migration service exits, and the worker has no HTTP
         # healthcheck; the smoke step below polls the app instead.
         run: docker compose up -d --no-build
