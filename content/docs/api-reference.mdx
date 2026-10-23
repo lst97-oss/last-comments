@@ -31,6 +31,10 @@ Successful responses are `{"data": ...}` and failures are `{"error": {"code": ".
 | POST | `/api/admin/sites` | Create a site with its first allowed origin (instance admin or service key) |
 | GET | `/api/admin/pages` | List the registered page threads of one site with recent-window activity (`?recentDays=0..90&preview=1..5`, `0` = all time, session or service key) |
 | GET | `/api/admin/pages/{pageId}` | Read one page thread with its totals, daily trend, top authors and moderation activity (session or service key) |
+| DELETE | `/api/admin/pages/{pageId}?site=` | Delete a page permanently, with its comments, replies and votes. Site admins (session, same-origin) or a `pages:delete` key bound to the site. Audited; returns the counts removed. |
+| DELETE | `/api/admin/pages?site=&pageKey=` or `&url=` | The same delete, addressed by the page's `pageKey` (use this from a CMS) or its canonical URL. Give exactly one. |
+| PATCH | `/api/admin/sites/{siteKey}` | Update a site's name and/or its comment length limit (`bodyLimit`, 1 to 10,000 characters; `null` resets to the default). Site admins or a `sites:update` key. |
+| DELETE | `/api/admin/sites/{siteKey}` | Delete a site and everything in it, including its API keys and rate-limit windows, in one transaction. |
 | GET | `/api/admin/users` | List the user directory of one site — commenters, members, blocked users (`?search=&filter=all|blocked&limit=&offset=`, instance admin or site admin, session required) |
 | GET | `/api/admin/users/{userId}/comments` | Read one user's comment history on a site, hidden and deleted included (session required) |
 | GET | `/api/admin/settings` | Read the read-only instance settings snapshot: plugin status, providers, comment settings (instance admin, session required) |

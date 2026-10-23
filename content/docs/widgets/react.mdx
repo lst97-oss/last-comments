@@ -33,7 +33,7 @@ Props are shared across all four frameworks (`actionMode`, `bodyLimit` and `anon
 | `viewerRole` | `admin` or `moderator`; enables inline moderation — see [Inline moderation](/docs/widgets/moderation). |
 | `onModerated` | Callback after a moderation action, lock change or moderator post. |
 | `actionMode` | `icon`, `icon-text` or `text` — how Reply/Edit/Delete and moderator actions render their icons. Default `icon-text`. |
-| `bodyLimit` | Max body characters, counted before trimming. Default `10,000`; set it to whatever the host server enforces. |
+| `bodyLimit` | Max body characters, counted before trimming. Default `10,000`, which is also the server's ceiling. Set it to the limit the server enforces for the site (the dashboard's Edit site sets it), so the counter matches what the server refuses with `COMMENT_TOO_LONG`. |
 | `anonEditWindowMinutes` | Anonymous edit window. Default `10`, mirroring `anonEditWindowMinutes` in the server `comment-policy.config.ts`. Signed-in authors may edit any time, while guests edit only from the browser that stored the key returned when they posted. |
 | `turnstileOptions` | Cloudflare widget options (`theme`, `size`, `appearance`, `language`) — see below. |
 | `fetchImpl` | Bring-your-own fetch — log, record, or rewrite to a same-origin proxy. Every request still sends `credentials: 'include'` and the init shape is unchanged. |
