@@ -100,11 +100,7 @@ export async function publishCommentValidation(
   plugins: readonly CommentPlugin[] = getCommentPlugins(),
   verificationRequired = getCommentPluginSettings().verificationRequired,
 ): Promise<void> {
-  if (
-    verificationRequired &&
-    !input.userId &&
-    !plugins.some((plugin) => plugin.verificationProvider && plugin.validateComment)
-  ) {
+  if (verificationRequired && !plugins.some((plugin) => plugin.verificationProvider && plugin.validateComment)) {
     throw new HttpError(503, 'COMMENT_VERIFICATION_UNAVAILABLE', 'Comment verification is temporarily unavailable', {
       expose: true,
     })

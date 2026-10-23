@@ -10,13 +10,14 @@ import { getSiteId, listSiteUsers } from '@/server/modules/comments/infrastructu
 
 // Session-only: the directory carries names and emails, so unlike the thread
 // list it is never served to service keys. Instance admins see every site;
-// members see their own sites.
+// site admins see their own sites. Site moderators are excluded — the
+// directory is personal data a moderator has no business reading.
 async function requireUserAccess(request: Request, siteKey: string): Promise<string> {
   const userId = await requireSessionUserId(request, 'Sign in to manage users')
   if (await hasInstanceAdmin(userId)) return getSiteId(siteKey)
   const siteId = await getSiteId(siteKey)
-  if ((await getMembershipRole(siteId, userId)) === null) {
-    throw new HttpError(403, 'FORBIDDEN', 'You cannot manage this site')
+  if ((await getMembershipRole(siteId, userId)) !== 'admin') {
+    throw new HttpError(403, 'FORBIDDEN', 'Only site admins can view the user directory')
   }
   return siteId
 }

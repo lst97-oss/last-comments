@@ -31,11 +31,10 @@ describe('comment plugin contract', () => {
   })
 
   test('validates the static plugin manifest and rejects duplicate IDs', async () => {
-    const pluginModule = (await import(
-      '@/server/plugins/comment-plugins'
-    )) as typeof import('@/server/plugins/comment-plugins') & {
-      validateCommentPluginManifest?: (plugins: readonly CommentPlugin[]) => readonly CommentPlugin[]
-    }
+    const pluginModule =
+      (await import('@/server/plugins/comment-plugins')) as typeof import('@/server/plugins/comment-plugins') & {
+        validateCommentPluginManifest?: (plugins: readonly CommentPlugin[]) => readonly CommentPlugin[]
+      }
     expect(typeof pluginModule.validateCommentPluginManifest).toBe('function')
     if (!pluginModule.validateCommentPluginManifest) return
 
@@ -89,8 +88,14 @@ describe('comment plugin contract', () => {
     await expect(publishCommentValidation(submission, plugins, false)).rejects.toThrow('verification failed')
   })
 
-  test('fails closed for guest comments when required verification is unavailable', async () => {
+  test('fails closed when required verification is unavailable', async () => {
     await expect(publishCommentValidation(submission, [], true)).rejects.toMatchObject({
+      code: 'COMMENT_VERIFICATION_UNAVAILABLE',
+    })
+  })
+
+  test('fails closed for signed-in comments too when required verification is unavailable', async () => {
+    await expect(publishCommentValidation({ ...submission, userId: 'user-1' }, [], true)).rejects.toMatchObject({
       code: 'COMMENT_VERIFICATION_UNAVAILABLE',
     })
   })

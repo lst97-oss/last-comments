@@ -194,7 +194,9 @@ export const pages = pgTable(
   (table) => [
     uniqueIndex('pages_site_url_uq').on(table.siteId, table.canonicalUrl),
     uniqueIndex('pages_id_site_uq').on(table.id, table.siteId),
-    uniqueIndex('pages_site_pagekey_uq').on(table.siteId, table.pageKey).where(sql`${table.pageKey} is not null`),
+    uniqueIndex('pages_site_pagekey_uq')
+      .on(table.siteId, table.pageKey)
+      .where(sql`${table.pageKey} is not null`),
   ],
 )
 

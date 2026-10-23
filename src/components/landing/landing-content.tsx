@@ -21,7 +21,7 @@ const FEATURES = [
     number: '02',
     title: 'Guests and signed-in authors.',
     description:
-      'Guests post with a display name and an optional Turnstile token. Signed-in users post through a Better Auth session.',
+      'Every post carries a Turnstile token. Guests add a display name; signed-in users post through a Better Auth session.',
     tags: ['Guest', 'Signed-in'],
   },
   {

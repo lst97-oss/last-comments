@@ -30,7 +30,7 @@ export function Thread() {
 ```bash
 bun install
 cp .env.example .env
-bun run db:up
+# point DATABASE_URL / BUSINESS_DATABASE_URL at your own Postgres
 bun run db:migrate
 bun run db:business:migrate
 bun run dev            # http://localhost:3000
@@ -39,7 +39,7 @@ bun run dev            # http://localhost:3000
 ## Features
 
 - **Drop-in threads** — one site key, any page URL or stable `pageKey`. Page threads are normally created by their first comment; publishers can pre-register them.
-- **Guests + signed-in authors** — guests post with a display name (optional Turnstile token); signed-in users post via a Better Auth session through the first-party deployment or a same-origin proxy.
+- **Guests + signed-in authors** — every post carries a Turnstile token; guests add a display name, signed-in users post via a Better Auth session through the first-party deployment or a same-origin proxy.
 - **Votes with viewer state** — `GET /api/comments` returns each comment's `score`, the viewer's `viewerVote`, and the author's site role as `authorRole` (`admin` | `moderator` | `null`).
 - **Guest edit keys + unlimited author edits** — guests get a one-time `editKey` valid for `COMMENT_ANON_EDIT_WINDOW_MINUTES` (default 10, `0` = unlimited); signed-in authors may edit any time via `PATCH /api/comments/:id`. Delete stays session-only.
 - **Moderation dashboard** — `/moderation` reads and writes through `POST /api/moderation`: hide / restore / pin / unpin / delete, page lock, user block, and moderator comment / reply creation. The thread view reuses the published widget for rendering.
@@ -71,7 +71,7 @@ export const installedCommentPlugins = [turnstilePlugin, rateLimitPlugin] satisf
 
 1. A publisher creates a site in `/moderation`, configures its allowed origins, and mints a site key (optionally a `pages:write` key for pre-registration).
 2. The host embeds `<Comments site pageUrl />`. The first comment creates the page thread — or the publisher claims it up front via `POST /api/admin/pages` with a stable `pageKey` (the blog uses the post `slug`).
-3. Readers comment as guests (display name + Turnstile where required) or signed in with Google. Votes ride `PUT /api/comments/vote`; guests keep an `editKey` for their window.
+3. Readers comment as guests (display name + Turnstile) or signed in with Google — everyone solves the challenge. Votes ride `PUT /api/comments/vote`; guests keep an `editKey` for their window.
 4. Moderators work in `/moderation`: hide / restore / pin / delete, lock pages, block users, and post as moderators. Every write emits a transactional outbox event; `bun run plugins:work` delivers it to installed plugins with retries.
 5. Publishing a blog post fires `posts.afterChange`, which registers `/blog/<slug>` through the publisher key so the first visitor never owns thread creation.
 

@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  hasServiceKey,
   permissionsToScopes,
   scopesToPermissions,
   toPluginKey,
 } from '@/server/modules/api-keys/infrastructure/api-key-repository'
+
+function requestWith(headers: Record<string, string>): Request {
+  return new Request('http://localhost:3000/api/admin/sites', { headers })
+}
 
 describe('api-key storage mapping', () => {
   test('scopes round-trip through the stored permissions map', () => {
@@ -59,5 +64,20 @@ describe('api-key storage mapping', () => {
     expect(shaped.metadata).toBeNull()
     expect(shaped.permissions).toBeNull()
     expect(shaped.enabled).toBe(true)
+  })
+})
+
+describe('service key detection', () => {
+  test('an Authorization bearer is only a service key when it carries the key prefix', () => {
+    expect(hasServiceKey(requestWith({ authorization: 'Bearer lck_abc123' }))).toBe(true)
+    expect(hasServiceKey(requestWith({ authorization: 'lck_abc123' }))).toBe(true)
+    // An identity-provider token must reach the session adapters instead.
+    expect(hasServiceKey(requestWith({ authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig' }))).toBe(false)
+    expect(hasServiceKey(requestWith({ authorization: 'Basic dXNlcjpwYXNz' }))).toBe(false)
+  })
+
+  test('the x-api-key header is always a service key', () => {
+    expect(hasServiceKey(requestWith({ 'x-api-key': 'lck_abc123' }))).toBe(true)
+    expect(hasServiceKey(requestWith({}))).toBe(false)
   })
 })

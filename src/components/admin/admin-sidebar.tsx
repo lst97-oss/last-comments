@@ -194,7 +194,7 @@ export function AdminSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => {
-                  if (item.to === '/moderation') return <ModerationNav key={item.to} matchRoute={matchRoute} />
+                  if (item.to === '/moderation') return <ModerationNav key={item.to} />
                   const Icon = item.icon
                   const isActive = Boolean(matchRoute({ to: item.to, fuzzy: item.to !== '/dashboard' }))
                   return (
@@ -229,13 +229,14 @@ const MODERATION_SUBS: { view: ModerationView; label: string }[] = [
   { view: 'sites', label: 'Sites' },
 ]
 
-type MatchRouteFn = (opts: { to: string; fuzzy?: boolean }) => false | Record<string, unknown>
-
-function ModerationNav({ matchRoute }: { matchRoute: MatchRouteFn }) {
+function ModerationNav() {
   const search = useModerationView()
-  // Fuzzy so the thread detail route (/moderation/$pageId) keeps the
-  // Moderation entry active.
-  const isActive = Boolean(matchRoute({ to: '/moderation', fuzzy: true }))
+  // Read the target path from useLocation, not useMatchRoute: matchRoute reads
+  // the previous page while a navigation is pending, so a group that mounts
+  // mid-navigation (e.g. from Dashboard) started collapsed. The thread detail
+  // route (/moderation/$pageId) stays under the same entry.
+  const { pathname } = useLocation()
+  const isActive = pathname === '/moderation' || pathname.startsWith('/moderation/')
   return (
     <Collapsible defaultOpen={isActive} className="group/collapsible">
       <SidebarMenuItem>

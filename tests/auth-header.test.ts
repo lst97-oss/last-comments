@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
 import { linkOrProvisionExternalUser, maybeBootstrapInstanceAdmin } from '@/server/auth/external-identities'
-import { isProxySourceAllowed, resolveHeaderSession } from '@/server/auth/header-provider'
+import { resolveHeaderSession } from '@/server/auth/header-provider'
+import { isProxySourceAllowed } from '@/server/http/proxy-source'
 
 // Minimal drizzle stub: queued select() results; insert().values() records rows.
 function stubDb(selectQueue: unknown[][] = []) {

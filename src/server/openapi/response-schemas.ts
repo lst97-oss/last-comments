@@ -104,6 +104,7 @@ export const moderationPageSummarySchema = z
     total: z.number().int(),
     visible: z.number().int(),
     hidden: z.number().int(),
+    deleted: z.number().int(),
     latestAt: z.iso.datetime().nullable(),
     latest: z
       .strictObject({
@@ -131,6 +132,20 @@ export const moderationPageSummarySchema = z
     }),
   })
   .meta({ id: 'ModerationPageSummary' })
+
+// shortcut: mirror of ModerationTakedown in comment-repository.ts
+export const moderationTakedownSchema = z
+  .strictObject({
+    id: z.uuid(),
+    pageId: z.uuid(),
+    pageTitle: z.string().nullable(),
+    canonicalUrl: z.string(),
+    authorName: z.string(),
+    bodyMarkdown: z.string(),
+    status: z.enum(['visible', 'hidden', 'deleted']),
+    createdAt: z.iso.datetime(),
+  })
+  .meta({ id: 'ModerationTakedown' })
 
 // shortcut: mirror of listModerationSites() in comment-repository.ts
 export const moderationSiteSchema = z

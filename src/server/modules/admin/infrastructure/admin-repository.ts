@@ -42,6 +42,19 @@ export async function listAdminSites() {
   return attachOrigins(db, rows)
 }
 
+// The sites one user is a member of. Instance admins use listAdminSites()
+// instead — they see every site, members only their own.
+export async function listAdminSitesForUser(userId: string) {
+  const db = getBusinessDb()
+  const rows = await db
+    .select({ id: sites.id, key: sites.key, name: sites.name })
+    .from(siteMemberships)
+    .innerJoin(sites, eq(siteMemberships.siteId, sites.id))
+    .where(eq(siteMemberships.userId, userId))
+    .orderBy(asc(sites.name))
+  return attachOrigins(db, rows)
+}
+
 // Null rather than 404: the site detail route keeps unknown sites at 403 so
 // non-admins cannot probe for existing keys.
 export async function findSiteIdByKey(siteKey: string): Promise<string | null> {

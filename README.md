@@ -7,20 +7,19 @@ Self-hosted comment threads for any page: a Payload CMS admin for content, a Tan
 ## Quickstart (Docker Compose)
 
 ```bash
-cp .env.example .env   # fill PAYLOAD_SECRET and BETTER_AUTH_SECRET
-bun run stack:up       # Postgres 18 + migrations + app + plugin worker
+cp .env.example .env   # PAYLOAD_SECRET, BETTER_AUTH_SECRET and both database URLs
+bun run stack:up       # migrations + app + plugin worker (bring your own Postgres)
 ```
 
 Open <http://localhost:3000/create-admin-user> to create the first business admin, then sign in at `/moderation` to register a site and its allowed origins. Open `/admin` to create the first Payload admin user.
 
-`compose.yaml` starts `postgres:18`, a one-shot migration service, the app on `:3000`, and the plugin outbox worker. Turnstile defaults to Cloudflare's public testing keys, which work on any hostname including localhost; replace both keys in `.env` for production. See [Self-hosting](/docs/self-hosting) for production settings, backups and upgrades.
+`compose.yaml` bundles no database: point `DATABASE_URL` and `BUSINESS_DATABASE_URL` at your own Postgres (append `?sslmode=require` when it uses TLS), then create both databases. The stack runs a one-shot migration service, the app on `:3000`, and the plugin outbox worker. Turnstile defaults to Cloudflare's public testing keys, which work on any hostname including localhost; replace both keys in `.env` for production. See [Self-hosting](/docs/self-hosting) for production settings, backups and upgrades.
 
 ## Local development
 
 ```bash
 bun install
-cp .env.example .env   # fill PAYLOAD_SECRET and BETTER_AUTH_SECRET
-bun run db:up          # Postgres 18 on 127.0.0.1:5434
+cp .env.example .env   # PAYLOAD_SECRET, BETTER_AUTH_SECRET and both database URLs
 bun run db:migrate
 bun run db:business:migrate
 bun run generate:types
@@ -29,7 +28,7 @@ bun run generate-routes
 bun run dev            # http://localhost:3000
 ```
 
-`bun run db:up` starts only the Compose Postgres service, reusing the `last-comments-pgdata` volume. `bun run stack:up` runs the whole stack. For Google sign-in, register `http://localhost:3000/api/auth/callback/google` as the OAuth redirect URI. Public email/password registration stays disabled; the first account creates the instance admin, and later users sign in with Google or a configured provider.
+Point `DATABASE_URL` and `BUSINESS_DATABASE_URL` at your own Postgres and create both databases before migrating; the repository bundles none. From inside Compose, a database on the Docker host is `host.docker.internal`. `bun run stack:up` runs the whole stack. For Google sign-in, register `http://localhost:3000/api/auth/callback/google` as the OAuth redirect URI. Public email/password registration stays disabled; the first account creates the instance admin, and later users sign in with Google or a configured provider.
 
 Existing databases are not promoted during migration. To recover a failed first setup or grant the first instance admin manually:
 
@@ -41,7 +40,7 @@ Auth providers are configured in `src/server/auth/auth.config.ts` (`better-auth`
 
 ## Public comments API
 
-`GET|POST /api/comments` takes a `site` plus the absolute page `url`; register the page origin as an allowed origin for that site first. Guests provide a display name and, when verification is enabled, a Turnstile token. Responses include vote `score`, the signed-in viewer's `viewerVote`, and the author's site role as `authorRole` (`admin` | `moderator` | `null`).
+`GET|POST /api/comments` takes a `site` plus the absolute page `url`; register the page origin as an allowed origin for that site first. Every post carries a Turnstile token when verification is enabled; guests also provide a display name. Responses include vote `score`, the signed-in viewer's `viewerVote`, and the author's site role as `authorRole` (`admin` | `moderator` | `null`).
 - `PUT /api/comments/vote` casts or switches a vote; `DELETE /api/comments/vote?site=…&commentId=…` clears it. Voting needs a session through the first-party deployment or a same-origin proxy.
 - Signed-in authors may edit their own comments at any time via `PATCH /api/comments/:id`. Guests receive a one-time `editKey` in the create response and may use it within the guest edit window (`comment-policy.config.ts`, default 10 minutes; `0` = unlimited). Expired guest edits fail with 403 `EDIT_WINDOW_EXPIRED`.
 - Delete stays session-only via `DELETE /api/comments/:id?site=…`.
@@ -61,13 +60,17 @@ The moderator composer posts through `{ target: 'comment-create', site, pageId, 
 Plugins are trusted server-side TypeScript modules, statically imported in `src/server/plugins/config.ts`. Installing a package does not activate it, and the host never downloads code at runtime.
 
 ```ts
+import { resolveClientIp } from '@/server/plugins/rate-limit/client-ip'
+import { getRateLimitPluginSettings } from '@/server/plugins/rate-limit/rate-limit.config'
 import { createRateLimitPlugin } from '@/server/plugins/rate-limit/rate-limit.plugin'
 import { turnstilePlugin } from '@/server/plugins/turnstile/turnstile.plugin'
 import { discordPlugin } from '@example/last-comments-plugin-discord'
 
 export const installedCommentPlugins = [
   turnstilePlugin,
-  createRateLimitPlugin((request) => request.headers.get('x-real-ip')),
+  createRateLimitPlugin((request) =>
+    resolveClientIp(request, { trustedCidrs: getRateLimitPluginSettings().trustedProxyCidrs }),
+  ),
   discordPlugin,
 ] satisfies readonly CommentPlugin[]
 ```
@@ -76,13 +79,13 @@ Capabilities: `validateComment` (ordered, five-second timeout), `beforeOperation
 
 ### Rate limiting
 
-The `rate-limit` plugin is enabled by default and allows creates 5/10 minutes, edits and deletes 20/10 minutes, and votes 60/minute per site and requester. Signed-in requests use the Better Auth user ID; guests use a keyed HMAC of the resolved client IP, keyed by `BETTER_AUTH_SECRET`; the raw IP is not stored. The default resolver reads `x-real-ip`, so a trusted ingress must overwrite that header. DB errors fail closed with 503; over-limit responses include `Retry-After`.
+The `rate-limit` plugin is enabled by default and allows creates 5/10 minutes, edits and deletes 20/10 minutes, and votes 60/minute per site and requester. Signed-in requests use the Better Auth user ID; guests use a keyed HMAC of the resolved client IP, keyed by `BETTER_AUTH_SECRET`; the raw IP is not stored. The client IP is the request's socket peer, except when the request came from a trusted ingress — then that ingress's client IP header is used (`CF-Connecting-IP` behind Cloudflare, otherwise `x-real-ip`). Trusted ingress is loopback and private networks by default; set `RATE_LIMIT_TRUSTED_PROXY_CIDR` for anything else, so a direct client cannot rotate the header to dodge the limit. DB errors fail closed with 503; over-limit responses include `Retry-After`.
 
 To remove it, delete it from `installedCommentPlugins` and deploy after running the normal business migrations. Its table and data remain; `bun run db:business:plugins:uninstall rate-limit` explicitly drops them.
 
 ### Turnstile verification
 
-Turnstile is enabled by default and verifies guest tokens server-side. Set `TURNSTILE_SECRET_KEY` in the environment and the public site key in `TURNSTILE_SITE_KEY` (or `turnstile.config.ts`, which wins). The consuming site renders the widget and sends the token as `verificationToken`; signed-in comments skip verification. Missing/invalid tokens fail with 403, unavailable verification fails closed with 503.
+Turnstile is enabled by default and verifies comment tokens server-side. Set `TURNSTILE_SECRET_KEY` in the environment and the public site key in `TURNSTILE_SITE_KEY` (or `turnstile.config.ts`, which wins). The consuming site renders the widget and sends the token as `verificationToken`; every commenter is verified, signed-in ones included. Missing/invalid tokens fail with 403, unavailable verification fails closed with 503.
 
 Local development can use Cloudflare's testing keys:
 
@@ -93,7 +96,7 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
 ### Filter screening
 
-The `filter` plugin is installed but **off by default** (`enabled: false` in `filter.config.ts`). Enabling it holds violations for review as `hidden` instead of rejecting the write. It combines a local `bad-words` engine with an optional OpenRouter LLM decider; `OPENROUTER_API_KEY` is required only for the LLM engine, and failures resolve through `failOpen`.
+The `filter` plugin is installed and **on by default** (`enabled: true` in `filter.config.ts`). A hit holds the comment for review as `hidden` instead of rejecting the write. It combines a local `bad-words` engine with the OpenRouter LLM decider (`perplexity/pplx-decider-v1.2`, Decisions API); both engines are enabled by default, `OPENROUTER_API_KEY` is required for the LLM engine, and failures resolve through `failOpen`.
 
 ## Scripts
 
@@ -105,7 +108,6 @@ The `filter` plugin is installed but **off by default** (`enabled: false` in `fi
 | `generate:types` / `generate:importmap` | Regenerate `payload-types.ts` / `src/payload-import-map.ts`                 |
 | `generate-routes`                       | Regenerate `src/routeTree.gen.ts`                                           |
 | `generate:payload-admin-css`            | Regenerate `src/styles/payload-admin-generated.css` (also runs in `build`)  |
-| `db:up` / `db:down`                     | Start/stop the Compose Postgres service                                     |
 | `db:migrate`                            | Apply Payload migrations (`src/migrations/`)                                |
 | `db:business:migrate`                   | Apply core business migrations and installed-plugin migrations              |
 | `db:business:plugins:uninstall <id>`    | Drop a supported plugin's data and migration history                        |
@@ -113,12 +115,15 @@ The `filter` plugin is installed but **off by default** (`enabled: false` in `fi
 | `plugins:work`                          | Deliver plugin outbox events                                                |
 | `stack:up` / `stack:down`               | Build/start or stop the full Compose stack                                  |
 | `smoke`                                 | Boot-contract check against a running server                                |
-| `typecheck`                             | `bun check` (Bun's native checker)                                          |
+| `typecheck`                             | `bun check --no-script` (Bun 1.4.4+ native checker)                         |
+| `format` / `format:check`               | `bun fmt` / `bun fmt --check` (config in `bunfig.toml`)                     |
+| `lint` / `lint:fix`                     | Biome lint + import assist (formatter disabled)                             |
+| `check`                                 | `format:check` → `lint` → `typecheck` (what CI runs)                        |
 
 ## Structure
 
 ```
-compose.yaml                 Postgres 18, migrations, app and plugin worker
+compose.yaml                 migrations, app and plugin worker (external Postgres)
 Dockerfile                   multi-stage Bun image (prod deps, generated build, ops scripts)
 payload.config.ts            Payload collections: users, media, posts
 src/routes/                  site, blog, docs, Payload admin shell, comments/auth/moderation APIs
@@ -130,7 +135,7 @@ content/docs/                product documentation (Fumadocs MDX)
 tests/                       unit and integration suites
 vendor/                      vendored RSC-independent Payload Vite plugins
 scripts/                     smoke, migrations, plugin worker, assets, docker init
-.github/workflows/ci.yml     typecheck + Biome + migrations + tests + build/smoke + Docker Compose smoke
+.github/workflows/ci.yml     format + lint + typecheck + migrations + tests + build/smoke + Docker Compose smoke
 .bun-version                 single Bun version source (Dockerfile ARG + CI)
 ```
 
@@ -167,4 +172,4 @@ Payload requires `PAYLOAD_SECRET`, `DATABASE_URL` and `PAYLOAD_PUBLIC_SERVER_URL
 ## Deploy
 
 - Vercel: default Nitro preset. Run `db:migrate` and `db:business:migrate` before rollout and run `plugins:work` as a separate worker.
-- Docker/Compose: `bun run stack:up`. The image includes the admin-grant and plugin worker entrypoints plus the business migration script. Set `NODE_ENV=production`, a public HTTPS `PAYLOAD_PUBLIC_SERVER_URL`/`BETTER_AUTH_URL`, real secrets and real Turnstile keys. Use a reverse proxy that overwrites `x-real-ip`, and back up the `last-comments-pgdata` volume. See [Self-hosting](/docs/self-hosting).
+- Docker/Compose: `bun run stack:up`. The image includes the admin-grant and plugin worker entrypoints plus the business migration script. Set `NODE_ENV=production`, a public HTTPS `PAYLOAD_PUBLIC_SERVER_URL`/`BETTER_AUTH_URL`, real secrets and real Turnstile keys, and point `DATABASE_URL`/`BUSINESS_DATABASE_URL` at your Postgres (`?sslmode=...` when it uses TLS). Use a reverse proxy that overwrites `x-real-ip` (the rate limit trusts it only from a trusted ingress — see `RATE_LIMIT_TRUSTED_PROXY_CIDR`), and back up your Postgres. See [Self-hosting](/docs/self-hosting).

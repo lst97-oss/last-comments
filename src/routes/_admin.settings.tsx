@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Blocks, KeyRound, Settings as SettingsIcon, ShieldCheck, Users } from 'lucide-react'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
-import { DashboardShell } from '@/components/admin/dashboard-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,7 +15,7 @@ import { describeApiError, readApiData } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
 import { type InstanceSettings } from '@/lib/site-users'
 
-export const Route = createFileRoute('/settings')({
+export const Route = createFileRoute('/_admin/settings')({
   component: SettingsPage,
   errorComponent: BusinessRouteError,
 })
@@ -34,7 +33,7 @@ function SettingsPage() {
   const failure = describeApiError(settingsQuery.error, 'Could not load settings')
 
   return (
-    <DashboardShell>
+    <>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 text-foreground">
         <header className="border-b border-border pb-5">
           <p className="text-sm text-muted-foreground">Last Comments</p>
@@ -198,8 +197,8 @@ function SettingsPage() {
             <section aria-label="Comments and verification" className="grid gap-4 lg:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Guest verification</CardTitle>
-                  <CardDescription>Turnstile checks for signed-out commenters.</CardDescription>
+                  <CardTitle>Comment verification</CardTitle>
+                  <CardDescription>Turnstile checks every commenter.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2 text-sm">
                   <div className="flex items-center justify-between gap-3">
@@ -228,7 +227,7 @@ function SettingsPage() {
                   </div>
                   {!settings.comments.verificationRequired && (
                     <p className="text-xs text-muted-foreground">
-                      The bypass is for local development only — guests post without a token while it is off.
+                      The bypass is for local development only — everyone posts without a token while it is off.
                     </p>
                   )}
                 </CardContent>
@@ -323,6 +322,6 @@ function SettingsPage() {
           </>
         )}
       </main>
-    </DashboardShell>
+    </>
   )
 }

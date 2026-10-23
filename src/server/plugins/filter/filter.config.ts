@@ -21,7 +21,7 @@ export type ResolvedFilterConfig = {
   enabledImageSet: Set<string>
   hideThreshold: number
   failOpen: boolean
-  openrouter: { model: string; baseUrl: string; timeoutMs: number; maxTokens: number; apiKey: string | undefined }
+  openrouter: { model: string; baseUrl: string; timeoutMs: number; apiKey: string | undefined }
   images: { maxImages: number; timeoutMs: number; maxBytes: number; longestEdge: number; quality: number }
   blocklist: string[]
   allowlist: string[]
@@ -37,17 +37,17 @@ export const filterConfigDef = definePluginConfig({
   id: 'filter',
   fileSchema: filterFileSchema,
   defaults: {
-    // Opt-in; set OPENROUTER_API_KEY before enabling LLM screening.
-    enabled: false,
+    // Screening is on by default; the LLM engine needs OPENROUTER_API_KEY and
+    // resolves through failOpen without it.
+    enabled: true,
     engines: { badwords: true, llm: true },
     schemas: { text: 'all', image: 'all' },
     hideThreshold: 0.7,
     failOpen: true,
     openrouter: {
       model: 'perplexity/pplx-decider-v1.2',
-      baseUrl: 'https://openrouter.ai/api/v1',
+      baseUrl: 'https://openrouter.ai',
       timeoutMs: 8000,
-      maxTokens: 400,
       apiKey: secretFromEnv('OPENROUTER_API_KEY'),
     },
     images: { maxImages: 3, timeoutMs: 4000, maxBytes: 2_000_000, longestEdge: 512, quality: 60 },
@@ -71,7 +71,6 @@ export const filterConfigDef = definePluginConfig({
         model: file.openrouter.model,
         baseUrl: file.openrouter.baseUrl.replace(/\/$/, ''),
         timeoutMs: file.openrouter.timeoutMs,
-        maxTokens: file.openrouter.maxTokens,
         apiKey: resolveApiKey(file.openrouter.apiKey, env),
       },
       images: { ...file.images },

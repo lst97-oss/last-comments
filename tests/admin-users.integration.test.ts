@@ -203,13 +203,25 @@ describe('admin users API', () => {
 
     const { userId, cookie } = await createSignedInUser()
     await db.insert(siteMemberships).values({ siteId, userId, role: 'moderator' })
+    // The directory carries emails: a site moderator may not read it.
+    const forbidden = await listUsers(
+      new Request(`http://localhost:3000/api/admin/users?site=${siteKey}`, { headers: { cookie } }),
+    )
+    expect(forbidden.status).toBe(403)
+
+    const { userId: adminId, cookie: adminCookie } = await createSignedInUser()
+    await db.insert(siteMemberships).values({ siteId, userId: adminId, role: 'admin' })
     const invalid = await listUsers(
-      new Request(`http://localhost:3000/api/admin/users?site=${siteKey}&limit=0`, { headers: { cookie } }),
+      new Request(`http://localhost:3000/api/admin/users?site=${siteKey}&limit=0`, {
+        headers: { cookie: adminCookie },
+      }),
     )
     expect(invalid.status).toBe(400)
 
     const listed = await listUsers(
-      new Request(`http://localhost:3000/api/admin/users?site=${siteKey}&filter=blocked`, { headers: { cookie } }),
+      new Request(`http://localhost:3000/api/admin/users?site=${siteKey}&filter=blocked`, {
+        headers: { cookie: adminCookie },
+      }),
     )
     expect(listed.status).toBe(200)
     const body = (await listed.json()) as { data: { users: { name: string }[]; total: number } }
@@ -217,12 +229,15 @@ describe('admin users API', () => {
     expect(body.data.users.map((row) => row.name)).toEqual(['Blocked preemptive'])
 
     const searched = await listUsers(
-      new Request(`http://localhost:3000/api/admin/users?site=${siteKey}&search=poster`, { headers: { cookie } }),
+      new Request(`http://localhost:3000/api/admin/users?site=${siteKey}&search=poster`, {
+        headers: { cookie: adminCookie },
+      }),
     )
     expect(searched.status).toBe(200)
     const searchedBody = (await searched.json()) as { data: { users: { name: string }[]; total: number } }
     expect(searchedBody.data.total).toBe(1)
 
+    // History stays open to any site member.
     const history = await listHistory(
       new Request(`http://localhost:3000/api/admin/users/x/comments?site=${siteKey}`, { headers: { cookie } }),
       { userId: 'x' },

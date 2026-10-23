@@ -1,0 +1,177 @@
+name: cd
+
+# Deploys the image `ci` published to the production host, reached over
+# Tailscale (the host has no public SSH port). Runs after a successful `ci`
+# on main, or on demand for a re-deploy of the current commit.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Pulls the image `ci` pushed for this repository.
+  packages: read
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+env:
+  PUBLIC_URL: https://last-comments.lst97.dev
+  IMAGE: ghcr.io/lst97-oss/last-comments
+  # workflow_run has no github.sha of the deployed commit; it carries the sha.
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  APP_PORT: ${{ vars.APP_PORT || '3000' }}
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://last-comments.lst97.dev
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4.2.0
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: latest
+          ping: ${{ vars.TAILSCALE_HOST || secrets.TAILSCALE_HOST }}
+
+      - name: Decode the SSH key
+        env:
+          SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$SSH_KEY_B64" | base64 -d > "$RUNNER_TEMP/deploy_key"
+          [ -s "$RUNNER_TEMP/deploy_key" ] || { echo "::error::SSH_KEY_B64 did not decode to a key"; exit 1; }
+
+      - name: Compose the production .env
+        env:
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BUSINESS_DATABASE_URL: ${{ secrets.BUSINESS_DATABASE_URL }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          BLOG_SITE_KEY: ${{ secrets.BLOG_SITE_KEY }}
+          BLOG_PUBLISHER_API_KEY: ${{ secrets.BLOG_PUBLISHER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          env_file="$RUNNER_TEMP/production.env"
+          {
+            printf 'NODE_ENV=production\n'
+            printf 'LOG_PRETTY=false\n'
+            printf 'APP_PORT=%s\n' "$APP_PORT"
+            printf 'PAYLOAD_PUBLIC_SERVER_URL=%s\n' "$PUBLIC_URL"
+            printf 'BETTER_AUTH_URL=%s\n' "$PUBLIC_URL"
+            printf 'LAST_COMMENTS_IMAGE=%s:%s\n' "$IMAGE" "$DEPLOY_SHA"
+            for name in PAYLOAD_SECRET BETTER_AUTH_SECRET DATABASE_URL BUSINESS_DATABASE_URL \
+              TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
+              BLOG_SITE_KEY BLOG_PUBLISHER_API_KEY OPENROUTER_API_KEY CLOUDFLARE_TUNNEL_TOKEN; do
+              value="${!name:-}"
+              if [ -n "$value" ]; then printf '%s=%s\n' "$name" "$value"; fi
+            done
+          } > "$env_file"
+          # The stack boots without these; catch an unset environment instead.
+          for required in PAYLOAD_SECRET BETTER_AUTH_SECRET DATABASE_URL BUSINESS_DATABASE_URL; do
+            grep -q "^${required}=" "$env_file" || { echo "::error::missing production secret $required"; exit 1; }
+          done
+          base64 < "$env_file" | tr -d '\n' > "$env_file.b64"
+
+      - name: Deploy over Tailscale SSH
+        env:
+          SSH_USER: ${{ vars.SSH_USER || secrets.SSH_USER || 'lst97' }}
+          TAILSCALE_HOST: ${{ vars.TAILSCALE_HOST || secrets.TAILSCALE_HOST }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ENV_B64="$(cat "$RUNNER_TEMP/production.env.b64")"
+          GHCR_TOKEN_B64="$(printf '%s' "$GHCR_TOKEN" | base64 | tr -d '\n')"
+          # Everything travels on stdin, so no secret appears in a remote `ps`.
+          {
+            printf 'ENV_B64=%s\n' "$ENV_B64"
+            printf 'GHCR_TOKEN_B64=%s\n' "$GHCR_TOKEN_B64"
+            printf 'DEPLOY_SHA=%s\n' "$DEPLOY_SHA"
+            printf 'GHCR_USER=%s\n' "$GHCR_USER"
+            printf 'APP_PORT=%s\n' "$APP_PORT"
+            cat <<'REMOTE'
+          set -Eeuo pipefail
+
+          REPO_DIR="$HOME/last-comments/production"
+          REPO_URL="https://github.com/lst97-oss/last-comments.git"
+
+          mkdir -p "$(dirname "$REPO_DIR")"
+          if [ ! -d "$REPO_DIR/.git" ]; then
+            echo "Cloning $REPO_URL into $REPO_DIR"
+            git clone --filter=blob:none "$REPO_URL" "$REPO_DIR"
+          fi
+
+          cd "$REPO_DIR"
+          git fetch --prune --quiet origin
+          git checkout --quiet --force --detach "$DEPLOY_SHA"
+          echo "Checked out $(git rev-parse --short HEAD) in $REPO_DIR"
+
+          # Rewritten on every deploy from the GitHub environment; never committed.
+          printf '%s' "$ENV_B64" | base64 -d > .env
+          chmod 600 .env
+
+          GHCR_TOKEN="$(printf '%s' "$GHCR_TOKEN_B64" | base64 -d)"
+          if [ -n "$GHCR_TOKEN" ]; then
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin > /dev/null
+          fi
+
+          docker compose --profile tunnel pull --quiet
+          docker compose --profile tunnel up -d --remove-orphans
+
+          # /api/ready stays 503 until the business migrations finish.
+          ready=""
+          for _ in $(seq 1 60); do
+            if curl -fsS --max-time 3 "http://127.0.0.1:${APP_PORT}/api/ready" > /dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          if [ -z "$ready" ]; then
+            echo "app did not become ready; last logs:"
+            docker compose logs --no-color --tail=80 migrate app
+            exit 1
+          fi
+
+          docker compose ps
+          curl -fsS "http://127.0.0.1:${APP_PORT}/api/live" > /dev/null && echo "app live"
+          REMOTE
+          } | ssh -i "$RUNNER_TEMP/deploy_key" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o LogLevel=ERROR \
+              -o ConnectTimeout=20 \
+              "$SSH_USER@$TAILSCALE_HOST" 'bash -s'
+
+      - name: Check the public site
+        run: |
+          set -euo pipefail
+          if ! getent hosts last-comments.lst97.dev > /dev/null; then
+            echo "::notice::last-comments.lst97.dev has no DNS record yet; skipping the public check"
+            exit 0
+          fi
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL/")"
+          echo "GET $PUBLIC_URL/ -> $code"
+          case "$code" in
+            200|308) ;;
+            *) echo "::error::public site returned $code"; exit 1 ;;
+          esac

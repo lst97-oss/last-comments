@@ -1,9 +1,9 @@
 # Turnstile plugin (`turnstile`)
 
-Cloudflare Turnstile guest verification. Implements `verificationProvider` +
+Cloudflare Turnstile verification. Implements `verificationProvider` +
 `validateComment`: with `verificationRequired` on (the default in
-`turnstile.config.ts`), guest posts must present a token that verifies against
-`siteverify` for the thread's hostname; signed-in posts skip verification.
+`turnstile.config.ts`), every post must present a token that verifies against
+`siteverify` for the thread's hostname — guests and signed-in authors alike.
 - Fails closed: missing `TURNSTILE_SECRET_KEY` or unreachable Siteverify →
   `503 COMMENT_VERIFICATION_UNAVAILABLE`; bad token or hostname mismatch →
   `403 COMMENT_VERIFICATION_FAILED`.

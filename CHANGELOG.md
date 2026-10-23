@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## v0.2.0
+
+Moderation dashboard overhaul, filter Decisions API, external-Postgres Compose, per-page social cards, and the Bun 1.4.4 toolchain.
+
+- Fix the filter plugin's LLM engine: `perplexity/pplx-decider-v1.2` is a Decisions model (`text+image -> decisions`) and OpenRouter rejects `/chat/completions` for it, so every screened comment silently failed open and only `bad-words` ever hid anything. The decider now posts to `/api/alpha/decisions` (`client.alpha.decisions.create`, raw-`fetch` fallback) with the prompt text and image thumbnails as `state` and one `noul` question per enabled text/image category; answers are calibrated violation probabilities and `hideThreshold` compares against them. Text and image thumbnails ride in the same one-shot call, disabled schemas are never asked, and every question must be answered (a missing answer resolves through `failOpen`). `maxTokens` and the strict-JSON-schema builder are gone; `openrouter.baseUrl` now defaults to the OpenRouter origin.
+
+- The moderation dashboard's "Hidden & removed" list is actionable: every hidden and deleted comment carries a **Restore** button (the session is the verification, so it goes through the same `POST /api/moderation` `restore` the thread view uses), the rows stack on narrow screens instead of squeezing the badge and the button onto one line, and the list is client-paged. The Recent tab's window toggle gains an **ALL** option: `recentDays=0` drops the window's lower bound, so the threads and the takedowns cover every comment.
+
+- Permission hardening on the admin API: `GET /api/admin/sites` returns only the caller's own sites (instance admins still see every site, service keys stay instance-level), the user directory `/api/admin/users` is limited to instance and site admins so a site moderator no longer reads other people's emails, and the OpenAPI reference documents both rules. The rate-limit plugin buckets guests on the request's socket peer and trusts the ingress client IP header only from a trusted ingress (loopback and private networks by default, `RATE_LIMIT_TRUSTED_PROXY_CIDR` widens it), so a direct client can no longer rotate the header to dodge the limit. The header is `x-real-ip`, or `CF-Connecting-IP` behind Cloudflare (a Tunnel needs no extra setup). A service key is recognised by its `lck_` prefix, so an OIDC bearer token reaches the session providers instead of failing key verification.
+
+- Turnstile now covers every commenter: the server verifies the token for signed-in posts too (the plugin no longer skips validation when the request carries a session), and a missing verification provider fails closed for everyone instead of only for guests. The widgets render the challenge for every identity — guests and signed-in authors alike — and block the submit until the token arrives. Moderator dashboard writes keep their own path: the session is the verification there, so no challenge is required.
+
+- Social share cards are rendered per page: the new pixel-art artwork (`src/server/seo/og-artwork.webp`) is the background of `/og`, and every page's `og:image`/`twitter:image` now points at that route with its own title and description (`Last Comments · Self-hosted comments for any site`, `About Last Comments · …`, `Blog · Last Comments`, each docs page, and a post without a cover). The card draws the title (Archivo Black), the description (JetBrains Mono) and a bottom-left framework strip — `React · Vue · Angular · HTML` — as SVG paths, so the server image needs no system fonts. Blog posts keep their cover as the share image. Favicon and manifest applied: `public/favicon/` is linked from the root route (16x16, 32x32, `favicon.ico`, apple-touch-icon) and `public/site.webmanifest` lists the same icon set with the site name, scope and colors.
 
 - Add the self-host stack: `compose.yaml` runs PostgreSQL 18, one-shot Payload/business migrations, the app and the plugin worker, with Cloudflare Turnstile testing keys by default. Add `bun run stack:up` / `stack:down`, an init hook that creates the business database, and a self-hosting guide. The Dockerfile now builds a shared production-dependency stage, keeps the migration maintenance scripts and `drizzle/` in the runner, and generates the route tree in the build so a clean checkout no longer depends on local ignored files. CI now uses PostgreSQL 18 and adds a full Compose build/smoke job. Refresh the README, AGENTS/DESIGN guidance and stale docs; restore the production rate-limit budgets; keep the filter plugin opt-in (`enabled: false`).
 
@@ -27,7 +39,7 @@
 - Use the new admin layout/provider helpers and refresh the vendored Vite workarounds.
 - Remove unused Sharp; disable authorship and LLM instructions to preserve the existing Payload schema.
 
-## v0.2.0
+## v0.1.0
 
 Bare Payload v4 + TanStack Start, hardened to a boot contract.
 

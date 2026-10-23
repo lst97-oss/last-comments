@@ -213,10 +213,26 @@ describe('Turnstile plugin', () => {
     expect(called).toBe(false)
   })
 
-  test('skips verification for signed-in users', async () => {
+  test('verifies a signed-in user like any other commenter', async () => {
+    let requestBody = ''
+    const plugin = createTurnstilePlugin({
+      verificationRequired: true,
+      secretKey: 'secret',
+      fetcher: async (_url, init) => {
+        requestBody = String(init?.body)
+        return Response.json({ success: true, hostname: 'example.com' })
+      },
+    })
+
+    await plugin.validateComment?.({ ...input, userId: 'user-1' }, new AbortController().signal)
+
+    expect(requestBody).toContain('response=turnstile-token')
+  })
+
+  test('rejects a signed-in user without a token', async () => {
     let called = false
     const plugin = createTurnstilePlugin({
-      secretKey: '',
+      secretKey: 'secret',
       verificationRequired: true,
       fetcher: async () => {
         called = true
@@ -224,11 +240,15 @@ describe('Turnstile plugin', () => {
       },
     })
 
-    await plugin.validateComment?.(
-      { ...input, userId: 'user-1', verificationToken: undefined },
-      new AbortController().signal,
-    )
-
+    await expect(
+      plugin.validateComment?.(
+        { ...input, userId: 'user-1', verificationToken: undefined },
+        new AbortController().signal,
+      ),
+    ).rejects.toMatchObject({
+      code: 'COMMENT_VERIFICATION_FAILED',
+      status: 403,
+    })
     expect(called).toBe(false)
   })
 })

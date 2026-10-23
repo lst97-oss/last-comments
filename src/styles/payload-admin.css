@@ -10,5 +10,5 @@
    outrank @payloadcms/ui's own `@layer payload-default` declarations regardless
    of `<link>` order in the built document. */
 
-@import './payload-admin-generated.css';
-@import './payload-admin-theme.css';
+@import "./payload-admin-generated.css";
+@import "./payload-admin-theme.css";

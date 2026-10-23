@@ -1,10 +1,9 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
-import { DashboardShell } from '@/components/admin/dashboard-shell'
 import { PagesView } from '@/components/admin/pages-view'
-import { RecentView } from '@/components/admin/recent-view'
+import { RecentView, TAKEDOWN_PAGE_SIZE } from '@/components/admin/recent-view'
 import { SiteKeyCreateDialog } from '@/components/admin/site-key-dialog'
 import { SitesView } from '@/components/admin/sites-view'
 import { UsersView } from '@/components/admin/users-view'
@@ -18,12 +17,12 @@ import { asModerationView, type ModerationView } from '@/lib/admin-format'
 import { ADMIN_SITES_QUERY_KEY, fetchAdminSites } from '@/lib/admin-sites'
 import { describeApiError, readApiData } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
-import { type PageSummary } from '@/lib/page-thread'
+import { type PageSummary, type TakedownPage } from '@/lib/page-thread'
 import { setupStatusServerFn } from '@/lib/setup-status'
 import { type Site } from '@/lib/site-keys'
 import { type SiteForm } from '@/lib/site-schema'
 
-export const Route = createFileRoute('/moderation')({
+export const Route = createFileRoute('/_admin/moderation')({
   validateSearch: (search: Record<string, unknown>) => ({
     view: asModerationView(search.view),
   }),
@@ -40,8 +39,10 @@ function ModerationPage() {
   'use memo'
   const { view } = Route.useSearch()
   const navigate = Route.useNavigate()
+  const queryClient = useQueryClient()
   const [siteOverride, setSiteOverride] = useState<string | null>(null)
   const [recentDays, setRecentDays] = useState(7)
+  const [takedownPage, setTakedownPage] = useState(0)
   const [createOpen, setCreateOpen] = useState(false)
   const [keyPrompt, setKeyPrompt] = useState<{ key: string; name: string } | null>(null)
 
@@ -78,6 +79,20 @@ function ModerationPage() {
     retry: false,
   })
   const pages = pagesQuery.data ?? []
+
+  // Hidden and deleted comments, one page at a time. Only the Recent tab shows
+  // them, so the query waits for that view.
+  const takedownsQuery = useQuery({
+    queryKey: ['admin-takedowns', site, recentDays, takedownPage],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/admin/takedowns?site=${encodeURIComponent(site)}&recentDays=${recentDays}&limit=${TAKEDOWN_PAGE_SIZE}&offset=${takedownPage * TAKEDOWN_PAGE_SIZE}`,
+      )
+      return readApiData<TakedownPage>(response)
+    },
+    enabled: site !== '' && view === 'recent',
+    retry: false,
+  })
 
   const queryError = sitesQuery.error ?? allSitesQuery.error ?? pagesQuery.error
   const failure = describeApiError(queryError, 'Could not load moderation data')
@@ -157,17 +172,18 @@ function ModerationPage() {
       await readApiData<Record<string, unknown>>(response)
     },
     onSuccess: async () => {
-      await pagesQuery.refetch()
+      await Promise.all([pagesQuery.refetch(), queryClient.invalidateQueries({ queryKey: ['admin-takedowns'] })])
     },
     onError: (cause) => reportFailure('Moderation action failed', cause),
   })
 
   function switchSite(next: string) {
     setSiteOverride(next)
+    setTakedownPage(0)
   }
 
   return (
-    <DashboardShell>
+    <>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 text-foreground">
         <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
           <div>
@@ -234,7 +250,14 @@ function ModerationPage() {
             site={site}
             pages={pages}
             recentDays={recentDays}
-            onRecentDays={setRecentDays}
+            onRecentDays={(days) => {
+              setRecentDays(days)
+              setTakedownPage(0)
+            }}
+            takedowns={takedownsQuery.data}
+            takedownPage={takedownPage}
+            takedownsFailed={takedownsQuery.isError}
+            onTakedownPage={setTakedownPage}
             createOpen={createOpen}
             onCreateOpen={setCreateOpen}
             onCreateSite={(values) =>
@@ -256,12 +279,12 @@ function ModerationPage() {
               )
             }
             onRefreshPages={() => void pagesQuery.refetch()}
-            onAct={(action) => void actMutation.mutateAsync(action).catch(() => undefined)}
+            onAct={(action) => actMutation.mutateAsync(action).catch(() => undefined)}
             onNavigateView={(next) => void navigate({ to: '/moderation', search: { view: next } })}
           />
         )}
       </main>
-    </DashboardShell>
+    </>
   )
 }
 
@@ -273,13 +296,17 @@ type ViewContentProps = {
   pages: PageSummary[]
   recentDays: number
   onRecentDays: (days: number) => void
+  takedowns: TakedownPage | undefined
+  takedownPage: number
+  takedownsFailed: boolean
+  onTakedownPage: (page: number) => void
   createOpen: boolean
   onCreateOpen: (open: boolean) => void
   onCreateSite: (values: SiteForm) => Promise<boolean>
   onRenameSite: (siteKey: string, name: string) => Promise<boolean>
   onDeleteSite: (siteKey: string) => Promise<boolean>
   onRefreshPages: () => void
-  onAct: (action: Record<string, string | boolean>) => void
+  onAct: (action: Record<string, string | boolean>) => Promise<void>
   onNavigateView: (view: ModerationView) => void
 }
 

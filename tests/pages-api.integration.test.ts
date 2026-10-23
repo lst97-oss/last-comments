@@ -1,9 +1,22 @@
 import { afterAll, describe, expect, test } from 'bun:test'
+import { eq } from 'drizzle-orm'
 
 import { Route as AdminPagesRoute } from '@/routes/api.admin.pages'
+import { getBusinessDb } from '@/server/db/business-sql'
+import { comments } from '@/server/db/schema'
 import { createAdminSite } from '@/server/modules/admin/infrastructure/admin-repository'
 import { assertValidScopeSet, issueServiceKey } from '@/server/modules/api-keys/infrastructure/api-key-repository'
-import { cleanupTestData, createOwner, handlerOf, jsonRequest, keyIds, siteKeys } from './helpers/integration'
+import {
+  cleanupTestData,
+  createOwner,
+  createTestComment,
+  handlerOf,
+  jsonRequest,
+  keyIds,
+  siteKeys,
+} from './helpers/integration'
+
+const db = getBusinessDb()
 
 afterAll(cleanupTestData)
 
@@ -217,11 +230,53 @@ describe('publisher pages API', () => {
     const thread = body.data.pages.find((page) => page.canonicalUrl === 'https://pages.example.test/recent')
     expect(thread?.recent).toMatchObject({ windowDays: 1, count: 0, totalAuthors: 0, authors: [], preview: [] })
 
-    // Bounds are enforced, not clamped: a zero-day window is a 400.
+    // Bounds are enforced, not clamped: an out-of-range window is a 400.
     const invalid = await listPages(
-      new Request(`http://localhost:3000/api/admin/pages?site=${site.key}&recentDays=0`, { headers: auth }),
+      new Request(`http://localhost:3000/api/admin/pages?site=${site.key}&recentDays=91`, { headers: auth }),
     )
     expect(invalid.status).toBe(400)
+  })
+
+  test('the all-time window drops the lower bound', async () => {
+    const ownerId = await createOwner('All time reader')
+    const site = await createSite('Pages all time')
+    const reader = await issueServiceKey({
+      userId: ownerId,
+      name: 'all-time-reader',
+      siteKey: site.key,
+      scopes: ['pages:read'],
+    })
+    keyIds.push(reader.id)
+    const auth = { authorization: `Bearer ${reader.key}` }
+
+    const comment = await createTestComment({
+      siteKey: site.key,
+      pageUrl: 'https://pages.example.test/old',
+      userId: null,
+      authorName: 'Old guest',
+      bodyMarkdown: 'An old comment',
+    })
+    // Backdate the comment past every bounded window.
+    await db
+      .update(comments)
+      .set({ createdAt: new Date(Date.now() - 40 * 86_400_000) })
+      .where(eq(comments.id, comment.id))
+
+    const readCount = async (recentDays: number) => {
+      const response = await listPages(
+        new Request(`http://localhost:3000/api/admin/pages?site=${site.key}&recentDays=${recentDays}`, {
+          headers: auth,
+        }),
+      )
+      expect(response.status).toBe(200)
+      const body = (await response.json()) as {
+        data: { pages: { canonicalUrl: string; recent: { windowDays: number; count: number } }[] }
+      }
+      return body.data.pages.find((page) => page.canonicalUrl === 'https://pages.example.test/old')?.recent
+    }
+
+    expect(await readCount(7)).toMatchObject({ windowDays: 7, count: 0 })
+    expect(await readCount(0)).toMatchObject({ windowDays: 0, count: 1 })
   })
 
   test('instance keys cannot hold page scopes', () => {

@@ -16,6 +16,7 @@ const SPEC_PATHS = [
   '/api/admin/sites/{siteKey}',
   '/api/admin/pages',
   '/api/admin/pages/{pageId}',
+  '/api/admin/takedowns',
   '/api/admin/users',
   '/api/admin/users/{userId}/comments',
   '/api/admin/settings',
