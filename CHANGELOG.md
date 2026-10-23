@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.2.0
+
+Moderation dashboard overhaul, filter Decisions API, external-Postgres Compose, per-page social cards, and the Bun 1.4.4 toolchain.
 
 - Fix the filter plugin's LLM engine: `perplexity/pplx-decider-v1.2` is a Decisions model (`text+image -> decisions`) and OpenRouter rejects `/chat/completions` for it, so every screened comment silently failed open and only `bad-words` ever hid anything. The decider now posts to `/api/alpha/decisions` (`client.alpha.decisions.create`, raw-`fetch` fallback) with the prompt text and image thumbnails as `state` and one `noul` question per enabled text/image category; answers are calibrated violation probabilities and `hideThreshold` compares against them. Text and image thumbnails ride in the same one-shot call, disabled schemas are never asked, and every question must be answered (a missing answer resolves through `failOpen`). `maxTokens` and the strict-JSON-schema builder are gone; `openrouter.baseUrl` now defaults to the OpenRouter origin.
 
@@ -37,7 +39,7 @@
 - Use the new admin layout/provider helpers and refresh the vendored Vite workarounds.
 - Remove unused Sharp; disable authorship and LLM instructions to preserve the existing Payload schema.
 
-## v0.2.0
+## v0.1.0
 
 Bare Payload v4 + TanStack Start, hardened to a boot contract.
 
