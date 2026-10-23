@@ -8,7 +8,7 @@ The composer footer carries the identity control next to the name field — `Com
 
 ## Signed-out visitors
 
-The identity menu offers `Sign in…`. It links to `signInUrl` when the host provides one, otherwise the widget asks the API to start the OAuth flow (`POST {baseUrl}/api/auth/sign-in/social`, provider `google`) and navigates to the returned authorization URL, which returns the user to `pageUrl`. That default path needs `baseUrl` reachable with credentials from the page (the same-origin proxy recommended for voting) and a provider configured on the server; failures show the server's message under the control.
+The identity menu offers `Sign in…`. It links to `signInUrl` when the host provides one, otherwise the widget asks the API to start the OAuth flow (`POST {baseUrl}/api/auth/sign-in/social`, provider `google`) and navigates to the returned authorization URL, which returns the user to `pageUrl`. That default path needs `baseUrl` reachable with credentials from the page (the same-origin proxy recommended for voting) and a provider configured on the server; failures show the server's message under the control. A sign-in the provider rejects (for example `account_not_linked`) returns the reader to `pageUrl` with `?lc_sign_in=failed&error=<code>`, and the widget explains it once under the control. A Google sign-in links to the existing account with the same email (see [Auth providers](/docs/auth)).
 
 ## Signed-in visitors
 

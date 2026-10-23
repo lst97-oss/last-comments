@@ -40,7 +40,7 @@ Props are shared across all four frameworks (`actionMode`, `bodyLimit` and `anon
 
 ### Turnstile options
 
-`theme` (`auto`, `light`, `dark`; defaults to the widget's own light/dark mode), `size` (`normal`, `compact`, `flexible`), `appearance` (`always`, `interaction-only`) and `language`. Cloudflare draws the challenge itself inside a cross-origin iframe, so its background, border, radius and shadow cannot be themed — style the `.lc-turnstile` container the widget renders instead.
+`theme` (`auto`, `light`, `dark`; defaults to the widget's own light/dark mode), `size` (`normal`, `compact`, `flexible`), `appearance` (`interaction-only` by default, so the box shows only when Cloudflare needs an interaction; `always` keeps it visible) and `language`. Cloudflare draws the challenge itself inside a cross-origin iframe, so its background, border, radius and shadow cannot be themed — style the `.lc-turnstile` container the widget renders instead.
 
 ## Other exports
 

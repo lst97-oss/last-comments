@@ -18,6 +18,7 @@ providers: ['better-auth'], // default
 ```
 
 - `BETTER_AUTH_SECRET` (min 32 chars), `BETTER_AUTH_URL`, and optionally `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Register `http://localhost:3000/api/auth/callback/google` as the OAuth redirect URI.
+- Google sign-in links to an existing account with the same email, even when that account's local email is unverified (the first admin signs up with a password, which leaves it unverified). Google's own `email_verified` claim is the ownership proof. Without this, the callback fails with `account_not_linked` and the reader returns to the site without a session. Password sign-up is closed, so nobody can pre-register a victim's address. Better Auth marks `requireLocalEmailVerified` as deprecated; re-check this setting when upgrading.
 - Public password registration stays disabled; the login endpoints live under `/api/auth/*`, including the interactive reference at `/api/auth/reference`. That whole mount is only served while `better-auth` is in `providers` (chains like `['better-auth', 'oidc-jwt']` count) and answers 404 otherwise.
 - On a new database, open `/create-admin-user` to create the first admin. Until an instance admin exists, the server refuses all other account creation — except the single address in `bootstrapEmail`, which may register directly (for headless deploys without the setup form).
 </Tab>

@@ -5,10 +5,29 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { getBusinessAuthSettings } from '@/server/auth/business-auth-config'
 import type { SessionPrincipal } from '@/server/auth/principal'
 import { getAuthSelection } from '@/server/auth/provider-config'
+import { createRegisteredOrigins } from '@/server/auth/registered-origins'
 import { getBusinessDb } from '@/server/db/business-sql'
 import { account, apikey, session, user, verification } from '@/server/db/schema'
 import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
+import { listRegisteredOrigins } from '@/server/modules/comments/infrastructure/site-origin-repository'
+import { getRequestLogger } from '@/server/observability/logger'
 import { installedOpenApiPlugins } from '@/server/openapi/config'
+
+// Every origin a site has registered. Better Auth checks the Origin header and
+// the callbackURL / errorCallbackURL against this list, so a registered site
+// can start and finish sign-in without a restart.
+const registeredOrigins = createRegisteredOrigins(listRegisteredOrigins, {
+  onError: (error) =>
+    getRequestLogger().warn('auth.registered-origins.unavailable', {
+      errorName: error instanceof Error ? error.name : typeof error,
+    }),
+})
+
+// Credentialed CORS for /api/auth/* asks the same list: only registered origins
+// may read an auth response that carries the user's session.
+export function isRegisteredAuthOrigin(origin: string): Promise<boolean> {
+  return registeredOrigins.has(origin)
+}
 
 // API keys: user-owned, scoped per key. Site tenancy travels in the key's
 // metadata ({ siteKey }); permissions use { sites: ['create'], … }.
@@ -37,6 +56,9 @@ function createBusinessAuth(setup = false) {
     ...(setup
       ? {}
       : {
+          // Better Auth calls this at init without a request; that call gets no
+          // origins, so the database is only read for real requests.
+          trustedOrigins: async (request?: Request) => (request ? [...(await registeredOrigins.list())] : []),
           databaseHooks: {
             user: {
               create: {
