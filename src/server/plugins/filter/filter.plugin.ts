@@ -1,17 +1,16 @@
 import { getRequestLogger, type Logger } from '@/server/observability/logger'
 import type { CommentPlugin, CommentValidationInput, ScreenVerdict } from '@/server/plugins/comment-plugins'
 import { type BadwordsFilter, screenBadwords } from '@/server/plugins/filter/badwords-screen'
-import { buildSystemPrompt, buildUserText } from '@/server/plugins/filter/decider-prompt'
+import { buildQuestions, buildStateText } from '@/server/plugins/filter/decider-prompt'
 import { filterConfig, filterConfigDef, type ResolvedFilterConfig } from '@/server/plugins/filter/filter.config'
-import { activeSchemaName, activeVerdictJsonSchema } from '@/server/plugins/filter/filter-schemas'
 import { extractImageUrls, fetchAndShrink } from '@/server/plugins/filter/image-prep'
-import { type ChatSender, callDecider, DeciderError } from '@/server/plugins/filter/openrouter-client'
+import { callDecider, DeciderError, type DeciderSender } from '@/server/plugins/filter/openrouter-client'
 import { loadPluginConfig } from '@/server/plugins/plugin-config'
 
 // Filter plugin: lexical (`bad-words`) + LLM (`pplx-decider-v1.2` via the
-// OpenRouter SDK) screening that marks hits `hidden` for review. It never
-// throws — transport failures resolve through `failOpen` (allow + warn, or
-// hide + warn), so commenters never see a 5xx from this plugin.
+// OpenRouter Decisions API) screening that marks hits `hidden` for review. It
+// never throws — transport failures resolve through `failOpen` (allow + warn,
+// or hide + warn), so commenters never see a 5xx from this plugin.
 
 export function getFilterSettings(env?: Record<string, string | undefined>): ResolvedFilterConfig {
   return loadPluginConfig(filterConfigDef, { file: filterConfig, env })
@@ -44,33 +43,29 @@ async function loadBadwordsFilter(logger: Logger): Promise<BadwordsFilter | null
 
 export function applyVerdictThreshold(
   verdict: {
-    decision: 'allow' | 'hide'
-    textSignals: { category: string; flagged: boolean; confidence: number }[]
-    imageSignals: { category: string; flagged: boolean; confidence: number }[]
+    textSignals: { category: string; confidence: number }[]
+    imageSignals: { category: string; confidence: number }[]
   },
   options: { enabledText: Set<string>; enabledImage: Set<string>; hideThreshold: number },
-): { triggered: string[]; corroboratedHide: boolean } {
-  const triggered: string[] = []
-  const consider = (category: string, flagged: boolean, confidence: number, enabled: Set<string>) => {
-    // Defence in depth: the strict schema already forbids disabled rows, but
-    // a hallucinating model must never hide through one. `benign` is evidence
-    // only — it never triggers a hide.
+): string[] {
+  const triggered = new Set<string>()
+  const consider = (category: string, confidence: number, enabled: Set<string>) => {
+    // Defence in depth: questions only exist for enabled categories, but a
+    // drifted response must never hide through a disabled one. `benign` is
+    // evidence only — it never triggers a hide.
     if (!enabled.has(category) || category === 'benign') return
-    if (flagged && confidence >= options.hideThreshold) triggered.push(category)
+    if (confidence >= options.hideThreshold) triggered.add(category)
   }
-  for (const signal of verdict.textSignals)
-    consider(signal.category, signal.flagged, signal.confidence, options.enabledText)
-  for (const signal of verdict.imageSignals)
-    consider(signal.category, signal.flagged, signal.confidence, options.enabledImage)
-  const corroboratedHide = verdict.decision === 'hide' && triggered.length > 0
-  return { triggered, corroboratedHide }
+  for (const signal of verdict.textSignals) consider(signal.category, signal.confidence, options.enabledText)
+  for (const signal of verdict.imageSignals) consider(signal.category, signal.confidence, options.enabledImage)
+  return [...triggered]
 }
 
 export function createFilterPlugin(
   deps: {
     loadConfig?: () => ResolvedFilterConfig
     createWordFilter?: () => Promise<BadwordsFilter | null>
-    chatSender?: ChatSender
+    deciderSender?: DeciderSender
     logger?: Logger
   } = {},
 ): CommentPlugin {
@@ -118,7 +113,7 @@ export function createFilterPlugin(
       if (config.llmEnabled && !signal.aborted) {
         engines.push('llm')
         const verdict = await screenWithDecider(input, config, {
-          chatSender: deps.chatSender,
+          deciderSender: deps.deciderSender,
           logger: pluginLogger,
           signal,
         })
@@ -153,7 +148,7 @@ export function createFilterPlugin(
 async function screenWithDecider(
   input: CommentValidationInput,
   config: ResolvedFilterConfig,
-  deps: { chatSender?: ChatSender; logger: Logger; signal: AbortSignal },
+  deps: { deciderSender?: DeciderSender; logger: Logger; signal: AbortSignal },
 ): Promise<{ triggered: string[]; reasons: string[] }> {
   const { logger } = deps
   if (config.enabledText.length === 0 && config.enabledImage.length === 0) {
@@ -179,8 +174,7 @@ async function screenWithDecider(
     }
   }
 
-  const systemPrompt = buildSystemPrompt(config.enabledText, config.enabledImage)
-  const userText = buildUserText({
+  const state = buildStateText({
     authorName: input.authorName,
     bodyMarkdown: input.bodyMarkdown,
     isReply: input.parentId !== undefined && input.parentId !== null && input.parentId !== '',
@@ -188,30 +182,30 @@ async function screenWithDecider(
     textJudged: config.enabledText.length > 0,
     imageCount: imageDataUrls.length,
   })
+  const questions = buildQuestions(config.enabledText, config.enabledImage, imageDataUrls.length)
+  if (Object.keys(questions).length === 0) {
+    logger.warn('filter.llm_skipped', { reason: 'no_questions' })
+    return { triggered: [], reasons: [] }
+  }
 
   try {
     const verdict = await callDecider(
-      {
-        systemPrompt,
-        userText,
-        imageDataUrls,
-        enabledText: config.enabledText,
-        enabledImage: config.enabledImage,
-        schemaName: activeSchemaName(config.enabledText, config.enabledImage),
-        schema: activeVerdictJsonSchema(config.enabledText, config.enabledImage),
-      },
+      { state, questions, imageDataUrls },
       config.openrouter,
-      deps.chatSender ? { sender: deps.chatSender } : {},
+      deps.deciderSender ? { sender: deps.deciderSender } : {},
     )
-    const { triggered } = applyVerdictThreshold(verdict, {
+    const triggered = applyVerdictThreshold(verdict, {
       enabledText: config.enabledTextSet,
       enabledImage: config.enabledImageSet,
       hideThreshold: config.hideThreshold,
     })
-    if (verdict.decision === 'hide' && triggered.length === 0) {
-      logger.warn('filter.decision_mismatch', { reason: 'hide_without_enabled_corroboration' })
-    }
-    const reasons = verdict.reasons.filter((reason) => reason.trim() !== '')
+    const signals = [...verdict.textSignals, ...verdict.imageSignals]
+    const reasons = triggered.map((category) => {
+      const confidence = Math.max(
+        ...signals.filter((signal) => signal.category === category).map((signal) => signal.confidence),
+      )
+      return `auto.hide: ${category}(${confidence.toFixed(2)})`
+    })
     return { triggered, reasons: reasons.slice(0, 4) }
   } catch (cause) {
     const reason = cause instanceof DeciderError ? cause.reason : 'unknown'

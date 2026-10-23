@@ -42,7 +42,8 @@ export const TEXT_SCHEMA_DESCRIPTIONS: Record<TextCategory, string> = {
   self_harm: 'encouragement or instructions for self-harm (hide; never repeat the method)',
   illicit_pii: 'doxxing, credentials, private contact details, or payment secrets',
   link_abuse: 'misleading URLs, phishing lures, or redirect chains in markdown links',
-  low_quality: 'gibberish, test spam ("asdf"), single-emoji flood, or copy-paste flood',
+  low_quality:
+    'gibberish, test spam ("asdf"), copy-paste flood, or a flood of repeated emoji (a brief reply with one or a few emoji is normal)',
 }
 
 export const IMAGE_SCHEMA_DESCRIPTIONS: Record<ImageCategory, string> = {
@@ -55,25 +56,6 @@ export const IMAGE_SCHEMA_DESCRIPTIONS: Record<ImageCategory, string> = {
   illegal_activity: 'imagery depicting criminal activity',
   benign: 'ordinary screenshots, avatars, diagrams, or product photos (informational only)',
 }
-
-export const textSignalSchema = z.strictObject({
-  category: textCategorySchema,
-  flagged: z.boolean(),
-  confidence: z.number().min(0).max(1),
-  rationale: z.string().max(160),
-})
-
-export const imageSignalSchema = z.strictObject({
-  index: z.number().int().min(0),
-  srcHost: z.string().max(253),
-  category: imageCategorySchema,
-  flagged: z.boolean(),
-  confidence: z.number().min(0).max(1),
-  rationale: z.string().max(160),
-  containsText: z.boolean().optional(),
-})
-
-export const filterDecisionSchema = z.enum(['allow', 'hide'])
 
 // The file-level config shape. `schemas.text/image` accept the literal
 // `'all'` (default) or an explicit subset; `[]` disables that modality.
@@ -94,7 +76,6 @@ export const filterFileSchema = z.strictObject({
     model: z.string().min(1).max(200),
     baseUrl: z.string().min(1).max(500),
     timeoutMs: z.number().int().positive(),
-    maxTokens: z.number().int().positive().max(4096),
     apiKey: z.custom<SecretRef | string>((value) => typeof value === 'string' || isSecretRef(value)).optional(),
   }),
   images: z.strictObject({
@@ -117,63 +98,4 @@ export function normalizeSchemaSet<T extends string>(value: 'all' | readonly T[]
     seen.add(entry)
   }
   return [...seen]
-}
-
-// The active verdict schema: enums narrowed to the enabled subsets so the
-// strict `json_schema` contract forbids rows for disabled schemas outright.
-// An empty modality narrows to `z.never()` — the model cannot score it.
-// `benign` stays scorable (checked-benign evidence) but never hides (§6 rule).
-export function buildActiveVerdictSchema(enabledText: readonly TextCategory[], enabledImage: readonly ImageCategory[]) {
-  const activeText = enabledText.length > 0 ? z.enum(enabledText as unknown as [string, ...string[]]) : z.never()
-  const activeImage = enabledImage.length > 0 ? z.enum(enabledImage as unknown as [string, ...string[]]) : z.never()
-  return z.strictObject({
-    decision: filterDecisionSchema,
-    needsReview: z.boolean(),
-    triggeredCategories: z.array(z.union([activeText, activeImage])).max(8),
-    textSignals: z
-      .array(
-        z.strictObject({
-          category: activeText,
-          flagged: z.boolean(),
-          confidence: z.number().min(0).max(1),
-          rationale: z.string().max(160),
-        }),
-      )
-      .max(8),
-    imageSignals: z
-      .array(
-        z.strictObject({
-          category: activeImage,
-          flagged: z.boolean(),
-          confidence: z.number().min(0).max(1),
-          rationale: z.string().max(160),
-          index: z.number().int().min(0),
-          srcHost: z.string().max(253),
-          containsText: z.boolean().optional(),
-        }),
-      )
-      .max(3),
-    overallConfidence: z.number().min(0).max(1),
-    reasons: z.array(z.string().max(160)).max(4),
-  })
-}
-export type ActiveVerdict = z.infer<ReturnType<typeof buildActiveVerdictSchema>>
-
-export function activeVerdictJsonSchema(
-  enabledText: readonly TextCategory[],
-  enabledImage: readonly ImageCategory[],
-): Record<string, unknown> {
-  return z.toJSONSchema(buildActiveVerdictSchema(enabledText, enabledImage)) as Record<string, unknown>
-}
-
-// Short stable hash of the enabled set for the SDK schema name (≤64 chars,
-// `[a-zA-Z0-9_-]`), so distinct sets never collide in provider schema caches.
-export function activeSchemaName(enabledText: readonly TextCategory[], enabledImage: readonly ImageCategory[]): string {
-  const digest = `${[...enabledText].sort().join(',')}|${[...enabledImage].sort().join(',')}`
-  let hash = 0
-  for (let index = 0; index < digest.length; index += 1) {
-    hash = (Math.imul(hash, 31) + digest.charCodeAt(index)) | 0
-  }
-  const short = (hash >>> 0).toString(36)
-  return `last_comments_filter_verdict_t${enabledText.length}_i${enabledImage.length}_${short}`.slice(0, 64)
 }

@@ -36,7 +36,8 @@
     "smoke": "bun scripts/smoke.ts",
     "generate:payload-admin-css": "bun run scripts/assets/generate-payload-admin-css.ts",
     "generate:scalar": "bun run scripts/assets/copy-scalar.ts",
-    "generate-routes": "tsr generate"
+    "generate-routes": "tsr generate",
+    "eval:filter": "bun scripts/eval-filter-decider.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "9.1.0",
