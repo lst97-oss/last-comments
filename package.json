@@ -14,8 +14,6 @@
     "generate:types": "bunx ${PAYLOAD_BUNX_FLAGS:-} payload ${PAYLOAD_CLI_ARGS:-} generate:types",
     "generate:importmap": "bunx ${PAYLOAD_BUNX_FLAGS:-} payload ${PAYLOAD_CLI_ARGS:-} generate:importmap",
     "db:migrate": "bun run payload migrate",
-    "db:up": "docker compose up -d --wait postgres",
-    "db:down": "docker compose stop postgres",
     "stack:up": "docker compose up -d --build --wait",
     "stack:down": "docker compose down",
     "db:business:generate": "bunx drizzle-kit generate",

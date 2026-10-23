@@ -57,8 +57,8 @@ jobs:
         env:
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          BUSINESS_DB_PASSWORD: ${{ secrets.BUSINESS_DB_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BUSINESS_DATABASE_URL: ${{ secrets.BUSINESS_DATABASE_URL }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -78,7 +78,7 @@ jobs:
             printf 'PAYLOAD_PUBLIC_SERVER_URL=%s\n' "$PUBLIC_URL"
             printf 'BETTER_AUTH_URL=%s\n' "$PUBLIC_URL"
             printf 'LAST_COMMENTS_IMAGE=%s:%s\n' "$IMAGE" "$DEPLOY_SHA"
-            for name in PAYLOAD_SECRET BETTER_AUTH_SECRET POSTGRES_PASSWORD BUSINESS_DB_PASSWORD \
+            for name in PAYLOAD_SECRET BETTER_AUTH_SECRET DATABASE_URL BUSINESS_DATABASE_URL \
               TURNSTILE_SITE_KEY TURNSTILE_SECRET_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
               BLOG_SITE_KEY BLOG_PUBLISHER_API_KEY OPENROUTER_API_KEY CLOUDFLARE_TUNNEL_TOKEN; do
               value="${!name:-}"
@@ -86,7 +86,7 @@ jobs:
             done
           } > "$env_file"
           # The stack boots without these; catch an unset environment instead.
-          for required in PAYLOAD_SECRET BETTER_AUTH_SECRET POSTGRES_PASSWORD BUSINESS_DB_PASSWORD; do
+          for required in PAYLOAD_SECRET BETTER_AUTH_SECRET DATABASE_URL BUSINESS_DATABASE_URL; do
             grep -q "^${required}=" "$env_file" || { echo "::error::missing production secret $required"; exit 1; }
           done
           base64 < "$env_file" | tr -d '\n' > "$env_file.b64"

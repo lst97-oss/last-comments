@@ -85,6 +85,37 @@ jobs:
       contents: read
       # `cd` deploys the image this job publishes; pull uses packages: read.
       packages: write
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: last-comments-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      business-postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: business
+          POSTGRES_PASSWORD: business
+          POSTGRES_DB: business_comments
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Service containers publish on the runner; the Compose app reaches them
+      # as host.docker.internal (mapped to host-gateway in compose.yaml).
+      DATABASE_URL: postgres://postgres:postgres@host.docker.internal:5432/last-comments-test
+      BUSINESS_DATABASE_URL: postgres://business:business@host.docker.internal:5435/business_comments
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Read Bun version

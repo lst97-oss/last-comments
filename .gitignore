@@ -17,7 +17,6 @@ bun.lockb
 # Payload generated (regenerate via bun run generate:types / generate:importmap)
 payload-types.ts
 src/payload-import-map.ts
-pgdata/
 __pycache__/
 *.pyc
 *.pyo

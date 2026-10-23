@@ -1,6 +1,7 @@
-# Postgres 18 + migrations + app + plugin worker. Works without .env for local
-# development; copy .env.example to override secrets. Compose v2.24+ required.
-# Turnstile defaults are Cloudflare's public testing keys.
+# Migrations + app + plugin worker against your own Postgres. The stack bundles
+# no database: set DATABASE_URL and BUSINESS_DATABASE_URL in .env (copy
+# .env.example), appending `?sslmode=...` when that server needs TLS. Compose
+# v2.24+ required. Turnstile defaults are Cloudflare's public testing keys.
 
 name: last-comments
 
@@ -9,8 +10,9 @@ x-app-environment: &app-environment
   HOST: 0.0.0.0
   PORT: "3000"
   PAYLOAD_SECRET: ${PAYLOAD_SECRET:-local-compose-payload-secret-change-me-32-chars}
-  DATABASE_URL: postgres://demo:${POSTGRES_PASSWORD:-demo-secret-pw}@postgres:5432/template_demo
-  BUSINESS_DATABASE_URL: postgres://business:${BUSINESS_DB_PASSWORD:-business-secret-pw}@postgres:5432/business_comments
+  # Real values come from .env (or the shell); `:?` fails fast when missing.
+  DATABASE_URL: "${DATABASE_URL:?set DATABASE_URL in .env to your Payload Postgres URL}"
+  BUSINESS_DATABASE_URL: "${BUSINESS_DATABASE_URL:?set BUSINESS_DATABASE_URL in .env to your business Postgres URL}"
   # Production must use a public HTTPS origin (loopback is rejected).
   PAYLOAD_PUBLIC_SERVER_URL: ${PAYLOAD_PUBLIC_SERVER_URL:-http://localhost:3000}
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
@@ -26,38 +28,18 @@ x-app-service: &app-service
   env_file:
     - path: .env
       required: false
+  # Lets a database running on the host answer as host.docker.internal (Linux
+  # has no such name otherwise). Harmless for a remote database.
+  extra_hosts:
+    - host.docker.internal:host-gateway
   environment: *app-environment
 
 services:
-  postgres:
-    image: postgres:18-alpine
-    environment:
-      POSTGRES_USER: demo
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo-secret-pw}
-      POSTGRES_DB: template_demo
-      BUSINESS_DB_PASSWORD: ${BUSINESS_DB_PASSWORD:-business-secret-pw}
-    volumes:
-      # PG18 keeps its cluster below /var/lib/postgresql; reuse the existing volume.
-      - pgdata:/var/lib/postgresql
-      - ./scripts/docker/init-business-db.sh:/docker-entrypoint-initdb.d/10-business-db.sh:ro
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
-    restart: unless-stopped
-
   migrate:
     <<: *app-service
     command: ["sh", "-c", "bun run db:migrate && bun run db:business:migrate"]
     healthcheck:
       disable: true
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: "no"
 
   app:
@@ -74,8 +56,6 @@ services:
       # Payload uploads (`media` collection); survives `docker compose up`.
       - media:/app/media
     depends_on:
-      postgres:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
@@ -86,8 +66,6 @@ services:
     healthcheck:
       disable: true
     depends_on:
-      postgres:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
@@ -109,7 +87,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  pgdata:
-    name: last-comments-pgdata
   media:
     name: last-comments-media
