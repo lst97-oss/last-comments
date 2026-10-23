@@ -54,12 +54,12 @@ The manifest checks plugin IDs and API versions at startup. Removing a plugin fr
 
 ## Filter (hide-for-review screening)
 
-The `filter` plugin (`src/server/plugins/filter/`, off by default) holds violations for review instead of rejecting them. Two engines, each independently switchable — either, both, or all off:
+The `filter` plugin (`src/server/plugins/filter/`) holds violations for review instead of rejecting them. It is on by default (`enabled` in `filter.config.ts`). Two engines, each independently switchable — either, both, or all off:
 
 - **`bad-words`** — lexical blocklist plus the default profanity wordlist. Sync, zero cost. Tune with `blocklist` / `allowlist` (the allowlist fixes false positives without forking the library).
-- **LLM decider** — OpenRouter `perplexity/pplx-decider-v1.2` via the official `@openrouter/sdk`, judging `authorName` + `bodyMarkdown` plus any markdown images the widget can render. Images are fetched server-side and shrunk with `sharp` to 512px JPEG thumbnails before sending, so vision cost stays bounded (~1 chat call per screened comment).
+- **LLM decider** — OpenRouter `perplexity/pplx-decider-v1.2` through the Decisions API, judging `authorName` + `bodyMarkdown` plus any markdown images the widget can render. Images are fetched server-side and shrunk with `sharp` to 512px JPEG thumbnails before sending. The model returns one calibrated probability per enabled category per image, so a screened comment costs one decisions call.
 
-The decider scores text and image schemas, and `schemas.text` / `schemas.image` in `filter.config.ts` enable any subset — disabled schemas are never sent to the model and can never trigger a hide.
+The decider scores text and image schemas, and `schemas.text` / `schemas.image` in `filter.config.ts` enable any subset — disabled schemas are never asked and can never trigger a hide.
 
 <Accordions>
 <Accordion title="Text schemas (8)">
@@ -70,9 +70,9 @@ The decider scores text and image schemas, and `schemas.text` / `schemas.image` 
 | `sexual_explicit` | Pornographic detail, solicitation (always hide) |
 | `violence_threat` | Credible threats, instructions facilitating wrongdoing |
 | `self_harm` | Encouragement or instructions (hide; method never repeated) |
-| `illicit_pii` | Doxxing, credentials, private contact dumps |
-| `link_abuse` | Misleading URLs, phishing lures, redirect chains |
-| `low_quality` | Gibberish, test spam, emoji/copy-paste floods |
+| `illicit_pii` | Doxxing, credentials, private contact dumps, credential/OTP requests (including fake admin/support) |
+| `link_abuse` | Misleading URLs, phishing lures, malware links/commands, redirect chains |
+| `low_quality` | Gibberish, test spam, copy-paste floods; a short reply with one or a few emoji is normal |
 </Accordion>
 <Accordion title="Image schemas (8)">
 | Schema | Catches |

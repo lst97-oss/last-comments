@@ -30,7 +30,7 @@ export function Thread() {
 ```bash
 bun install
 cp .env.example .env
-bun run db:up
+# point DATABASE_URL / BUSINESS_DATABASE_URL at your own Postgres
 bun run db:migrate
 bun run db:business:migrate
 bun run dev            # http://localhost:3000
