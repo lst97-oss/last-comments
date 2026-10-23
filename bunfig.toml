@@ -1,2 +1,29 @@
 [test]
 preload = ["./tests/setup.ts"]
+
+[fmt]
+printWidth = 120
+semi = false
+singleQuote = true
+trailingComma = "all"
+ignorePatterns = [
+  "**/*.json",
+  "**/*.jsonc",
+  "**/*.json5",
+  "**/*.md",
+  "**/*.mdx",
+  "**/*.yaml",
+  "**/*.yml",
+  "**/*.toml",
+  ".agents/",
+  "graphify-out/",
+  "vendor/",
+  "src/migrations/",
+  "content/",
+]
+
+# bun fmt applies singleQuote to CSS too; keep CSS/SCSS/Less strings double,
+# matching Prettier and the current files.
+[[fmt.overrides]]
+files = ["**/*.css", "**/*.scss", "**/*.less"]
+options = { singleQuote = false }

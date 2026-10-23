@@ -226,21 +226,20 @@ describe('business comment edit window', () => {
 
 describe('business comment votes', () => {
   test('casts, switches, clears, and reports votes per signed-in user', async () => {
-    const repository = (await import(
-      '@/server/modules/comments/infrastructure/comment-repository'
-    )) as typeof import('@/server/modules/comments/infrastructure/comment-repository') & {
-      castCommentVote: (
-        siteKey: string,
-        commentId: string,
-        userId: string,
-        value: -1 | 1,
-      ) => Promise<{ score: number; viewerVote: -1 | 1 | null }>
-      clearCommentVote: (
-        siteKey: string,
-        commentId: string,
-        userId: string,
-      ) => Promise<{ score: number; viewerVote: -1 | 1 | null }>
-    }
+    const repository =
+      (await import('@/server/modules/comments/infrastructure/comment-repository')) as typeof import('@/server/modules/comments/infrastructure/comment-repository') & {
+        castCommentVote: (
+          siteKey: string,
+          commentId: string,
+          userId: string,
+          value: -1 | 1,
+        ) => Promise<{ score: number; viewerVote: -1 | 1 | null }>
+        clearCommentVote: (
+          siteKey: string,
+          commentId: string,
+          userId: string,
+        ) => Promise<{ score: number; viewerVote: -1 | 1 | null }>
+      }
     const siteKey = `vote-${crypto.randomUUID()}`
     const voterId = crypto.randomUUID()
     const otherVoterId = crypto.randomUUID()
@@ -293,16 +292,15 @@ describe('business comment votes', () => {
   })
 
   test('rejects blocked users, locked pages, and comments outside the requested site', async () => {
-    const repository = (await import(
-      '@/server/modules/comments/infrastructure/comment-repository'
-    )) as typeof import('@/server/modules/comments/infrastructure/comment-repository') & {
-      castCommentVote: (
-        siteKey: string,
-        commentId: string,
-        userId: string,
-        value: -1 | 1,
-      ) => Promise<{ score: number; viewerVote: -1 | 1 | null }>
-    }
+    const repository =
+      (await import('@/server/modules/comments/infrastructure/comment-repository')) as typeof import('@/server/modules/comments/infrastructure/comment-repository') & {
+        castCommentVote: (
+          siteKey: string,
+          commentId: string,
+          userId: string,
+          value: -1 | 1,
+        ) => Promise<{ score: number; viewerVote: -1 | 1 | null }>
+      }
     expect(typeof repository.castCommentVote).toBe('function')
     const siteKey = `vote-block-${crypto.randomUUID()}`
     const otherSiteKey = `vote-other-${crypto.randomUUID()}`

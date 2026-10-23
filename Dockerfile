@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Keep in sync with .bun-version.
-ARG BUN_VERSION=1.4.3
+ARG BUN_VERSION=1.4.4
 
 FROM oven/bun:${BUN_VERSION}-slim AS base
 WORKDIR /app

@@ -31,11 +31,10 @@ describe('comment plugin contract', () => {
   })
 
   test('validates the static plugin manifest and rejects duplicate IDs', async () => {
-    const pluginModule = (await import(
-      '@/server/plugins/comment-plugins'
-    )) as typeof import('@/server/plugins/comment-plugins') & {
-      validateCommentPluginManifest?: (plugins: readonly CommentPlugin[]) => readonly CommentPlugin[]
-    }
+    const pluginModule =
+      (await import('@/server/plugins/comment-plugins')) as typeof import('@/server/plugins/comment-plugins') & {
+        validateCommentPluginManifest?: (plugins: readonly CommentPlugin[]) => readonly CommentPlugin[]
+      }
     expect(typeof pluginModule.validateCommentPluginManifest).toBe('function')
     if (!pluginModule.validateCommentPluginManifest) return
 

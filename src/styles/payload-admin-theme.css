@@ -10,7 +10,8 @@
    both. Do not wrap this in a `@layer` to "tidy" it. */
 :root {
   --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-family-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   /* app.css:7 defines --font-body as var(--font-family-sans) and consumes it
      at app.css:44. It re-resolves at computed-value time, but declaring it here
      keeps `body` independent of that indirection. */
