@@ -1,17 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { resolveSessionPrincipal } from '@/server/auth/resolve'
 import { HttpError } from '@/server/http/errors'
-import { assertSameOrigin, getMembershipRole, requireSessionUserId } from '@/server/http/route-guards'
+import { assertSameOrigin } from '@/server/http/route-guards'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
-import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
 import { createModerationCommentData, editModerationCommentData } from '@/server/modules/comments/http/comment-handler'
 import { actionSchema, listQuerySchema } from '@/server/modules/comments/http/comment-schemas'
+import { requireInstanceAdmin, requireSiteModerator } from '@/server/modules/comments/http/moderation-guards'
 import {
   castCommentVote,
   clearCommentVote,
   getPageCanonicalUrl,
-  getSiteId,
   listModerationComments,
   listModerationPages,
   listModerationSites,
@@ -19,23 +18,6 @@ import {
   setPageLocked,
   setUserBlocked,
 } from '@/server/modules/comments/infrastructure/comment-repository'
-
-async function requireInstanceAdmin(request: Request) {
-  const userId = await requireSessionUserId(request, 'Sign in to moderate comments')
-  if (!(await hasInstanceAdmin(userId))) {
-    throw new HttpError(403, 'FORBIDDEN', 'Moderation is restricted to administrators')
-  }
-  return { userId }
-}
-
-async function requireSiteModerator(request: Request, siteKey: string) {
-  const { userId } = await requireInstanceAdmin(request)
-  const siteId = await getSiteId(siteKey)
-  if ((await getMembershipRole(siteId, userId)) === null) {
-    throw new HttpError(403, 'FORBIDDEN', 'You cannot moderate this site')
-  }
-  return { siteId, userId }
-}
 
 // Moderation stays session-only: API keys are for sites and site keys, never
 // comment operations. Moderation happens in the admin dashboard.

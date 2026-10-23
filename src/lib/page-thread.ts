@@ -12,6 +12,7 @@ export type PageSummary = {
   total: number
   visible: number
   hidden: number
+  deleted: number
   latestAt: string | null
   latest: {
     id: string
@@ -34,6 +35,21 @@ export type PageSummary = {
     }[]
   }
 }
+
+// One hidden or deleted comment on the Hidden & removed list.
+export type TakedownRow = {
+  id: string
+  pageId: string
+  pageTitle: string | null
+  canonicalUrl: string
+  authorName: string
+  bodyMarkdown: string
+  status: 'visible' | 'hidden' | 'deleted'
+  createdAt: string
+}
+
+// One server-paged slice of the takedowns, with the total across all pages.
+export type TakedownPage = { takedowns: TakedownRow[]; total: number }
 
 export function embedSnippet(siteKey: string, page: PageSummary): string {
   const parts = [`site: '${siteKey}'`, `url: '${page.canonicalUrl}'`]

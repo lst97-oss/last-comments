@@ -28,6 +28,14 @@ export const pagesQuerySchema = z.strictObject({
   preview: z.coerce.number().int().min(1).max(5).default(3),
 })
 
+export const takedownsQuerySchema = z.strictObject({
+  site: z.string().min(1).max(100),
+  // 0 means "all time", as on the pages query.
+  recentDays: z.coerce.number().int().min(0).max(90).default(7),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
 export const searchSchema = z
   .strictObject({
     site: z.string().min(1),

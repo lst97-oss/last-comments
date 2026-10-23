@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto'
 
-import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import { getBusinessDb } from '@/server/db/business-sql'
 import {
   comments,
@@ -606,6 +606,7 @@ export type ModerationPageSummary = {
   total: number
   visible: number
   hidden: number
+  deleted: number
   latestAt: Date | null
   latest: {
     id: string
@@ -642,6 +643,7 @@ export async function listModerationPages(
       total: count(comments.id),
       visible: sql<number>`count(*) filter (where ${comments.status} = 'visible')`,
       hidden: sql<number>`count(*) filter (where ${comments.status} = 'hidden')`,
+      deleted: sql<number>`count(*) filter (where ${comments.status} = 'deleted')`,
       latestAt: sql<Date | null>`max(${comments.createdAt})`,
       // Newest comment per thread (activity order, hidden rows included): the
       // Recent tab previews it. Tie-break on id matches listModerationComments.
@@ -674,6 +676,24 @@ export async function listModerationPages(
   // `recentDays: 0` is "all time": the window drops its lower bound.
   const windowStart = windowDays > 0 ? new Date(Date.now() - windowDays * 86_400_000) : null
   const pageIds = rows.map((row) => row.id)
+  // Newest `previewCap` rows per thread. The window function caps each thread
+  // on its own: a flat LIMIT across all threads let one busy thread take every
+  // preview slot and left the other threads with none.
+  const ranked = db
+    .select({
+      pageId: comments.pageId,
+      id: comments.id,
+      authorName: comments.authorName,
+      bodyMarkdown: comments.bodyMarkdown,
+      status: comments.status,
+      createdAt: comments.createdAt,
+      rank: sql<number>`row_number() over (partition by ${comments.pageId} order by ${comments.createdAt} desc, ${comments.id} desc)`.as(
+        'rank',
+      ),
+    })
+    .from(comments)
+    .where(and(inArray(comments.pageId, pageIds), windowStart ? gte(comments.createdAt, windowStart) : undefined))
+    .as('ranked')
   const [windowCounts, authorGroups, windowRows] = pageIds.length
     ? await Promise.all([
         db
@@ -688,17 +708,16 @@ export async function listModerationPages(
           .groupBy(comments.pageId, comments.authorName),
         db
           .select({
-            pageId: comments.pageId,
-            id: comments.id,
-            authorName: comments.authorName,
-            bodyMarkdown: comments.bodyMarkdown,
-            status: comments.status,
-            createdAt: comments.createdAt,
+            pageId: ranked.pageId,
+            id: ranked.id,
+            authorName: ranked.authorName,
+            bodyMarkdown: ranked.bodyMarkdown,
+            status: ranked.status,
+            createdAt: ranked.createdAt,
           })
-          .from(comments)
-          .where(and(inArray(comments.pageId, pageIds), windowStart ? gte(comments.createdAt, windowStart) : undefined))
-          .orderBy(desc(comments.createdAt), desc(comments.id))
-          .limit(pageIds.length * previewCap),
+          .from(ranked)
+          .where(lte(ranked.rank, previewCap))
+          .orderBy(desc(ranked.createdAt), desc(ranked.id)),
       ])
     : [[], [], [] as never[]]
   const countByPage = new Map(windowCounts.map((row) => [row.pageId, Number(row.count)]))
@@ -725,6 +744,7 @@ export async function listModerationPages(
     total: Number(row.total),
     visible: Number(row.visible),
     hidden: Number(row.hidden),
+    deleted: Number(row.deleted),
     recent: {
       windowDays,
       count: countByPage.get(row.id) ?? 0,
@@ -733,6 +753,56 @@ export async function listModerationPages(
       preview: previewByPage.get(row.id) ?? [],
     },
   }))
+}
+
+export type ModerationTakedown = {
+  id: string
+  pageId: string
+  pageTitle: string | null
+  canonicalUrl: string
+  authorName: string
+  bodyMarkdown: string
+  status: 'visible' | 'hidden' | 'deleted'
+  createdAt: Date
+}
+
+// Every hidden or deleted comment of the site inside the window, newest first,
+// paged on the server. The Hidden & removed list reads this instead of the
+// thread previews, so its total matches the hidden and deleted counts on the
+// thread cards. `recentDays: 0` is all time.
+export async function listModerationTakedowns(
+  siteId: string,
+  options: { recentDays?: number; limit: number; offset: number },
+  db: Db = getBusinessDb(),
+): Promise<{ takedowns: ModerationTakedown[]; total: number }> {
+  const windowDays = options.recentDays ?? 7
+  const windowStart = windowDays > 0 ? new Date(Date.now() - windowDays * 86_400_000) : null
+  const filter = and(
+    eq(pages.siteId, siteId),
+    inArray(comments.status, ['hidden', 'deleted']),
+    windowStart ? gte(comments.createdAt, windowStart) : undefined,
+  )
+  const [takedowns, totalRows] = await Promise.all([
+    db
+      .select({
+        id: comments.id,
+        pageId: comments.pageId,
+        pageTitle: pages.title,
+        canonicalUrl: pages.canonicalUrl,
+        authorName: comments.authorName,
+        bodyMarkdown: comments.bodyMarkdown,
+        status: comments.status,
+        createdAt: comments.createdAt,
+      })
+      .from(comments)
+      .innerJoin(pages, eq(comments.pageId, pages.id))
+      .where(filter)
+      .orderBy(desc(comments.createdAt), desc(comments.id))
+      .limit(options.limit)
+      .offset(options.offset),
+    db.select({ total: count() }).from(comments).innerJoin(pages, eq(comments.pageId, pages.id)).where(filter),
+  ])
+  return { takedowns, total: Number(totalRows[0].total) }
 }
 
 export type SiteDashboardStats = {
