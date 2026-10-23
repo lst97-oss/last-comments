@@ -4,6 +4,7 @@ import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 
 import { BlogMarkdown } from '@/components/blog/blog-markdown'
 import { PostMeta } from '@/components/blog/post-meta'
+import { SharePostDialog } from '@/components/blog/share-post-dialog'
 import { ThreadComments } from '@/components/blog/thread-comments'
 import { absoluteCoverUrl, buildBlogPostingJsonLd, postCanonicalUrl, postSeoDescription } from '@/lib/blog/blog-seo'
 import { blogPostServerFn } from '@/lib/blog/server-fns'
@@ -70,6 +71,9 @@ export const Route = createFileRoute('/blog/$slug')({
 function BlogPostPage() {
   const { post, commentConfig } = Route.useLoaderData()
   const pageUrl = `${commentConfig.baseUrl}/blog/${post.slug}`
+  const description = postSeoDescription(post)
+  const cover = absoluteCoverUrl(commentConfig.baseUrl, post.coverUrl)
+  const image = cover ?? ogImageUrl(commentConfig.baseUrl, post.title, description)
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 p-4 text-foreground">
@@ -86,7 +90,17 @@ function BlogPostPage() {
           </nav>
           <h1 className="text-3xl font-semibold tracking-tight">{post.title}</h1>
           {post.description && <p className="text-muted-foreground">{post.description}</p>}
-          <PostMeta post={post} />
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <PostMeta post={post} />
+            <SharePostDialog
+              description={description}
+              hasCoverImage={Boolean(cover)}
+              image={image}
+              imageAlt={cover ? (post.coverAlt ?? post.title) : ogImageAlt(post.title)}
+              title={post.title}
+              url={pageUrl}
+            />
+          </div>
         </header>
         {post.coverUrl && (
           <img
