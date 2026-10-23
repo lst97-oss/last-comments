@@ -280,16 +280,19 @@ export const adminSiteListItemSchema = z
     id: z.uuid(),
     key: z.string(),
     name: z.string(),
+    // Null = the default comment limit (10,000).
+    bodyLimit: z.number().int().nullable(),
     origins: z.array(z.string()),
   })
   .meta({ id: 'AdminSite' })
 
-// shortcut: mirror of createAdminSite() / renameAdminSite() in admin-repository.ts
+// shortcut: mirror of createAdminSite() / updateAdminSite() in admin-repository.ts
 export const adminSiteCreatedSchema = z
   .strictObject({
     id: z.uuid(),
     key: z.string(),
     name: z.string(),
+    bodyLimit: z.number().int().nullable(),
   })
   .meta({ id: 'AdminSiteCreated' })
 

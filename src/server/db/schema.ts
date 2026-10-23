@@ -124,12 +124,21 @@ export const apikey = pgTable(
   (table) => [index('apikey_config_id_idx').on(table.configId), index('apikey_reference_id_idx').on(table.referenceId)],
 )
 
-export const sites = pgTable('sites', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  key: text('key').notNull().unique(),
-  name: text('name').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
+export const sites = pgTable(
+  'sites',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    key: text('key').notNull().unique(),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    // Comment length cap for this site, in characters. Null means the default
+    // (10,000, the server's ceiling); a site can only lower it.
+    bodyLimit: integer('body_limit'),
+  },
+  (table) => [
+    check('sites_body_limit_check', sql`${table.bodyLimit} is null or ${table.bodyLimit} between 1 and 10000`),
+  ],
+)
 
 export const siteOrigins = pgTable(
   'site_origins',

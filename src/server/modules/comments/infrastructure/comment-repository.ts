@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 
 import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
+import { resolveBodyLimit } from '@/lib/comment-schema'
 import { getBusinessDb } from '@/server/db/business-sql'
 import {
   comments,
@@ -129,6 +130,35 @@ export async function getPageCanonicalUrl(
   return page?.canonicalUrl ?? null
 }
 
+// A site's comment limit lives in its row, so every write reads it.
+async function getSiteLimits(siteKey: string, db: Db): Promise<{ id: string; bodyLimit: number }> {
+  const [site] = await db
+    .select({ id: sites.id, bodyLimit: sites.bodyLimit })
+    .from(sites)
+    .where(eq(sites.key, siteKey))
+    .limit(1)
+  if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
+  return { id: site.id, bodyLimit: resolveBodyLimit(site.bodyLimit) }
+}
+
+// The body is the trimmed string the schema hands over. The widget counts before
+// trimming, so it is at least as strict as this check.
+export function assertWithinBodyLimit(bodyMarkdown: string, bodyLimit: number): void {
+  if (bodyMarkdown.length > bodyLimit) {
+    throw new HttpError(400, 'COMMENT_TOO_LONG', `Comments on this site are limited to ${bodyLimit} characters`)
+  }
+}
+
+// Edits screen before their transaction (no database lock is held during LLM I/O),
+// so an oversized edit is refused here before any screening runs.
+export async function assertCommentFitsSite(
+  siteKey: string,
+  bodyMarkdown: string,
+  db: Db = getBusinessDb(),
+): Promise<void> {
+  assertWithinBodyLimit(bodyMarkdown, (await getSiteLimits(siteKey, db)).bodyLimit)
+}
+
 export async function prepareCommentCreation(
   data: CreateCommentData,
   db: Db = getBusinessDb(),
@@ -136,7 +166,9 @@ export async function prepareCommentCreation(
   const pageUrl = normalizePageUrl(data.pageUrl)
   const pageKey = data.pageKey === undefined ? undefined : normalizePageKey(data.pageKey)
 
-  return { siteId: await getSiteId(data.siteKey, db), pageUrl, pageKey }
+  const site = await getSiteLimits(data.siteKey, db)
+  assertWithinBodyLimit(data.bodyMarkdown, site.bodyLimit)
+  return { siteId: site.id, pageUrl, pageKey }
 }
 
 // Thread identity lives here so comment creation and the publisher API
@@ -293,6 +325,7 @@ async function findOwnedComment(tx: Transaction, siteKey: string, commentId: str
       id: comments.id,
       pageId: comments.pageId,
       siteId: pages.siteId,
+      bodyLimit: sites.bodyLimit,
       status: comments.status,
       pageLocked: pages.isLocked,
       createdAt: comments.createdAt,
@@ -313,6 +346,7 @@ async function findGuestComment(tx: Transaction, siteKey: string, commentId: str
       id: comments.id,
       pageId: comments.pageId,
       siteId: pages.siteId,
+      bodyLimit: sites.bodyLimit,
       status: comments.status,
       pageLocked: pages.isLocked,
       createdAt: comments.createdAt,
@@ -359,6 +393,7 @@ export async function editOwnComment(
         throw new HttpError(403, 'EDIT_WINDOW_EXPIRED', 'The edit window for this comment has expired')
     }
     if (target.pageLocked) throw new HttpError(409, 'PAGE_LOCKED', 'Comments are disabled for this page')
+    assertWithinBodyLimit(data.bodyMarkdown.trim(), resolveBodyLimit(target.bodyLimit))
 
     if (data.userId) await assertCommenterAllowed(tx, target.siteId, data.userId, 'You cannot comment on this site')
 
@@ -1008,6 +1043,8 @@ export type PageThreadStats = {
 
 export type PageThreadDetail = {
   siteName: string
+  // The effective comment limit for this site (the stored value, or the default).
+  bodyLimit: number
   page: ModerationPageSummary
   stats: PageThreadStats
 }
@@ -1021,7 +1058,11 @@ export async function getPageThread(
   days: 7 | 30 | 90,
   db: Db = getBusinessDb(),
 ): Promise<PageThreadDetail> {
-  const [site] = await db.select({ name: sites.name }).from(sites).where(eq(sites.id, siteId)).limit(1)
+  const [site] = await db
+    .select({ name: sites.name, bodyLimit: sites.bodyLimit })
+    .from(sites)
+    .where(eq(sites.id, siteId))
+    .limit(1)
   if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
 
   const [page] = await listModerationPages(siteId, { pageId }, db)
@@ -1140,6 +1181,7 @@ export async function getPageThread(
   const totals = totalRows[0]
   return {
     siteName: site.name,
+    bodyLimit: resolveBodyLimit(site.bodyLimit),
     page,
     stats: {
       totals: {

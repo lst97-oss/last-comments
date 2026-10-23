@@ -1,0 +1,2 @@
+ALTER TABLE "sites" ADD COLUMN "body_limit" integer;--> statement-breakpoint
+ALTER TABLE "sites" ADD CONSTRAINT "sites_body_limit_check" CHECK ("sites"."body_limit" is null or "sites"."body_limit" between 1 and 10000);

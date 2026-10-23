@@ -14,7 +14,7 @@ import { FieldGroup } from '@/components/ui/field'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { copyText } from '@/lib/clipboard'
 import { type Site, type SiteRole } from '@/lib/site-keys'
-import { type RenameSiteForm, renameSiteSchema, type SiteForm, siteFormSchema } from '@/lib/site-schema'
+import { bodyLimitFromField, type EditSiteForm, editSiteSchema, type SiteForm, siteFormSchema } from '@/lib/site-schema'
 
 export function SitesView({
   sites,
@@ -22,7 +22,7 @@ export function SitesView({
   createOpen,
   onCreateOpen,
   onCreateSite,
-  onRenameSite,
+  onEditSite,
   onDeleteSite,
 }: {
   sites: Site[]
@@ -30,7 +30,7 @@ export function SitesView({
   createOpen: boolean
   onCreateOpen: (open: boolean) => void
   onCreateSite: (values: SiteForm) => Promise<boolean>
-  onRenameSite: (siteKey: string, name: string) => Promise<boolean>
+  onEditSite: (siteKey: string, values: { name: string; bodyLimit: number | null }) => Promise<boolean>
   onDeleteSite: (siteKey: string) => Promise<boolean>
 }) {
   // The React Compiler compiles this component (annotation mode, client bundle).
@@ -46,11 +46,12 @@ export function SitesView({
   const [deleteTarget, setDeleteTarget] = useState<Site | null>(null)
   const [deleting, setDeleting] = useState(false)
   const renameForm = useForm({
-    defaultValues: { name: '' } as RenameSiteForm,
-    validators: { onChange: renameSiteSchema },
+    defaultValues: { name: '', bodyLimit: '' } as EditSiteForm,
+    validators: { onChange: editSiteSchema },
     onSubmit: async ({ value }) => {
       if (!renameTarget) return
-      if (await onRenameSite(renameTarget.key, value.name)) setRenameTarget(null)
+      const bodyLimit = bodyLimitFromField(value.bodyLimit)
+      if (await onEditSite(renameTarget.key, { name: value.name, bodyLimit })) setRenameTarget(null)
     },
   })
   const roles: Partial<Record<string, SiteRole>> = Object.fromEntries(sites.map((item) => [item.key, item.role]))
@@ -58,6 +59,7 @@ export function SitesView({
   function openRename(target: Site) {
     renameForm.reset()
     renameForm.setFieldValue('name', target.name)
+    renameForm.setFieldValue('bodyLimit', target.bodyLimit == null ? '' : String(target.bodyLimit))
     setRenameTarget(target)
   }
 
@@ -153,7 +155,7 @@ export function SitesView({
                         <div className="flex justify-end gap-2">
                           <Button type="button" variant="outline" size="sm" onClick={() => openRename(item)}>
                             <Pencil data-icon="inline-start" />
-                            Rename
+                            Edit
                           </Button>
                           <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteTarget(item)}>
                             <Trash data-icon="inline-start" />
@@ -196,19 +198,27 @@ export function SitesView({
         onOpenChange={(open) => {
           if (!open) setRenameTarget(null)
         }}
-        title="Rename site"
+        title="Edit site"
         description={
           <>
-            Only the name changes. The site key <code className="text-xs">{renameTarget?.key}</code> stays the same, so
-            existing embeds keep working.
+            The site key <code className="text-xs">{renameTarget?.key}</code> stays the same, so existing embeds keep
+            working.
           </>
         }
-        submitLabel="Save name"
+        submitLabel="Save site"
         pendingLabel="Saving…"
         form={renameForm}
       >
         <FieldGroup>
           <AccountTextField form={renameForm} name="name" id="rename-site-name" label="Name" maxLength={120} />
+          <AccountTextField
+            form={renameForm}
+            name="bodyLimit"
+            id="rename-site-body-limit"
+            label="Maximum comment length"
+            maxLength={5}
+            description="Characters per comment, from 1 to 10,000. Leave blank for the default of 10,000. Longer comments are refused."
+          />
         </FieldGroup>
       </FormDialog>
       <ConfirmDeleteDialog

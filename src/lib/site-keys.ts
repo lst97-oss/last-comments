@@ -19,7 +19,15 @@ export type SiteRole = 'admin' | 'moderator'
 
 // Dashboard site shape: /api/moderation adds `role` (membership) and
 // /api/admin/sites adds `origins`, so both are optional here.
-export type Site = { id: string; key: string; name: string; role?: SiteRole; origins?: string[] }
+// `bodyLimit` null is the default (10,000 characters).
+export type Site = {
+  id: string
+  key: string
+  name: string
+  role?: SiteRole
+  origins?: string[]
+  bodyLimit?: number | null
+}
 
 // Scopes a key bound to one site can hold. Also the least-privilege default
 // for a new key: register and read that site's page threads, nothing else.

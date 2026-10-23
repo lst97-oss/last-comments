@@ -41,6 +41,13 @@
       "when": 1792559945050,
       "tag": "0006_smooth_lucky_pierre",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792755317648,
+      "tag": "0006_sites_body_limit",
+      "breakpoints": true
     }
   ],
   "dialect": "postgresql",

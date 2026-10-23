@@ -131,21 +131,21 @@ function ModerationPage() {
     onError: (cause) => reportFailure('Could not create site', cause),
   })
 
-  const renameSiteMutation = useMutation({
-    mutationFn: async ({ siteKey, name }: { siteKey: string; name: string }) => {
+  const editSiteMutation = useMutation({
+    mutationFn: async ({ siteKey, name, bodyLimit }: { siteKey: string; name: string; bodyLimit: number | null }) => {
       const response = await fetch(`/api/admin/sites/${encodeURIComponent(siteKey)}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, bodyLimit }),
       })
       const result = await readApiData<{ site: Site }>(response)
       return result.site
     },
-    onSuccess: async (renamed) => {
+    onSuccess: async (updated) => {
       await Promise.all([sitesQuery.refetch(), allSitesQuery.refetch()])
-      toast.add({ title: 'Site renamed', description: renamed.name, type: 'success' })
+      toast.add({ title: 'Site updated', description: updated.name, type: 'success' })
     },
-    onError: (cause) => reportFailure('Could not rename site', cause),
+    onError: (cause) => reportFailure('Could not update site', cause),
   })
 
   const deleteSiteMutation = useMutation({
@@ -266,8 +266,8 @@ function ModerationPage() {
                 () => false,
               )
             }
-            onRenameSite={(siteKey, name) =>
-              renameSiteMutation.mutateAsync({ siteKey, name }).then(
+            onEditSite={(siteKey, values) =>
+              editSiteMutation.mutateAsync({ siteKey, ...values }).then(
                 () => true,
                 () => false,
               )
@@ -303,7 +303,7 @@ type ViewContentProps = {
   createOpen: boolean
   onCreateOpen: (open: boolean) => void
   onCreateSite: (values: SiteForm) => Promise<boolean>
-  onRenameSite: (siteKey: string, name: string) => Promise<boolean>
+  onEditSite: (siteKey: string, values: { name: string; bodyLimit: number | null }) => Promise<boolean>
   onDeleteSite: (siteKey: string) => Promise<boolean>
   onRefreshPages: () => void
   onAct: (action: Record<string, string | boolean>) => Promise<void>

@@ -1,7 +1,7 @@
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import { z } from 'zod'
 import { initialAdminSchema } from '@/lib/site-schema'
-import { adminSiteSchema, renameBodySchema, siteKeyParamSchema } from '@/server/modules/admin/http/admin-schemas'
+import { adminSiteSchema, siteKeyParamSchema, siteUpdateSchema } from '@/server/modules/admin/http/admin-schemas'
 import { createBodySchema, deleteQuerySchema, scopesBodySchema } from '@/server/modules/api-keys/http/api-key-schemas'
 import {
   actionSchema,
@@ -300,15 +300,15 @@ registry.registerPath({
   method: 'patch',
   path: '/api/admin/sites/{siteKey}',
   tags: ['sites'],
-  summary: 'Rename a site',
+  summary: 'Update a site (name and/or comment length limit)',
   request: {
     params: z.strictObject({ siteKey: siteKeyParamSchema }),
-    body: { content: json(renameBodySchema) },
+    body: { content: json(siteUpdateSchema) },
   },
   security: sessionOrServiceKey,
   responses: {
     200: ok(z.strictObject({ site: adminSiteCreatedSchema })),
-    400: errorResponse('Invalid body'),
+    400: errorResponse('Invalid body, or neither name nor bodyLimit was given'),
     401: errorResponse('No session'),
     403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),
@@ -396,7 +396,14 @@ registry.registerPath({
   request: { params: z.strictObject({ pageId: commentIdSchema }), query: statsQuerySchema },
   security: sessionOrServiceKey,
   responses: {
-    200: ok(z.strictObject({ siteName: z.string(), page: ModerationPageSummary, stats: PageThreadStats })),
+    200: ok(
+      z.strictObject({
+        siteName: z.string(),
+        bodyLimit: z.number().int(),
+        page: ModerationPageSummary,
+        stats: PageThreadStats,
+      }),
+    ),
     400: errorResponse('Invalid query parameters'),
     401: errorResponse('No session'),
     403: errorResponse('Not a member of that site'),

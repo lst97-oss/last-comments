@@ -4,12 +4,12 @@ import { HttpError } from '@/server/http/errors'
 import { assertSameOrigin, getMembershipRole, requireSessionUserId } from '@/server/http/route-guards'
 import { parseJsonBody, parseWith } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
-import { renameBodySchema, siteKeyParamSchema } from '@/server/modules/admin/http/admin-schemas'
+import { siteKeyParamSchema, siteUpdateSchema } from '@/server/modules/admin/http/admin-schemas'
 import {
   deleteAdminSite,
   findSiteIdByKey,
   hasInstanceAdmin,
-  renameAdminSite,
+  updateAdminSite,
 } from '@/server/modules/admin/infrastructure/admin-repository'
 import { hasServiceKey, requireServiceKey } from '@/server/modules/api-keys/infrastructure/api-key-repository'
 
@@ -43,8 +43,8 @@ export const Route = createFileRoute('/api/admin/sites/$siteKey')({
         withContext(async () => {
           const siteKey = parseWith(siteKeyParamSchema, params.siteKey)
           await requireSiteWriter(request, siteKey, 'sites:update')
-          const body = await parseJsonBody(request, renameBodySchema)
-          return { site: await renameAdminSite(siteKey, body) }
+          const body = await parseJsonBody(request, siteUpdateSchema)
+          return { site: await updateAdminSite(siteKey, body) }
         })({ request }),
       DELETE: ({ request, params }) =>
         withContext(async () => {

@@ -78,6 +78,8 @@ type ThreadStats = {
 
 type PageThread = {
   siteName: string
+  // The site's effective comment limit, passed to the dashboard's composer.
+  bodyLimit: number
   page: PageSummary
   stats: ThreadStats
 }
@@ -351,6 +353,7 @@ function ThreadContent({ thread, baseUrl, site, pageId, viewerUserId, onModerate
         pageId={pageId}
         pageUrl={page.canonicalUrl}
         viewerUserId={viewerUserId}
+        bodyLimit={thread.bodyLimit}
         onModerated={onModerated}
       />
     </>

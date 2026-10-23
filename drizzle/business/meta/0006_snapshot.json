@@ -1,6 +1,6 @@
 {
-  "id": "73dd365f-b039-428b-95a0-8944060a6c51",
-  "prevId": "909c8cd2-2ba5-4558-b7a1-8f2a88854276",
+  "id": "77d6edc7-6fb4-4bc2-92c2-42f874c651e9",
+  "prevId": "73dd365f-b039-428b-95a0-8944060a6c51",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1569,6 +1569,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "body_limit": {
+          "name": "body_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -1584,7 +1590,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "sites_body_limit_check": {
+          "name": "sites_body_limit_check",
+          "value": "\"sites\".\"body_limit\" is null or \"sites\".\"body_limit\" between 1 and 10000"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.user": {
