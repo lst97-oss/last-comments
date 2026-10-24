@@ -1604,18 +1604,20 @@ export async function deletePage(
       .limit(1)
     if (!page) throw new HttpError(404, 'PAGE_NOT_FOUND', 'Page was not found')
 
-    const [totals] = await tx
-      .select({
-        comments: count(comments.id),
-        replies: sql<number>`count(*) filter (where ${comments.parentId} is not null)`,
-      })
-      .from(comments)
-      .where(eq(comments.pageId, page.id))
-    const [voteTotals] = await tx
-      .select({ votes: count(votes.id) })
-      .from(votes)
-      .innerJoin(comments, eq(votes.commentId, comments.id))
-      .where(eq(comments.pageId, page.id))
+    const [[totals], [voteTotals]] = await Promise.all([
+      tx
+        .select({
+          comments: count(comments.id),
+          replies: sql<number>`count(*) filter (where ${comments.parentId} is not null)`,
+        })
+        .from(comments)
+        .where(eq(comments.pageId, page.id)),
+      tx
+        .select({ votes: count(votes.id) })
+        .from(votes)
+        .innerJoin(comments, eq(votes.commentId, comments.id))
+        .where(eq(comments.pageId, page.id)),
+    ])
 
     await tx.delete(pages).where(and(eq(pages.siteId, siteId), eq(pages.id, page.id)))
     await tx.insert(moderationEvents).values({

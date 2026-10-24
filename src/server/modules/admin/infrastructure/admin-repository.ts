@@ -135,18 +135,20 @@ export async function deleteAdminSite(siteKey: string): Promise<void> {
     const [site] = await tx.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey)).limit(1)
     if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
 
-    const [pageTotal] = await tx.select({ value: count() }).from(pages).where(eq(pages.siteId, site.id))
-    const [commentTotal] = await tx
-      .select({ value: count() })
-      .from(comments)
-      .innerJoin(pages, eq(comments.pageId, pages.id))
-      .where(eq(pages.siteId, site.id))
-
-    const keys = await tx.select({ id: apikey.id, metadata: apikey.metadata }).from(apikey)
+    const [[pageTotal], [commentTotal], keys] = await Promise.all([
+      tx.select({ value: count() }).from(pages).where(eq(pages.siteId, site.id)),
+      tx
+        .select({ value: count() })
+        .from(comments)
+        .innerJoin(pages, eq(comments.pageId, pages.id))
+        .where(eq(pages.siteId, site.id)),
+      tx.select({ id: apikey.id, metadata: apikey.metadata }).from(apikey),
+    ])
     const orphaned = keys.filter((key) => siteKeyFromMetadata(key.metadata) === siteKey).map((key) => key.id)
-    if (orphaned.length > 0) await tx.delete(apikey).where(inArray(apikey.id, orphaned))
-
-    await tx.execute(sql`delete from comment_rate_limit.rate_limit_windows where site_key = ${siteKey}`)
+    await Promise.all([
+      orphaned.length > 0 ? tx.delete(apikey).where(inArray(apikey.id, orphaned)) : null,
+      tx.execute(sql`delete from comment_rate_limit.rate_limit_windows where site_key = ${siteKey}`),
+    ])
     await tx.delete(sites).where(eq(sites.id, site.id))
 
     return {
