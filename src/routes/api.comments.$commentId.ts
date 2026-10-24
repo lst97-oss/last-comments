@@ -6,6 +6,7 @@ import { parseJsonBody, parseSearchParams, parseWith } from '@/server/http/valid
 import { withContext } from '@/server/http/with-context'
 import { deleteCommentData, editCommentData } from '@/server/modules/comments/http/comment-handler'
 import { commentIdSchema, editBodySchema, siteQuerySchema } from '@/server/modules/comments/http/comment-schemas'
+import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight'
 import { requireAllowedOrigin } from '@/server/modules/comments/infrastructure/comment-repository'
 import { publishCommentOperation } from '@/server/plugins/comment-plugins'
 
@@ -65,8 +66,7 @@ export const Route = createFileRoute('/api/comments/$commentId')({
       OPTIONS: async ({ request }) => {
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
-          const { site } = parseSearchParams(request.url, siteQuerySchema)
-          responseOrigin = await requireAllowedOrigin(site, request.headers.get('origin'))
+          responseOrigin = await resolvePreflightOrigin(request)
           return new Response(null, { status: 204 })
         })({ request })
         return applyCors(response, responseOrigin, 'PATCH, DELETE, OPTIONS')

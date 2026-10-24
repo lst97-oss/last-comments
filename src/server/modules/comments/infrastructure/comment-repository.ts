@@ -82,6 +82,29 @@ export async function assertSiteOrigin(
   return normalizedOrigin
 }
 
+// A CORS preflight for POST/PUT/PATCH has no `site` query parameter: the site
+// travels in the JSON body, which the browser does not send on OPTIONS. The
+// preflight therefore validates the origin against the union of registered
+// sites; the actual request still checks the body's site against that origin.
+export async function assertAnySiteOrigin(origin: string | null, db: Db = getBusinessDb()): Promise<string | null> {
+  if (!origin) return null
+
+  let normalizedOrigin: string
+  try {
+    normalizedOrigin = new URL(origin).origin
+  } catch {
+    throw new HttpError(403, 'ORIGIN_NOT_ALLOWED', 'Origin is not allowed')
+  }
+
+  const [allowed] = await db
+    .select({ origin: siteOrigins.origin })
+    .from(siteOrigins)
+    .where(eq(siteOrigins.origin, normalizedOrigin))
+    .limit(1)
+  if (!allowed) throw new HttpError(403, 'ORIGIN_NOT_ALLOWED', 'Origin is not allowed')
+  return normalizedOrigin
+}
+
 // Write paths (comment create/edit/delete, vote) require an origin; reads
 // tolerate a missing one because browsers omit Origin on same-origin GET.
 export async function requireAllowedOrigin(

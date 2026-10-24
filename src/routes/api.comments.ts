@@ -5,7 +5,8 @@ import { HttpError } from '@/server/http/errors'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { createCommentData } from '@/server/modules/comments/http/comment-handler'
-import { commentBodySchema, searchSchema, siteQuerySchema } from '@/server/modules/comments/http/comment-schemas'
+import { commentBodySchema, searchSchema } from '@/server/modules/comments/http/comment-schemas'
+import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight'
 import {
   assertSiteOrigin,
   listPageComments,
@@ -66,8 +67,7 @@ export const Route = createFileRoute('/api/comments')({
       OPTIONS: async ({ request }) => {
         let origin: string | null = null
         const response = await withContext(async () => {
-          const { site } = parseSearchParams(request.url, siteQuerySchema)
-          origin = await assertSiteOrigin(site, request.headers.get('origin'))
+          origin = await resolvePreflightOrigin(request)
           return new Response(null, { status: 204 })
         })({ request })
         return applyCors(response, origin, 'GET, POST, OPTIONS')
