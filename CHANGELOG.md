@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.1
 
 Per-site comment length limits, permanent page deletion, and credentialed CORS for registered origins. Runs against `@lst97-oss/last-comments-widgets` 0.5.0.
 
