@@ -10,6 +10,9 @@ Per-site comment length limits, permanent page deletion, and credentialed CORS f
 - **Google sign-in links to the existing account.** A Google sign-in links to the account with the same email even when that account's local email is unverified (the first admin signs up with a password). Password sign-up stays closed.
 - **Credentialed CORS for registered origins.** `/api/auth/*` and `/api/comments` send `Access-Control-Allow-Credentials` to origins a site has registered, echoing the exact origin. Registered origins are also trusted for OAuth `callbackURL`s, so a sign-in returns the reader to the page they started on. A failed origin lookup keeps the last good list, so an outage narrows trust rather than widening it. Same-registrable-domain embeds now work directly; a different registrable domain still needs a same-origin proxy.
 
+- **Same-origin writes behind the TLS ingress.** The app sees `http://` for requests the tunnel forwards, while the browser sends the `https://` origin. Setup, moderation, site and API-key writes were refused with `ORIGIN_NOT_ALLOWED` in that setup. The configured `PAYLOAD_PUBLIC_SERVER_URL` origin is now accepted alongside the request's own origin. Foreign origins and other schemes are still refused, and the check fails closed when the public origin is unset or invalid.
+- **Image publishing.** The Docker job pushes only the GHCR tags (`ghcr.io/lst97-oss/last-comments:<commit>` and `latest`), so a build on `main` publishes the image that the production deploy pulls.
+
 ## v0.2.0
 
 Moderation dashboard overhaul, filter Decisions API, external-Postgres Compose, per-page social cards, and the Bun 1.4.4 toolchain.
