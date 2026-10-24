@@ -41,7 +41,9 @@ test('vote writes require an allowed origin and signed-in Better Auth session', 
   const putVote = handlerOf(voteRoute, 'PUT')
   const deleteVote = handlerOf(voteRoute, 'DELETE')
   const preflightVote = handlerOf(voteRoute, 'OPTIONS')
-  const listComments = handlerOf((await import('@/routes/api.comments')).Route, 'GET')
+  const commentsRoute = (await import('@/routes/api.comments')).Route
+  const listComments = handlerOf(commentsRoute, 'GET')
+  const preflightComments = handlerOf(commentsRoute, 'OPTIONS')
 
   const commentsResponse = await listComments(
     new Request(
@@ -109,4 +111,38 @@ test('vote writes require an allowed origin and signed-in Better Auth session', 
   )
   expect(preflight.status).toBe(204)
   expect(preflight.headers.get('access-control-allow-methods')).toBe('PUT, DELETE, OPTIONS')
+
+  // POST/PUT/PATCH preflights carry the site in the body, which the browser
+  // does not send on OPTIONS. The origin alone must be enough to answer.
+  const postPreflight = await preflightComments(
+    new Request('http://localhost:3000/api/comments', {
+      method: 'OPTIONS',
+      headers: {
+        origin,
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    }),
+  )
+  expect(postPreflight.status).toBe(204)
+  expect(postPreflight.headers.get('access-control-allow-origin')).toBe(origin)
+  expect(postPreflight.headers.get('access-control-allow-credentials')).toBe('true')
+
+  const untrustedPostPreflight = await preflightComments(
+    new Request('http://localhost:3000/api/comments', {
+      method: 'OPTIONS',
+      headers: { origin: 'https://untrusted.example.test' },
+    }),
+  )
+  expect(untrustedPostPreflight.status).toBe(403)
+
+  // A DELETE vote preflight also carries commentId; it must not be rejected by
+  // a strict `{ site }` query schema before CORS is applied.
+  const votePreflightWithCommentId = await preflightVote(
+    new Request(`http://localhost:3000/api/comments/vote?site=${siteKey}&commentId=${crypto.randomUUID()}`, {
+      method: 'OPTIONS',
+      headers: { origin },
+    }),
+  )
+  expect(votePreflightWithCommentId.status).toBe(204)
 })

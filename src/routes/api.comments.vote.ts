@@ -5,7 +5,8 @@ import { applyCors } from '@/server/http/cors'
 import { HttpError } from '@/server/http/errors'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
-import { siteQuerySchema, voteBodySchema, voteSearchSchema } from '@/server/modules/comments/http/comment-schemas'
+import { voteBodySchema, voteSearchSchema } from '@/server/modules/comments/http/comment-schemas'
+import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight'
 import {
   castCommentVote,
   clearCommentVote,
@@ -56,8 +57,7 @@ export const Route = createFileRoute('/api/comments/vote')({
       OPTIONS: async (ctx) => {
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
-          const { site } = parseSearchParams(ctx.request.url, siteQuerySchema)
-          responseOrigin = await requireAllowedOrigin(site, ctx.request.headers.get('origin'))
+          responseOrigin = await resolvePreflightOrigin(ctx.request)
           return new Response(null, { status: 204 })
         })(ctx)
         return applyCors(response, responseOrigin, 'PUT, DELETE, OPTIONS')
