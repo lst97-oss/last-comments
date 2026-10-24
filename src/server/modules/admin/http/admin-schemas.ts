@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { siteBodyLimitSchema } from '@/lib/comment-schema'
+import { SITE_ACCESS_LEVELS } from '@/lib/site-access'
 import { siteNameSchema } from '@/lib/site-schema'
 
 export const siteKeyParamSchema = z.string().min(1).max(100)
@@ -10,6 +11,8 @@ export const siteKeyParamSchema = z.string().min(1).max(100)
 export const siteUpdateSchema = z.strictObject({
   name: siteNameSchema.optional(),
   bodyLimit: siteBodyLimitSchema.nullable().optional(),
+  access: z.enum(SITE_ACCESS_LEVELS).optional(),
+  gatewayOnly: z.boolean().optional(),
 })
 
 export const adminSiteSchema = z.strictObject({

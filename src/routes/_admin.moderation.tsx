@@ -20,7 +20,7 @@ import { BusinessRouteError } from '@/lib/business-route-error'
 import { type PageSummary, type TakedownPage } from '@/lib/page-thread'
 import { setupStatusServerFn } from '@/lib/setup-status'
 import { type Site } from '@/lib/site-keys'
-import { type SiteForm } from '@/lib/site-schema'
+import { type EditSiteValues, type SiteForm } from '@/lib/site-schema'
 
 export const Route = createFileRoute('/_admin/moderation')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -132,11 +132,11 @@ function ModerationPage() {
   })
 
   const editSiteMutation = useMutation({
-    mutationFn: async ({ siteKey, name, bodyLimit }: { siteKey: string; name: string; bodyLimit: number | null }) => {
+    mutationFn: async ({ siteKey, ...values }: { siteKey: string } & EditSiteValues) => {
       const response = await fetch(`/api/admin/sites/${encodeURIComponent(siteKey)}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, bodyLimit }),
+        body: JSON.stringify(values),
       })
       const result = await readApiData<{ site: Site }>(response)
       return result.site
@@ -327,7 +327,7 @@ type ViewContentProps = {
   createOpen: boolean
   onCreateOpen: (open: boolean) => void
   onCreateSite: (values: SiteForm) => Promise<boolean>
-  onEditSite: (siteKey: string, values: { name: string; bodyLimit: number | null }) => Promise<boolean>
+  onEditSite: (siteKey: string, values: EditSiteValues) => Promise<boolean>
   onDeletePage: (page: PageSummary) => Promise<boolean>
   onDeleteSite: (siteKey: string) => Promise<boolean>
   onRefreshPages: () => void

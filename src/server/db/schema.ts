@@ -16,6 +16,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import type { SiteAccess } from '@/lib/site-access'
+
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -134,9 +136,15 @@ export const sites = pgTable(
     // Comment length cap for this site, in characters. Null means the default
     // (10,000, the server's ceiling); a site can only lower it.
     bodyLimit: integer('body_limit'),
+    // Visitor policy: open | login | private (see src/lib/site-access.ts).
+    access: text('access').$type<SiteAccess>().notNull().default('open'),
+    // Transport policy: when true, only a site-bound service key is accepted,
+    // so a browser or curl caller with a registered Origin is refused.
+    gatewayOnly: boolean('gateway_only').notNull().default(false),
   },
   (table) => [
     check('sites_body_limit_check', sql`${table.bodyLimit} is null or ${table.bodyLimit} between 1 and 10000`),
+    check('sites_access_check', sql`${table.access} in ('open', 'login', 'private')`),
   ],
 )
 

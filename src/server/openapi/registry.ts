@@ -302,7 +302,7 @@ registry.registerPath({
   method: 'patch',
   path: '/api/admin/sites/{siteKey}',
   tags: ['sites'],
-  summary: 'Update a site (name and/or comment length limit)',
+  summary: 'Update a site (name, comment length limit, access level and gateway mode)',
   request: {
     params: z.strictObject({ siteKey: siteKeyParamSchema }),
     body: { content: json(siteUpdateSchema) },
@@ -310,7 +310,7 @@ registry.registerPath({
   security: sessionOrServiceKey,
   responses: {
     200: ok(z.strictObject({ site: adminSiteCreatedSchema })),
-    400: errorResponse('Invalid body, or neither name nor bodyLimit was given'),
+    400: errorResponse('Invalid body, or no field to update was given'),
     401: errorResponse('No session'),
     403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),

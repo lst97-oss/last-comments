@@ -14,6 +14,9 @@ const input = {
   verificationToken: 'turnstile-token',
 }
 
+// Stands in for the site_origins lookup: the site registered example.com only.
+const hostnames = async () => ['example.com']
+
 function recordingLogger(logs: string[]): Logger {
   const logger = {} as Logger
   logger.debug = () => undefined
@@ -70,6 +73,7 @@ describe('Turnstile plugin', () => {
         requestBody = String(init?.body)
         return Response.json({ success: true, hostname: 'example.com' })
       },
+      registeredHostnames: hostnames,
     })
 
     await plugin.validateComment?.(input, new AbortController().signal)
@@ -84,6 +88,7 @@ describe('Turnstile plugin', () => {
       verificationRequired: true,
       secretKey: 'secret',
       fetcher: async () => Response.json({ success: false, hostname: 'example.com' }),
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
@@ -98,6 +103,7 @@ describe('Turnstile plugin', () => {
       verificationRequired: true,
       secretKey: 'secret',
       fetcher: async () => Response.json({ success: true, hostname: 'attacker.example' }),
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
@@ -111,6 +117,7 @@ describe('Turnstile plugin', () => {
       verificationRequired: true,
       secretKey: '1x0000000000000000000000000000000AA',
       fetcher: async () => Response.json({ success: true, hostname: 'example.com' }),
+      registeredHostnames: hostnames,
     })
 
     await plugin.validateComment?.(
@@ -126,6 +133,7 @@ describe('Turnstile plugin', () => {
       verificationRequired: true,
       fetcher: fetch,
       logger: recordingLogger(logs),
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
@@ -145,6 +153,7 @@ describe('Turnstile plugin', () => {
         called = true
         return Response.json({ success: true, hostname: 'example.com' })
       },
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
@@ -162,6 +171,7 @@ describe('Turnstile plugin', () => {
       fetcher: async () => {
         throw new TypeError('network failed')
       },
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
@@ -176,6 +186,7 @@ describe('Turnstile plugin', () => {
       verificationRequired: true,
       secretKey: 'secret',
       fetcher: async () => new Response('unavailable', { status: 503 }),
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
@@ -190,6 +201,7 @@ describe('Turnstile plugin', () => {
       verificationRequired: true,
       secretKey: 'secret',
       fetcher: async () => Response.json({ success: 'true', hostname: 'example.com' }),
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
@@ -207,6 +219,7 @@ describe('Turnstile plugin', () => {
         called = true
         return Response.json({ success: true, hostname: 'example.com' })
       },
+      registeredHostnames: hostnames,
     })
 
     await expect(plugin.validateComment?.(input, new AbortController().signal)).resolves.toBeUndefined()
@@ -222,6 +235,7 @@ describe('Turnstile plugin', () => {
         requestBody = String(init?.body)
         return Response.json({ success: true, hostname: 'example.com' })
       },
+      registeredHostnames: hostnames,
     })
 
     await plugin.validateComment?.({ ...input, userId: 'user-1' }, new AbortController().signal)
@@ -238,6 +252,7 @@ describe('Turnstile plugin', () => {
         called = true
         return Response.json({ success: true, hostname: 'example.com' })
       },
+      registeredHostnames: hostnames,
     })
 
     await expect(
@@ -250,5 +265,56 @@ describe('Turnstile plugin', () => {
       status: 403,
     })
     expect(called).toBe(false)
+  })
+
+  test('ignores the client-supplied pageUrl: a token from a hostname the site did not register is refused', async () => {
+    // A script on attacker.example mints its own token, then names the target
+    // site's URL. The old pageUrl comparison accepted this; the registered
+    // origins do not.
+    const plugin = createTurnstilePlugin({
+      verificationRequired: true,
+      secretKey: 'secret',
+      registeredHostnames: async () => ['example.com'],
+      fetcher: async () => Response.json({ success: true, hostname: 'attacker.example' }),
+    })
+
+    await expect(
+      plugin.validateComment?.({ ...input, pageUrl: 'https://attacker.example/post' }, new AbortController().signal),
+    ).rejects.toMatchObject({ code: 'COMMENT_VERIFICATION_FAILED', status: 403 })
+  })
+
+  test("looks up the registered hostnames for the comment's own site", async () => {
+    const seen: string[] = []
+    const plugin = createTurnstilePlugin({
+      verificationRequired: true,
+      secretKey: 'secret',
+      registeredHostnames: async (siteId) => {
+        seen.push(siteId)
+        return ['blog.example']
+      },
+      fetcher: async () => Response.json({ success: true, hostname: 'blog.example' }),
+    })
+
+    await plugin.validateComment?.({ ...input, siteId: 'site-blog' }, new AbortController().signal)
+    expect(seen).toEqual(['site-blog'])
+  })
+
+  test('fails unavailable when the registered origins cannot be read', async () => {
+    const logs: string[] = []
+    const plugin = createTurnstilePlugin({
+      verificationRequired: true,
+      secretKey: 'secret',
+      logger: recordingLogger(logs),
+      registeredHostnames: async () => {
+        throw new Error('database down')
+      },
+      fetcher: async () => Response.json({ success: true, hostname: 'example.com' }),
+    })
+
+    await expect(plugin.validateComment?.(input, new AbortController().signal)).rejects.toMatchObject({
+      code: 'COMMENT_VERIFICATION_UNAVAILABLE',
+      status: 503,
+    })
+    expect(logs).toEqual(['turnstile.unavailable'])
   })
 })

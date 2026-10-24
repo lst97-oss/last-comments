@@ -1,17 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { resolveSessionPrincipal } from '@/server/auth/resolve'
 import { applyCors } from '@/server/http/cors'
 import { HttpError } from '@/server/http/errors'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
+import { operationIdentity, resolveCommentCaller } from '@/server/modules/comments/http/comment-caller'
 import { createCommentData } from '@/server/modules/comments/http/comment-handler'
 import { commentBodySchema, searchSchema } from '@/server/modules/comments/http/comment-schemas'
 import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight'
-import {
-  assertSiteOrigin,
-  listPageComments,
-  requireAllowedOrigin,
-} from '@/server/modules/comments/infrastructure/comment-repository'
+import { listPageComments } from '@/server/modules/comments/infrastructure/comment-repository'
 import { publishCommentOperation } from '@/server/plugins/comment-plugins'
 
 export const Route = createFileRoute('/api/comments')({
@@ -21,12 +17,12 @@ export const Route = createFileRoute('/api/comments')({
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
           const { site, url, pageKey, limit, offset } = parseSearchParams(ctx.request.url, searchSchema)
-          responseOrigin = await assertSiteOrigin(site, ctx.request.headers.get('origin'))
-          const session = ctx.request.headers.get('cookie') ? await resolveSessionPrincipal(ctx.request) : null
+          const caller = await resolveCommentCaller(ctx.request, site, 'read')
+          responseOrigin = caller.responseOrigin
           const comments = await listPageComments(site, url ?? '', {
             limit,
             offset,
-            viewerUserId: session?.userId ?? null,
+            viewerUserId: caller.principal?.userId ?? null,
             ...(pageKey === undefined ? {} : { pageKey }),
           })
           return { comments }
@@ -37,9 +33,9 @@ export const Route = createFileRoute('/api/comments')({
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
           const body = await parseJsonBody(ctx.request, commentBodySchema)
-          responseOrigin = await requireAllowedOrigin(body.site, ctx.request.headers.get('origin'))
-          const session = await resolveSessionPrincipal(ctx.request)
-          const user = session
+          const caller = await resolveCommentCaller(ctx.request, body.site, 'write')
+          responseOrigin = caller.responseOrigin
+          const user = caller.principal
           if (!user && !body.authorName) {
             throw new HttpError(400, 'AUTHOR_NAME_REQUIRED', 'A display name is required for guest comments')
           }
@@ -47,6 +43,7 @@ export const Route = createFileRoute('/api/comments')({
             operation: 'comment.create',
             siteKey: body.site,
             userId: user?.userId ?? null,
+            ...operationIdentity(caller),
             request: ctx.request,
           })
           const comment = await createCommentData({

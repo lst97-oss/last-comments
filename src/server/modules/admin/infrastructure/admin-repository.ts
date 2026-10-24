@@ -1,4 +1,5 @@
 import { asc, count, eq, inArray, sql } from 'drizzle-orm'
+import type { SiteAccess } from '@/lib/site-access'
 import { getBusinessDb, getBusinessSql } from '@/server/db/business-sql'
 import { apikey, comments, instanceAdmins, pages, siteMemberships, siteOrigins, sites, user } from '@/server/db/schema'
 import { HttpError } from '@/server/http/errors'
@@ -40,7 +41,14 @@ export async function createInitialAdmin<T extends { userId: string }>(createUse
 export async function listAdminSites() {
   const db = getBusinessDb()
   const rows = await db
-    .select({ id: sites.id, key: sites.key, name: sites.name, bodyLimit: sites.bodyLimit })
+    .select({
+      id: sites.id,
+      key: sites.key,
+      name: sites.name,
+      bodyLimit: sites.bodyLimit,
+      access: sites.access,
+      gatewayOnly: sites.gatewayOnly,
+    })
     .from(sites)
     .orderBy(asc(sites.name))
   return attachOrigins(db, rows)
@@ -51,7 +59,14 @@ export async function listAdminSites() {
 export async function listAdminSitesForUser(userId: string) {
   const db = getBusinessDb()
   const rows = await db
-    .select({ id: sites.id, key: sites.key, name: sites.name, bodyLimit: sites.bodyLimit })
+    .select({
+      id: sites.id,
+      key: sites.key,
+      name: sites.name,
+      bodyLimit: sites.bodyLimit,
+      access: sites.access,
+      gatewayOnly: sites.gatewayOnly,
+    })
     .from(siteMemberships)
     .innerJoin(sites, eq(siteMemberships.siteId, sites.id))
     .where(eq(siteMemberships.userId, userId))
@@ -87,23 +102,40 @@ export async function createAdminSite(userId: string | null, input: { name: stri
     if (userId !== null) {
       await tx.insert(siteMemberships).values({ siteId: site.id, userId, role: 'admin' })
     }
-    return { id: site.id, key: site.key, name: site.name, bodyLimit: site.bodyLimit }
+    return {
+      id: site.id,
+      key: site.key,
+      name: site.name,
+      bodyLimit: site.bodyLimit,
+      access: site.access,
+      gatewayOnly: site.gatewayOnly,
+    }
   })
 }
 
 // Only the fields provided change, so a name edit never resets the comment limit.
-export async function updateAdminSite(siteKey: string, input: { name?: string; bodyLimit?: number | null }) {
+export async function updateAdminSite(
+  siteKey: string,
+  input: { name?: string; bodyLimit?: number | null; access?: SiteAccess; gatewayOnly?: boolean },
+) {
   const changes = {
     ...(input.name === undefined ? {} : { name: input.name }),
     ...(input.bodyLimit === undefined ? {} : { bodyLimit: input.bodyLimit }),
+    ...(input.access === undefined ? {} : { access: input.access }),
+    ...(input.gatewayOnly === undefined ? {} : { gatewayOnly: input.gatewayOnly }),
   }
-  if (Object.keys(changes).length === 0) throw new HttpError(400, 'VALIDATION_ERROR', 'Provide a name or a bodyLimit')
+  if (Object.keys(changes).length === 0) {
+    throw new HttpError(400, 'VALIDATION_ERROR', 'Provide a name, a bodyLimit, an access level or gatewayOnly')
+  }
   const db = getBusinessDb()
-  const [site] = await db
-    .update(sites)
-    .set(changes)
-    .where(eq(sites.key, siteKey))
-    .returning({ id: sites.id, key: sites.key, name: sites.name, bodyLimit: sites.bodyLimit })
+  const [site] = await db.update(sites).set(changes).where(eq(sites.key, siteKey)).returning({
+    id: sites.id,
+    key: sites.key,
+    name: sites.name,
+    bodyLimit: sites.bodyLimit,
+    access: sites.access,
+    gatewayOnly: sites.gatewayOnly,
+  })
   if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
   return site
 }

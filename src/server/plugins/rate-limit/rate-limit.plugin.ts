@@ -19,12 +19,24 @@ export type RateLimitStore = (window: RateLimitWindow) => Promise<number>
 
 async function requesterHash(
   secret: string | undefined,
-  userId: string | null,
+  identifiers: { userId: string | null; clientId?: string; keyId?: string },
   request: Request,
   resolveClientIp: ClientIpResolver,
 ) {
-  const clientIp = userId ? null : resolveClientIp(request)
-  const identity = userId ? `user:${userId}` : clientIp ? `ip:${clientIp}` : null
+  // A proxied visitor has no user id and the proxy's own IP, so the verified
+  // clientId separates one visitor's budget from another's. A key without a
+  // clientId is bucketed by the key, not by an IP that may be shared.
+  const { userId, clientId, keyId } = identifiers
+  const clientIp = userId || clientId || keyId ? null : resolveClientIp(request)
+  const identity = userId
+    ? `user:${userId}`
+    : clientId
+      ? `client:${clientId}`
+      : keyId
+        ? `key:${keyId}`
+        : clientIp
+          ? `ip:${clientIp}`
+          : null
   if (!identity || !secret) {
     throw new HttpError(503, 'RATE_LIMIT_UNAVAILABLE', 'Comment operations are temporarily unavailable', {
       expose: true,
@@ -90,7 +102,7 @@ export function createRateLimitPlugin(
     id: 'rate-limit',
     apiVersion: 1,
     migrations: { folder: 'drizzle/plugins/rate-limit', schema: 'drizzle_rate_limit' },
-    async beforeOperation({ operation, siteKey, userId, request }) {
+    async beforeOperation({ operation, siteKey, userId, clientId, keyId, request }) {
       const { count, windowSeconds } = limits[operation]
       const now = Math.floor(Date.now() / 1000)
       const windowStart = Math.floor(now / windowSeconds) * windowSeconds
@@ -98,7 +110,7 @@ export function createRateLimitPlugin(
         missingSecretLogged = true
         logger.error('rate_limit.secret_missing')
       }
-      const identityHash = await requesterHash(secret, userId, request, resolveClientIp)
+      const identityHash = await requesterHash(secret, { userId, clientId, keyId }, request, resolveClientIp)
       let used: number
       try {
         used = await increment({ siteKey, identityHash, operation, windowStart, now, retentionSeconds })

@@ -1,33 +1,33 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { resolveSessionPrincipal } from '@/server/auth/resolve'
 import { applyCors } from '@/server/http/cors'
 import { HttpError } from '@/server/http/errors'
 import { parseJsonBody, parseSearchParams, parseWith } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
+import { operationIdentity, resolveCommentCaller } from '@/server/modules/comments/http/comment-caller'
 import { deleteCommentData, editCommentData } from '@/server/modules/comments/http/comment-handler'
 import { commentIdSchema, editBodySchema, siteQuerySchema } from '@/server/modules/comments/http/comment-schemas'
 import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight'
-import { requireAllowedOrigin } from '@/server/modules/comments/infrastructure/comment-repository'
 import { publishCommentOperation } from '@/server/plugins/comment-plugins'
 
 export const Route = createFileRoute('/api/comments/$commentId')({
   server: {
     handlers: {
-      // No API-key support by design: edit/delete act as a user identity,
-      // which a shared site key must never impersonate. Edits accept either a
-      // session or the edit key issued to the guest who created the comment.
+      // Keys never act as a user: a key call carries no principal, so delete stays
+      // session-only. Edits accept a session or the edit key issued to the guest
+      // who created the comment; a key may relay that edit key for its visitor.
       PATCH: async ({ request, params }) => {
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
           const body = await parseJsonBody(request, editBodySchema)
-          responseOrigin = await requireAllowedOrigin(body.site, request.headers.get('origin'))
-          const session = request.headers.get('cookie') ? await resolveSessionPrincipal(request) : null
-          const userId = session?.userId ?? null
+          const caller = await resolveCommentCaller(request, body.site, 'write')
+          responseOrigin = caller.responseOrigin
+          const userId = caller.principal?.userId ?? null
           if (!userId && !body.editKey) throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in to edit your comments')
           await publishCommentOperation({
             operation: 'comment.edit',
             siteKey: body.site,
             userId,
+            ...operationIdentity(caller),
             request,
           })
           const comment = await editCommentData({
@@ -45,13 +45,15 @@ export const Route = createFileRoute('/api/comments/$commentId')({
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
           const { site } = parseSearchParams(request.url, siteQuerySchema)
-          responseOrigin = await requireAllowedOrigin(site, request.headers.get('origin'))
-          const session = await resolveSessionPrincipal(request)
+          const caller = await resolveCommentCaller(request, site, 'write')
+          responseOrigin = caller.responseOrigin
+          const session = caller.principal
           if (!session) throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in to delete your comments')
           await publishCommentOperation({
             operation: 'comment.delete',
             siteKey: site,
             userId: session.userId,
+            ...operationIdentity(caller),
             request,
           })
           const comment = await deleteCommentData({
@@ -64,12 +66,12 @@ export const Route = createFileRoute('/api/comments/$commentId')({
         return applyCors(response, responseOrigin, 'PATCH, DELETE, OPTIONS')
       },
       OPTIONS: async ({ request }) => {
-        let responseOrigin: string | null = null
+        let origin: string | null = null
         const response = await withContext(async () => {
-          responseOrigin = await resolvePreflightOrigin(request)
+          origin = await resolvePreflightOrigin(request)
           return new Response(null, { status: 204 })
         })({ request })
-        return applyCors(response, responseOrigin, 'PATCH, DELETE, OPTIONS')
+        return applyCors(response, origin, 'PATCH, DELETE, OPTIONS')
       },
     },
   },

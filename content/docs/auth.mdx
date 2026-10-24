@@ -81,6 +81,32 @@ External subjects link to the canonical user row (`external_identities`: provide
 
 Publisher keys (`lck_*`) verify before any session provider and are unaffected by the choice above — machine callers keep working when interactive login moves to OIDC or proxy SSO. Keys are issued server-side only, with permissions and site binding the client can never set.
 
+Two comment scopes let a host server act for its visitors without exposing the key to the browser: `comments:read` loads a site's comments and `comments:write` posts and edits guest comments. A key holding them never acts as a user, and votes stay session-only. Both scopes need a key bound to one site.
+
+## Who can comment: access and the gateway
+
+Each site has two settings, set in the dashboard or with `PATCH /api/admin/sites/{siteKey}`.
+
+| `access` | Anyone can read | Anyone can post and edit |
+| --- | --- | --- |
+| `open` (default) | yes | yes, from a registered Origin, with a verification challenge |
+| `login` | yes | no: needs a signed-in session or a key |
+| `private` | no: needs a session or a key | no: needs a session or a key |
+
+`gatewayOnly` (default `false`) is the transport setting. When it is on, a request without a site-bound key is refused with `403 FORBIDDEN`, even with a registered Origin. An Origin header is set by the caller, so it proves nothing against a script or curl; the key is what proves the request came through your host.
+
+Pick the setting that matches what your host can run:
+
+| Host | Where a key can live | Typical setting |
+| --- | --- | --- |
+| No server (static site, GitHub Pages) | Nowhere: a key in browser code is public | `open` with the default widget. Turnstile and rate limits are the only protection. |
+| A function or edge runtime | The function's environment | `open` plus `gatewayOnly`, with a small proxy function. |
+| A full server | The application's environment | `open` plus `gatewayOnly`, with the proxy in the application. |
+
+`login` and `private` use the comments service's own session cookie, which a browser sends only to the API's registrable domain. Use them only when the API sits on a sibling subdomain of the page (for example `comments.example.com` for `www.example.com`). They are not an option for an arbitrary static host.
+
+A host proxy sends `x-lc-client` with a stable, per-visitor value (16 to 128 letters, digits, `-` or `_`). The service rate-limits each visitor by that value, not by the proxy's own address, which would otherwise share one budget across all visitors. Without it, a keyed call is limited per key.
+
 ## Configuration reference
 
 Policy lives in `src/server/auth/auth.config.ts`; endpoint identity and credentials stay in `.env` (see `.env.example`).

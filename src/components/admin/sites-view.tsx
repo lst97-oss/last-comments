@@ -9,12 +9,23 @@ import { FormDialog } from '@/components/admin/form-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { FieldGroup } from '@/components/ui/field'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { copyText } from '@/lib/clipboard'
+import { SITE_ACCESS_LEVELS, type SiteAccess } from '@/lib/site-access'
 import { type Site, type SiteRole } from '@/lib/site-keys'
-import { bodyLimitFromField, type EditSiteForm, editSiteSchema, type SiteForm, siteFormSchema } from '@/lib/site-schema'
+import {
+  bodyLimitFromField,
+  type EditSiteForm,
+  type EditSiteValues,
+  editSiteSchema,
+  SITE_ACCESS_LABELS,
+  type SiteForm,
+  siteFormSchema,
+} from '@/lib/site-schema'
 
 export function SitesView({
   sites,
@@ -30,7 +41,7 @@ export function SitesView({
   createOpen: boolean
   onCreateOpen: (open: boolean) => void
   onCreateSite: (values: SiteForm) => Promise<boolean>
-  onEditSite: (siteKey: string, values: { name: string; bodyLimit: number | null }) => Promise<boolean>
+  onEditSite: (siteKey: string, values: EditSiteValues) => Promise<boolean>
   onDeleteSite: (siteKey: string) => Promise<boolean>
 }) {
   // The React Compiler compiles this component (annotation mode, client bundle).
@@ -46,12 +57,13 @@ export function SitesView({
   const [deleteTarget, setDeleteTarget] = useState<Site | null>(null)
   const [deleting, setDeleting] = useState(false)
   const renameForm = useForm({
-    defaultValues: { name: '', bodyLimit: '' } as EditSiteForm,
+    defaultValues: { name: '', bodyLimit: '', access: 'open', gatewayOnly: false } as EditSiteForm,
     validators: { onChange: editSiteSchema },
     onSubmit: async ({ value }) => {
       if (!renameTarget) return
       const bodyLimit = bodyLimitFromField(value.bodyLimit)
-      if (await onEditSite(renameTarget.key, { name: value.name, bodyLimit })) setRenameTarget(null)
+      const next = { name: value.name, bodyLimit, access: value.access, gatewayOnly: value.gatewayOnly }
+      if (await onEditSite(renameTarget.key, next)) setRenameTarget(null)
     },
   })
   const roles: Partial<Record<string, SiteRole>> = Object.fromEntries(sites.map((item) => [item.key, item.role]))
@@ -60,6 +72,8 @@ export function SitesView({
     renameForm.reset()
     renameForm.setFieldValue('name', target.name)
     renameForm.setFieldValue('bodyLimit', target.bodyLimit == null ? '' : String(target.bodyLimit))
+    renameForm.setFieldValue('access', target.access ?? 'open')
+    renameForm.setFieldValue('gatewayOnly', target.gatewayOnly ?? false)
     setRenameTarget(target)
   }
 
@@ -218,6 +232,45 @@ export function SitesView({
             label="Maximum comment length"
             maxLength={5}
             description="Characters per comment, from 1 to 10,000. Leave blank for the default of 10,000. Longer comments are refused."
+          />
+          <renameForm.Field
+            name="access"
+            children={(field) => (
+              <Field>
+                <FieldLabel htmlFor="rename-site-access">Who can comment</FieldLabel>
+                <Select value={field.state.value} onValueChange={(value) => field.handleChange(value as SiteAccess)}>
+                  <SelectTrigger id="rename-site-access" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {SITE_ACCESS_LEVELS.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {SITE_ACCESS_LABELS[level].label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>{SITE_ACCESS_LABELS[field.state.value].description}</FieldDescription>
+              </Field>
+            )}
+          />
+          <renameForm.Field
+            name="gatewayOnly"
+            children={(field) => (
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="rename-site-gateway-only"
+                  checked={field.state.value}
+                  onCheckedChange={(checked) => field.handleChange(checked === true)}
+                />
+                <FieldLabel htmlFor="rename-site-gateway-only">Accept requests only through my host</FieldLabel>
+                <FieldDescription>
+                  Refuses direct browser and curl calls that carry no site key. Your host&apos;s proxy keeps working.
+                </FieldDescription>
+              </Field>
+            )}
           />
         </FieldGroup>
       </FormDialog>

@@ -48,6 +48,13 @@
       "when": 1792755317648,
       "tag": "0006_sites_body_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792840252418,
+      "tag": "0007_sites_access",
+      "breakpoints": true
     }
   ],
   "dialect": "postgresql",

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { API_KEY_SCOPES, type ApiKeyScope } from '@/lib/api-key-scopes'
+import type { SiteAccess } from '@/lib/site-access'
 
 export type PluginKey = {
   id: string
@@ -27,10 +28,14 @@ export type Site = {
   role?: SiteRole
   origins?: string[]
   bodyLimit?: number | null
+  access?: SiteAccess
+  gatewayOnly?: boolean
 }
 
 // Scopes a key bound to one site can hold, listed in the key editor.
-export const SITE_KEY_SCOPES = API_KEY_SCOPES.filter((scope) => scope.startsWith('pages:'))
+export const SITE_KEY_SCOPES = API_KEY_SCOPES.filter(
+  (scope) => scope.startsWith('pages:') || scope.startsWith('comments:'),
+)
 
 // The least-privilege default for a new key: register and read that site's page
 // threads. Deleting pages stays an explicit grant.
@@ -52,6 +57,8 @@ export const SCOPE_LABELS: Record<ApiKeyScope, string> = {
   'pages:read': 'List the site’s pages',
   'pages:write': 'Register pages',
   'pages:delete': 'Delete pages',
+  'comments:read': 'Read comments',
+  'comments:write': 'Post and edit comments as guests',
 }
 
 export const SCOPE_DESCRIPTIONS: Record<ApiKeyScope, string> = {
@@ -62,6 +69,8 @@ export const SCOPE_DESCRIPTIONS: Record<ApiKeyScope, string> = {
   'pages:read': 'List a site’s pages with their comment counts.',
   'pages:write': 'Register a page URL before its first comment.',
   'pages:delete': 'Delete a page, with all its comments, replies and votes. Permanent.',
+  'comments:read': 'Load a page’s comments, for a host that proxies them to visitors.',
+  'comments:write': 'Post and edit comments on behalf of anonymous visitors. Never acts as a user.',
 }
 
 export function scopesEqual(a: readonly ApiKeyScope[], b: readonly ApiKeyScope[]): boolean {

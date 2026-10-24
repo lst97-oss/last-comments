@@ -125,4 +125,69 @@ describe('rate-limit plugin', () => {
       else Bun.env.BETTER_AUTH_SECRET = previousSecret
     }
   })
+
+  test('a verified clientId gives each proxied visitor their own budget, ahead of the shared IP', async () => {
+    const previousSecret = Bun.env.BETTER_AUTH_SECRET
+    Bun.env.BETTER_AUTH_SECRET = 'test-secret-that-is-long-enough-32'
+    const hashes: string[] = []
+    const plugin = createRateLimitPlugin(
+      // Every proxied call arrives from the host's own address.
+      () => '198.51.100.7',
+      async (window) => {
+        hashes.push(window.identityHash)
+        return 1
+      },
+      undefined,
+      {
+        'comment.create': { count: 5, windowSeconds: 600 },
+        'comment.edit': { count: 20, windowSeconds: 600 },
+        'comment.delete': { count: 20, windowSeconds: 600 },
+        'comment.vote': { count: 60, windowSeconds: 60 },
+      },
+    )
+    const request = new Request('https://comments.example/api/comments', { method: 'POST' })
+    const base = { operation: 'comment.create' as const, siteKey: 'docs', userId: null, request }
+    try {
+      await plugin.beforeOperation?.({ ...base, clientId: 'visitor-aaaaaaaaaaaaaaaa' }, new AbortController().signal)
+      await plugin.beforeOperation?.({ ...base, clientId: 'visitor-bbbbbbbbbbbbbbbb' }, new AbortController().signal)
+      await plugin.beforeOperation?.({ ...base, clientId: 'visitor-aaaaaaaaaaaaaaaa' }, new AbortController().signal)
+      expect(hashes[0]).not.toBe(hashes[1])
+      // The same visitor keeps the same bucket across calls.
+      expect(hashes[2]).toBe(hashes[0])
+    } finally {
+      if (previousSecret === undefined) delete Bun.env.BETTER_AUTH_SECRET
+      else Bun.env.BETTER_AUTH_SECRET = previousSecret
+    }
+  })
+
+  test('a key without a clientId is bucketed by the key, not refused when the IP is unknown', async () => {
+    const previousSecret = Bun.env.BETTER_AUTH_SECRET
+    Bun.env.BETTER_AUTH_SECRET = 'test-secret-that-is-long-enough-32'
+    const hashes: string[] = []
+    const plugin = createRateLimitPlugin(
+      () => null,
+      async (window) => {
+        hashes.push(window.identityHash)
+        return 1
+      },
+      undefined,
+      {
+        'comment.create': { count: 5, windowSeconds: 600 },
+        'comment.edit': { count: 20, windowSeconds: 600 },
+        'comment.delete': { count: 20, windowSeconds: 600 },
+        'comment.vote': { count: 60, windowSeconds: 60 },
+      },
+    )
+    const request = new Request('https://comments.example/api/comments', { method: 'POST' })
+    const base = { operation: 'comment.create' as const, siteKey: 'docs', userId: null, request }
+    try {
+      await plugin.beforeOperation?.({ ...base, keyId: 'key-1' }, new AbortController().signal)
+      await plugin.beforeOperation?.({ ...base, keyId: 'key-2' }, new AbortController().signal)
+      expect(hashes).toHaveLength(2)
+      expect(hashes[0]).not.toBe(hashes[1])
+    } finally {
+      if (previousSecret === undefined) delete Bun.env.BETTER_AUTH_SECRET
+      else Bun.env.BETTER_AUTH_SECRET = previousSecret
+    }
+  })
 })

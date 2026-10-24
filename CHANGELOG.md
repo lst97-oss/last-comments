@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Site access levels and a gateway switch, so a host server can proxy comments and the browser never holds a credential.
+
+- **Access levels per site.** `sites.access` is `open` (default: public reads, public posts, as before), `login` (public reads, a session or key to write) or `private` (a session or key to read and write). Set with `PATCH /api/admin/sites/{siteKey}` (`access`) or the dashboard's Edit site. Migration `0007_sites_access` adds the column with a check constraint and a default that keeps existing sites unchanged.
+- **Gateway mode.** `sites.gateway_only` (default `false`) refuses a request that carries no site-bound key with `403 FORBIDDEN`, even with a registered Origin. Writes and reads through a key are unaffected.
+- **Comment scopes.** `comments:read` and `comments:write` are site-bound key scopes. A key never acts as a user; votes stay session-only. Keys can hold up to all nine scopes (the old cap of five was too low).
+- **Verified visitor identity for proxies.** A key call may carry `x-lc-client` (16 to 128 letters, digits, `-` or `_`). The rate limit buckets each visitor by that value. Without it, a keyed call is bucketed by the key. The header is ignored on unkeyed requests, so a browser cannot rotate it.
+- **Turnstile binds to the site's registered origins.** The verification hostname must match a registered origin of the comment's site, not the client-supplied `pageUrl`. A script can no longer mint a token on its own page and name the target URL.
+
 ## v0.2.1
 
 Per-site comment length limits, permanent page deletion, and credentialed CORS for registered origins. Runs against `@lst97-oss/last-comments-widgets` 0.5.0.
