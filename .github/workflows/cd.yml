@@ -108,6 +108,7 @@ jobs:
             printf 'DEPLOY_SHA=%s\n' "$DEPLOY_SHA"
             printf 'GHCR_USER=%s\n' "$GHCR_USER"
             printf 'APP_PORT=%s\n' "$APP_PORT"
+            printf 'PUBLIC_URL=%s\n' "$PUBLIC_URL"
             cat <<'REMOTE'
           set -Eeuo pipefail
 
@@ -154,6 +155,8 @@ jobs:
 
           docker compose ps
           curl -fsS "http://127.0.0.1:${APP_PORT}/api/live" > /dev/null && echo "app live"
+          # Checked from the host, not the runner: Cloudflare challenges GitHub's runner IPs (403 "Just a moment").
+          curl -fsS --max-time 20 "${PUBLIC_URL}/api/ready" > /dev/null && echo "public readiness ok"
           REMOTE
           } | ssh -i "$RUNNER_TEMP/deploy_key" \
               -o StrictHostKeyChecking=no \
@@ -161,17 +164,3 @@ jobs:
               -o LogLevel=ERROR \
               -o ConnectTimeout=20 \
               "$SSH_USER@$TAILSCALE_HOST" 'bash -s'
-
-      - name: Check the public site
-        run: |
-          set -euo pipefail
-          if ! getent hosts last-comments.lst97.dev > /dev/null; then
-            echo "::notice::last-comments.lst97.dev has no DNS record yet; skipping the public check"
-            exit 0
-          fi
-          code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL/")"
-          echo "GET $PUBLIC_URL/ -> $code"
-          case "$code" in
-            200|308) ;;
-            *) echo "::error::public site returned $code"; exit 1 ;;
-          esac
