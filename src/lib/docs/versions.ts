@@ -6,8 +6,8 @@ export type DocsVersion = {
 }
 
 export const docVersions: DocsVersion[] = [
-  // Mirrors the latest `## vX.Y.Z` in CHANGELOG.md.
-  { label: 'Latest Version', version: '0.2.0', href: '/docs', current: true },
+  // Names the minor line, so a patch release needs no edit here.
+  { label: 'Latest Version', version: '0.2.x', href: '/docs', current: true },
 ]
 
 export const currentDocVersion: DocsVersion = docVersions.find((entry) => entry.current) ?? docVersions[0]!

@@ -29,10 +29,10 @@ Moderators get the same `Comment as` control as any signed-in viewer and may pos
 
 | Area | What moderators get |
 | --- | --- |
-| Delete | Soft status (`deleted`, restorable through `Restore`), acting immediately from the row menu — no confirmation dialog. |
+| Delete | Soft status (`deleted`, restorable through `Restore`), acting immediately from the row menu — no confirmation dialog. A whole page is different: the dashboard's Delete on a page row removes the page permanently, with its comments, replies and votes, after a confirmation. |
 | Thread list | Every status with `hidden`/`deleted` badges; each row offers Hide/Restore, Pin/Unpin, Delete and Block/Unblock user; a page lock/unlock bar above the list. |
 | Votes | See and cast votes in place: the moderation payload carries each row's score and the moderator's own vote (hidden/deleted rows and locked pages never offer them). |
-| Identity | Comment rows carry the author's site role as `authorRole` (`admin` \| `moderator` \| `null`); the React widget colours site-admin names and appends an `[Admin]` badge (`.lc-admin-badge` styling hook). |
+| Identity | Comment rows carry the author's site role as `authorRole` (`admin` \| `moderator` \| `null`); every widget colours site-admin names with the destructive colour and appends an `Admin` badge (`.lc-admin-badge`); signed-in accounts with no site role get a `Member` badge (`.lc-member-badge`). |
 
 The server authorizes every action, so an account without permission sees the `FORBIDDEN` copy and nothing changes.
 

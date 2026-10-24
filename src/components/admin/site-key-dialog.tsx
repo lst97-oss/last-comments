@@ -15,7 +15,14 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { readApiData } from '@/lib/api-response'
 import { copyText } from '@/lib/clipboard'
-import { type KeyForm, keyFormSchema, SCOPE_LABELS, SITE_KEY_SCOPES, type Site } from '@/lib/site-keys'
+import {
+  DEFAULT_SITE_KEY_SCOPES,
+  type KeyForm,
+  keyFormSchema,
+  SCOPE_LABELS,
+  SITE_KEY_SCOPES,
+  type Site,
+} from '@/lib/site-keys'
 
 // Site-key permissions are server-only, so creation always goes through the
 // /api/admin/api-keys wrapper.
@@ -55,7 +62,7 @@ export function SiteKeyCreateDialog({
 
   const form = useForm({
     // Least privilege by default: a key that registers and reads pages.
-    defaultValues: { name: '', siteKey: fixedSite?.key ?? '', scopes: [...SITE_KEY_SCOPES] } as KeyForm,
+    defaultValues: { name: '', siteKey: fixedSite?.key ?? '', scopes: [...DEFAULT_SITE_KEY_SCOPES] } as KeyForm,
     validators: { onChange: keyFormSchema },
     onSubmit: async ({ value }) => {
       setError('')

@@ -2,6 +2,7 @@ import { createComment } from '@/server/modules/comments/application/create-comm
 import { deleteComment } from '@/server/modules/comments/application/delete-comment'
 import { editComment } from '@/server/modules/comments/application/edit-comment'
 import {
+  assertCommentFitsSite,
   deleteOwnComment,
   editOwnComment,
   persistComment,
@@ -21,11 +22,13 @@ export function createCommentData(input: Parameters<typeof createComment>[0]) {
 // Edits are re-screened so a clean comment edited into a violation re-enters
 // review. Screening runs before the transaction (never hold a transaction
 // open during LLM network I/O) with degraded context — the edit path has no
-// site/page lookup yet, and only the new body matters.
+// site/page lookup yet, and only the new body matters. The site's length limit
+// is checked first, so an oversized edit never reaches screening.
 export async function editCommentData(
   input: Parameters<typeof editComment>[0],
   options: { skipScreening?: boolean } = {},
 ) {
+  if (!options.skipScreening) await assertCommentFitsSite(input.siteKey, input.bodyMarkdown)
   const screening = options.skipScreening
     ? EMPTY_SCREENING
     : await publishCommentScreening({

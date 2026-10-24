@@ -1,10 +1,16 @@
 import { z } from 'zod'
 
+import { siteBodyLimitSchema } from '@/lib/comment-schema'
 import { siteNameSchema } from '@/lib/site-schema'
 
 export const siteKeyParamSchema = z.string().min(1).max(100)
 
-export const renameBodySchema = z.strictObject({ name: siteNameSchema })
+// Partial update: at least one field is required (checked by the repository, so
+// the body stays a plain object for OpenAPI). `bodyLimit: null` resets to the default.
+export const siteUpdateSchema = z.strictObject({
+  name: siteNameSchema.optional(),
+  bodyLimit: siteBodyLimitSchema.nullable().optional(),
+})
 
 export const adminSiteSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),

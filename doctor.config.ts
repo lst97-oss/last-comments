@@ -28,6 +28,10 @@ export default {
       // Generated router tree (gitignored, required by tsc + router).
       'src/routeTree.gen.ts',
       'routeTree.gen.ts',
+      // Tracked graphify output (source snippets) and the gitignored Scalar bundle from
+      // `generate:scalar`; neither is app code.
+      'graphify-out/**',
+      'public/scalar/**',
     ],
     overrides: [
       {

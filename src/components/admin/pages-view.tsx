@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { Copy, Link2 } from 'lucide-react'
 import { useState } from 'react'
 
+import { ConfirmDeleteDialog } from '@/components/admin/confirm-delete-dialog'
 import { Hint } from '@/components/admin/hint'
 import { PageCreateDialog } from '@/components/admin/page-create-dialog'
 import { ThreadKeyBadge, ThreadStatusBadge } from '@/components/admin/thread-status-badge'
@@ -33,17 +34,31 @@ export function PagesView({
   pages,
   onAct,
   onRefreshPages,
+  onDeletePage,
 }: {
   sites: Site[]
   site: string
   pages: PageSummary[]
   onAct: (action: Record<string, string | boolean>) => void
   onRefreshPages: () => void
+  onDeletePage: (page: PageSummary) => Promise<boolean>
 }) {
   const selected = sites.find((item) => item.key === site)
   const [createOpen, setCreateOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [listPage, setListPage] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<PageSummary | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      if (await onDeletePage(deleteTarget)) setDeleteTarget(null)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   // The list is client-paged over the rows the server already caps at
   // PAGE_LIST_LIMIT, so a site with many threads stays one screenful.
@@ -184,6 +199,9 @@ export function PagesView({
                                 {page.isLocked ? 'Unlock' : 'Lock'}
                               </Button>
                             </Hint>
+                            <Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(page)}>
+                              Delete
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -208,6 +226,16 @@ export function PagesView({
         site={site}
         origins={selected?.origins ?? []}
         onCreated={onRefreshPages}
+      />
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        title={`Delete ${deleteTarget?.canonicalUrl ?? 'this page'}?`}
+        description="This permanently deletes the page with every comment and reply on it, and their votes. The audit log keeps the page URL. This cannot be undone."
+        confirmLabel="Delete page"
+        pendingLabel="Deleting…"
+        pending={deleting}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        onConfirm={() => void confirmDelete()}
       />
     </>
   )

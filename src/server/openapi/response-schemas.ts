@@ -271,6 +271,14 @@ export const userBlockResultSchema = z
 // shortcut: mirror of the DELETE /api/admin/sites response
 export const deletedResultSchema = z.strictObject({ deleted: z.literal(true) })
 
+// shortcut: mirror of deletePage() in comment-repository.ts (the counts are taken before the delete)
+export const pageDeletedSchema = z.strictObject({
+  deleted: z.literal(true),
+  comments: z.number().int(),
+  replies: z.number().int(),
+  votes: z.number().int(),
+})
+
 // shortcut: mirror of the PATCH /api/admin/api-keys response
 export const updatedResultSchema = z.strictObject({ updated: z.literal(true) })
 
@@ -280,16 +288,19 @@ export const adminSiteListItemSchema = z
     id: z.uuid(),
     key: z.string(),
     name: z.string(),
+    // Null = the default comment limit (10,000).
+    bodyLimit: z.number().int().nullable(),
     origins: z.array(z.string()),
   })
   .meta({ id: 'AdminSite' })
 
-// shortcut: mirror of createAdminSite() / renameAdminSite() in admin-repository.ts
+// shortcut: mirror of createAdminSite() / updateAdminSite() in admin-repository.ts
 export const adminSiteCreatedSchema = z
   .strictObject({
     id: z.uuid(),
     key: z.string(),
     name: z.string(),
+    bodyLimit: z.number().int().nullable(),
   })
   .meta({ id: 'AdminSiteCreated' })
 

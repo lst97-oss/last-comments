@@ -64,11 +64,14 @@ Only your framework is a peer dependency (React 19, Vue 3.5 or Angular 22). Fram
 </Step>
 
 <Step>
-### Proxy the API same-origin
+### Choose how the widget reaches the API
 
-<Callout type="warn" title="Proxy the API same-origin">
-  Every widget request is sent with `credentials: 'include'`, and the API never returns `Access-Control-Allow-Credentials` — so a plain cross-origin embed cannot list, post, vote or moderate. Route the API through a same-origin proxy (e.g. rewrite `/api/comments` and `/api/moderation` → `baseUrl`, as the examples do). A reverse proxy in front of the API must rewrite `Origin` for `/api/moderation`, whose POST is origin-checked against the server's own origin.
-</Callout>
+Every widget request is sent with `credentials: 'include'`, so the API answers registered origins with `Access-Control-Allow-Origin` (the exact origin, never `*`) plus `Access-Control-Allow-Credentials: true`. Only origins registered on a site get those headers; the same list also trusts the page for OAuth `callbackURL`s, so sign-in returns the reader to the page they started on.
+
+- **Same registrable domain** (for example `www.example.com` embedding `comments.example.com`): call the API directly. The session cookie is first-party to the page's site, so listing, posting, voting and Google sign-in all work.
+- **A different registrable domain**: a `SameSite=Lax` session cookie is not sent on cross-site requests, so signed-in features (sign-in, votes, the "(you)" identity) need a same-origin proxy. Anonymous posting and reading still work directly.
+
+`/api/moderation` is same-origin only: it sends no CORS headers and its POST is origin-checked, so the moderation dashboard must be served from the API origin or behind a proxy that rewrites `Origin`.
 </Step>
 </Steps>
 

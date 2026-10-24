@@ -26,6 +26,18 @@ export function getBusinessAuthSettings(
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     emailAndPassword: { enabled: true as const, disableSignUp: !allowPasswordSignUp },
+    // Google's own email_verified claim is the ownership proof. The first admin
+    // signs up with email/password, which leaves that local row unverified, so
+    // without requireLocalEmailVerified: false the Google sign-in is refused
+    // with account_not_linked. Password sign-up is closed, so no one can
+    // pre-register a victim's email.
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ['google'],
+        requireLocalEmailVerified: false,
+      },
+    },
     ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? { socialProviders: { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } } }
       : {}),

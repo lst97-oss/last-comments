@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.1
+
+Per-site comment length limits, permanent page deletion, and credentialed CORS for registered origins. Runs against `@lst97-oss/last-comments-widgets` 0.5.0.
+
+- **Per-site comment length limit.** A site can set its own maximum (1 to 10,000 characters) with `PATCH /api/admin/sites/{siteKey}` (`bodyLimit`; `null` resets to the default). The default is 10,000, which is also the ceiling, so a site can lower it but never raise it. Public and moderator comments, and their edits, over the limit are refused with `400 COMMENT_TOO_LONG`. The check runs before plugin screening, so an oversized body is never sent to a model. The dashboard's Edit site sets the limit, and the thread composer counts against it. Migration `0006_sites_body_limit` adds a nullable column with a check constraint, so existing sites keep the default.
+- **Permanent page deletion.** `DELETE /api/admin/pages/{pageId}?site=` and `DELETE /api/admin/pages?site=&pageKey=` (or `&url=`) remove a page with its comments, replies and votes in one transaction. The site's blocks, verifications, memberships and origins are kept. Each delete writes a `page.delete` audit row that keeps the URL, and a `page.deleted` event for plugins. A repeat delete is `404 PAGE_NOT_FOUND`. Deleting needs a new `pages:delete` scope (separate from `pages:write`, so existing write keys cannot delete) or a site-admin session. The dashboard gets a Delete control on each page, behind a confirmation.
+- **Atomic site deletion.** Deleting a site now removes its API keys and its rate-limit windows in the same transaction as the site, so a failure cannot leave orphan keys. A structured `site.deleted` log line records the page, comment and key counts.
+- **Google sign-in links to the existing account.** A Google sign-in links to the account with the same email even when that account's local email is unverified (the first admin signs up with a password). Password sign-up stays closed.
+- **Credentialed CORS for registered origins.** `/api/auth/*` and `/api/comments` send `Access-Control-Allow-Credentials` to origins a site has registered, echoing the exact origin. Registered origins are also trusted for OAuth `callbackURL`s, so a sign-in returns the reader to the page they started on. A failed origin lookup keeps the last good list, so an outage narrows trust rather than widening it. Same-registrable-domain embeds now work directly; a different registrable domain still needs a same-origin proxy.
+
+- **Same-origin writes behind the TLS ingress.** The app sees `http://` for requests the tunnel forwards, while the browser sends the `https://` origin. Setup, moderation, site and API-key writes were refused with `ORIGIN_NOT_ALLOWED` in that setup. The configured `PAYLOAD_PUBLIC_SERVER_URL` origin is now accepted alongside the request's own origin. Foreign origins and other schemes are still refused, and the check fails closed when the public origin is unset or invalid.
+- **Image publishing.** The Docker job pushes only the GHCR tags (`ghcr.io/lst97-oss/last-comments:<commit>` and `latest`), so a build on `main` publishes the image that the production deploy pulls.
+
 ## v0.2.0
 
 Moderation dashboard overhaul, filter Decisions API, external-Postgres Compose, per-page social cards, and the Bun 1.4.4 toolchain.

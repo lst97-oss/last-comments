@@ -1,9 +1,10 @@
-import { asc, count, eq, inArray } from 'drizzle-orm'
+import { asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { getBusinessDb, getBusinessSql } from '@/server/db/business-sql'
-import { apikey, instanceAdmins, siteMemberships, siteOrigins, sites, user } from '@/server/db/schema'
+import { apikey, comments, instanceAdmins, pages, siteMemberships, siteOrigins, sites, user } from '@/server/db/schema'
 import { HttpError } from '@/server/http/errors'
 import { canCreateInitialAdmin } from '@/server/modules/admin/domain/initial-setup'
 import { attachOrigins } from '@/server/modules/comments/infrastructure/comment-repository'
+import { getRequestLogger } from '@/server/observability/logger'
 
 export async function hasInstanceAdmin(userId?: string): Promise<boolean> {
   const db = getBusinessDb()
@@ -38,7 +39,10 @@ export async function createInitialAdmin<T extends { userId: string }>(createUse
 
 export async function listAdminSites() {
   const db = getBusinessDb()
-  const rows = await db.select({ id: sites.id, key: sites.key, name: sites.name }).from(sites).orderBy(asc(sites.name))
+  const rows = await db
+    .select({ id: sites.id, key: sites.key, name: sites.name, bodyLimit: sites.bodyLimit })
+    .from(sites)
+    .orderBy(asc(sites.name))
   return attachOrigins(db, rows)
 }
 
@@ -47,7 +51,7 @@ export async function listAdminSites() {
 export async function listAdminSitesForUser(userId: string) {
   const db = getBusinessDb()
   const rows = await db
-    .select({ id: sites.id, key: sites.key, name: sites.name })
+    .select({ id: sites.id, key: sites.key, name: sites.name, bodyLimit: sites.bodyLimit })
     .from(siteMemberships)
     .innerJoin(sites, eq(siteMemberships.siteId, sites.id))
     .where(eq(siteMemberships.userId, userId))
@@ -83,17 +87,23 @@ export async function createAdminSite(userId: string | null, input: { name: stri
     if (userId !== null) {
       await tx.insert(siteMemberships).values({ siteId: site.id, userId, role: 'admin' })
     }
-    return { id: site.id, key: site.key, name: site.name }
+    return { id: site.id, key: site.key, name: site.name, bodyLimit: site.bodyLimit }
   })
 }
 
-export async function renameAdminSite(siteKey: string, input: { name: string }) {
+// Only the fields provided change, so a name edit never resets the comment limit.
+export async function updateAdminSite(siteKey: string, input: { name?: string; bodyLimit?: number | null }) {
+  const changes = {
+    ...(input.name === undefined ? {} : { name: input.name }),
+    ...(input.bodyLimit === undefined ? {} : { bodyLimit: input.bodyLimit }),
+  }
+  if (Object.keys(changes).length === 0) throw new HttpError(400, 'VALIDATION_ERROR', 'Provide a name or a bodyLimit')
   const db = getBusinessDb()
   const [site] = await db
     .update(sites)
-    .set({ name: input.name })
+    .set(changes)
     .where(eq(sites.key, siteKey))
-    .returning({ id: sites.id, key: sites.key, name: sites.name })
+    .returning({ id: sites.id, key: sites.key, name: sites.name, bodyLimit: sites.bodyLimit })
   if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
   return site
 }
@@ -113,14 +123,39 @@ function siteKeyFromMetadata(metadata: unknown): string | null {
   return typeof value.siteKey === 'string' ? value.siteKey : null
 }
 
-// Cascades to pages, comments, origins, memberships, and site keys.
+// One transaction, so a failure leaves nothing half-deleted. The site row cascades
+// to its origins, memberships, pages, comments, votes, blocks, verifications,
+// moderation events and plugin events. The site's API keys are removed too, because
+// their binding lives in JSON metadata the database cannot cascade on. The rate-limit
+// windows are keyed by the site key, so they go as well. The counts are taken first,
+// since the cascade removes the rows they describe, and the summary is logged.
 export async function deleteAdminSite(siteKey: string): Promise<void> {
   const db = getBusinessDb()
-  const deleted = await db.delete(sites).where(eq(sites.key, siteKey)).returning({ id: sites.id })
-  if (deleted.length === 0) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
-  // Plugin apikey rows carry the site binding in metadata JSON, which the
-  // database cannot cascade on — delete them explicitly.
-  const keys = await db.select({ id: apikey.id, metadata: apikey.metadata }).from(apikey)
-  const orphaned = keys.filter((key) => siteKeyFromMetadata(key.metadata) === siteKey).map((key) => key.id)
-  if (orphaned.length > 0) await db.delete(apikey).where(inArray(apikey.id, orphaned))
+  const summary = await db.transaction(async (tx) => {
+    const [site] = await tx.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey)).limit(1)
+    if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
+
+    const [[pageTotal], [commentTotal], keys] = await Promise.all([
+      tx.select({ value: count() }).from(pages).where(eq(pages.siteId, site.id)),
+      tx
+        .select({ value: count() })
+        .from(comments)
+        .innerJoin(pages, eq(comments.pageId, pages.id))
+        .where(eq(pages.siteId, site.id)),
+      tx.select({ id: apikey.id, metadata: apikey.metadata }).from(apikey),
+    ])
+    const orphaned = keys.filter((key) => siteKeyFromMetadata(key.metadata) === siteKey).map((key) => key.id)
+    await Promise.all([
+      orphaned.length > 0 ? tx.delete(apikey).where(inArray(apikey.id, orphaned)) : null,
+      tx.execute(sql`delete from comment_rate_limit.rate_limit_windows where site_key = ${siteKey}`),
+    ])
+    await tx.delete(sites).where(eq(sites.id, site.id))
+
+    return {
+      pages: Number(pageTotal?.value ?? 0),
+      comments: Number(commentTotal?.value ?? 0),
+      apiKeys: orphaned.length,
+    }
+  })
+  getRequestLogger().info('site.deleted', { siteKey, ...summary })
 }

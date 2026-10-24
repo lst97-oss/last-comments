@@ -21,6 +21,14 @@ export const pageKeySchema = z
 
 export const siteQuerySchema = z.strictObject({ site: z.string().min(1).max(100) })
 
+// Exactly one of pageKey or url is required; the route enforces that, so the
+// schema stays a plain object for the OpenAPI document.
+export const pageDeleteQuerySchema = z.strictObject({
+  site: z.string().min(1).max(100),
+  pageKey: pageKeySchema.optional(),
+  url: z.string().min(1).max(2048).optional(),
+})
+
 export const pagesQuerySchema = z.strictObject({
   site: z.string().min(1).max(100),
   // 0 means "all time": the recent window is unbounded.

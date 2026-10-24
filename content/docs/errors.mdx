@@ -62,6 +62,7 @@ The rendered block carries `data-lc-error` and `data-error-code` (empty when the
 | `PAGE_LOCKED` | The thread is locked and accepts no new comments. |
 | `PARENT_NOT_FOUND` | The reply's parent comment does not exist. |
 | `COMMENT_NOT_FOUND` | The comment does not exist. |
+| `COMMENT_TOO_LONG` | The body is longer than the site's comment limit (400). The default limit is 10,000 characters; a site can lower it. |
 | `COMMENT_VERIFICATION_FAILED` | The Turnstile challenge was rejected. |
 | `COMMENT_VERIFICATION_UNAVAILABLE` | Verification is required but no provider is configured (503). |
 | `EDIT_WINDOW_EXPIRED` | The anonymous edit window has closed. |

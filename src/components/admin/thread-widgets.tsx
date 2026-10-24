@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useWidgetTheme } from '@/hooks/use-widget-theme'
 import { copyText } from '@/lib/clipboard'
-import { COMMENT_BODY_LIMIT } from '@/lib/comment-schema'
 import { embedSnippet, type PageSummary } from '@/lib/page-thread'
 
 function formatTimestamp(value: string | null): string {
@@ -95,8 +94,11 @@ export function ThreadCommentsSection({
   pageId,
   pageUrl,
   viewerUserId,
+  bodyLimit,
   onModerated,
 }: {
+  // The site's comment limit, so the composer counts what the server accepts.
+  bodyLimit: number
   baseUrl: string
   site: string
   pageId: string
@@ -117,7 +119,7 @@ export function ThreadCommentsSection({
         theme={theme}
         viewerRole="admin"
         viewerUserId={viewerUserId}
-        bodyLimit={COMMENT_BODY_LIMIT}
+        bodyLimit={bodyLimit}
         onModerated={onModerated}
       />
     </section>

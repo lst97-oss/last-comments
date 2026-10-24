@@ -43,6 +43,6 @@ icon: BookOpen
   </Card>
 </Cards>
 
-<Callout type="warn" title="Same-origin API required">
-  Every widget request is sent with `credentials: 'include'`, and the API never returns `Access-Control-Allow-Credentials`. Route the API through a same-origin proxy — see [Install & server setup](/docs/install).
+<Callout type="info" title="Registered origins can call the API directly">
+  Widget requests send credentials. The API answers only origins a site has registered, with credentialed CORS. A page on the same registrable domain works directly; a different domain needs a same-origin proxy for signed-in features. See [Install & server setup](/docs/install).
 </Callout>

@@ -46,6 +46,8 @@ Auth providers are configured in `src/server/auth/auth.config.ts` (`better-auth`
 - Delete stays session-only via `DELETE /api/comments/:id?site=…`.
 - Page threads are normally created by their first comment. A publisher can register them with `POST /api/admin/pages` (`{ site, url, pageKey?, title? }`, idempotent). A `pageKey` follows the thread when its URL changes. The URL must use one of the site's allowed origins, otherwise `400 PAGE_ORIGIN_NOT_ALLOWED`.
 - Callers are members of the site or a site key holding `pages:write`; `pages:read` lists a site's threads. Instance keys keep `sites:*`.
+- `DELETE /api/admin/pages/{pageId}` or `DELETE /api/admin/pages?pageKey=` removes a page permanently, with its comments, replies and votes. It needs a `pages:delete` key (separate from `pages:write`, so write-only keys cannot delete) or a site admin session. The site's blocks, verifications and memberships stay; the audit log keeps the URL.
+- A site can set its own comment length limit (1 to 10,000 characters) with `PATCH /api/admin/sites/{siteKey}`; the default is 10,000.
 
 Run `bun run plugins:work` as a separate process to deliver plugin events unless the Compose `worker` service is running.
 
