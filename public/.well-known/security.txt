@@ -1,0 +1,5 @@
+# Security contact for last-comments.lst97.dev
+Contact: https://github.com/lst97-oss/last-comments/security/advisories/new
+Expires: 2027-10-23T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://last-comments.lst97.dev/.well-known/security.txt
