@@ -49,10 +49,10 @@ The rendered block carries `data-lc-error` and `data-error-code` (empty when the
 | --- | --- |
 | `VALIDATION_ERROR` | The request body or query did not pass validation. |
 | `MALFORMED_JSON` | The request body was not valid JSON. |
-| `UNAUTHENTICATED` | The action requires a signed-in session. |
+| `UNAUTHENTICATED` | The action requires a signed-in session, or a key with the matching `comments:*` scope (401). On a `login` site a read is open and a write needs a session or key; on a `private` site a read needs one too. |
 | `ORIGIN_NOT_ALLOWED` | The page origin is not an allowed origin of the site (403). |
 | `SITE_NOT_FOUND` | The `site` key does not exist on the server. |
-| `FORBIDDEN` | The account lacks permission for this action. |
+| `FORBIDDEN` | The account lacks permission for this action. On a site with `gatewayOnly` enabled, a caller without a site-bound key gets this code, even with a registered Origin (403). |
 
 ### Content and verification errors
 

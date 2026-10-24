@@ -14,6 +14,11 @@ export function getPluginRetryDelayMs(attempt: number): number {
   return Math.min(1_000 * 2 ** Math.max(0, attempt - 1), 3_600_000)
 }
 
+// Outbox rows are written only for plugins with an event subscription and a handler.
+export function hasOutboxSubscribers(plugins = getCommentPlugins()): boolean {
+  return plugins.some((plugin) => Boolean(plugin.handleEvent) && (plugin.events?.length ?? 0) > 0)
+}
+
 export async function deliverPendingPluginEvents(db = getBusinessDb(), now = new Date()): Promise<number> {
   const due = await db
     .select({

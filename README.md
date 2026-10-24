@@ -48,6 +48,7 @@ Auth providers are configured in `src/server/auth/auth.config.ts` (`better-auth`
 - Callers are members of the site or a site key holding `pages:write`; `pages:read` lists a site's threads. Instance keys keep `sites:*`.
 - `DELETE /api/admin/pages/{pageId}` or `DELETE /api/admin/pages?pageKey=` removes a page permanently, with its comments, replies and votes. It needs a `pages:delete` key (separate from `pages:write`, so write-only keys cannot delete) or a site admin session. The site's blocks, verifications and memberships stay; the audit log keeps the URL.
 - A site can set its own comment length limit (1 to 10,000 characters) with `PATCH /api/admin/sites/{siteKey}`; the default is 10,000.
+- A site's `access` (`open` | `login` | `private`) sets who may read and post, and `gatewayOnly` refuses callers that hold no site-bound key. Keys holding `comments:read` / `comments:write` let a host proxy load and post comments for its visitors. See `content/docs/auth.mdx`, "Who can comment".
 
 Run `bun run plugins:work` as a separate process to deliver plugin events unless the Compose `worker` service is running.
 
@@ -87,7 +88,7 @@ To remove it, delete it from `installedCommentPlugins` and deploy after running 
 
 ### Turnstile verification
 
-Turnstile is enabled by default and verifies comment tokens server-side. Set `TURNSTILE_SECRET_KEY` in the environment and the public site key in `TURNSTILE_SITE_KEY` (or `turnstile.config.ts`, which wins). The consuming site renders the widget and sends the token as `verificationToken`; every commenter is verified, signed-in ones included. Missing/invalid tokens fail with 403, unavailable verification fails closed with 503.
+Turnstile is enabled by default and verifies comment tokens server-side. Set `TURNSTILE_SECRET_KEY` in the environment and the public site key in `TURNSTILE_SITE_KEY` (or `turnstile.config.ts`, which wins). The consuming site renders the widget and sends the token as `verificationToken`; every commenter is verified, signed-in ones included. The token's hostname must match one of the site's registered origins, so register every embedding origin. Missing/invalid tokens fail with 403, unavailable verification fails closed with 503.
 
 Local development can use Cloudflare's testing keys:
 

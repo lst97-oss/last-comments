@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  assertValidScopeSet,
   hasServiceKey,
   permissionsToScopes,
   scopesToPermissions,
@@ -79,5 +80,17 @@ describe('service key detection', () => {
   test('the x-api-key header is always a service key', () => {
     expect(hasServiceKey(requestWith({ 'x-api-key': 'lck_abc123' }))).toBe(true)
     expect(hasServiceKey(requestWith({}))).toBe(false)
+  })
+
+  test('comment scopes store under the comments resource and round-trip', () => {
+    const scopes = ['comments:read', 'comments:write'] as const
+    expect(scopesToPermissions([...scopes])).toEqual({ comments: ['read', 'write'] })
+    expect(permissionsToScopes({ comments: ['read', 'write'] })).toEqual([...scopes])
+  })
+
+  test('a site-bound key may hold the comment scopes; an instance key may not', () => {
+    expect(() => assertValidScopeSet('lst97-dev', ['comments:read', 'comments:write'])).not.toThrow()
+    expect(() => assertValidScopeSet('lst97-dev', ['sites:read'])).toThrow()
+    expect(() => assertValidScopeSet(null, ['comments:write'])).toThrow()
   })
 })

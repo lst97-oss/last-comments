@@ -1,3 +1,7 @@
+import { eq } from 'drizzle-orm'
+
+import { getBusinessDb } from '@/server/db/business-sql'
+import { siteOrigins } from '@/server/db/schema'
 import { HttpError } from '@/server/http/errors'
 import { getRequestLogger, type Logger } from '@/server/observability/logger'
 import type { CommentPlugin } from '@/server/plugins/comment-plugins'
@@ -5,6 +9,24 @@ import { getTurnstilePluginSettings } from '@/server/plugins/turnstile/turnstile
 
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+// Hostnames of a site's registered origins. The token's hostname must be one
+// of them: the client-supplied pageUrl proves nothing, because a script can
+// mint a token on its own page and name any URL it likes.
+type RegisteredHostnames = (siteId: string) => Promise<readonly string[]>
+
+async function loadRegisteredHostnames(siteId: string): Promise<string[]> {
+  const rows = await getBusinessDb()
+    .select({ origin: siteOrigins.origin })
+    .from(siteOrigins)
+    .where(eq(siteOrigins.siteId, siteId))
+  return rows.flatMap(({ origin }) => {
+    try {
+      return [new URL(origin).hostname]
+    } catch {
+      return []
+    }
+  })
+}
 
 // Cloudflare's published testing secrets (`1x…`, `2x…`, `3x…`, zeros, `AA`).
 // shortcut: only these dummy keys bypass the hostname check — a production
@@ -31,11 +53,13 @@ export function createTurnstilePlugin({
   verificationRequired = getTurnstilePluginSettings().verificationRequired,
   fetcher = fetch,
   logger = getRequestLogger().child({ plugin: 'turnstile' }),
+  registeredHostnames = loadRegisteredHostnames,
 }: {
   secretKey?: string
   verificationRequired?: boolean
   fetcher?: Fetcher
   logger?: Logger
+  registeredHostnames?: RegisteredHostnames
 } = {}): CommentPlugin {
   return {
     id: 'turnstile',
@@ -80,16 +104,17 @@ export function createTurnstilePlugin({
         throw unavailable(logger, 'siteverify_missing_hostname')
       }
 
-      let hostname: string
-      try {
-        hostname = new URL(input.pageUrl).hostname
-      } catch {
-        throw invalid()
-      }
       // The testing secrets validate any token and always answer with the
       // hostname `example.com`; Cloudflare documents them as working on any
       // domain, so the hostname check cannot apply to them.
-      if (!isTestSecret(secret) && result.hostname !== hostname) throw invalid()
+      if (isTestSecret(secret)) return
+      let hostnames: readonly string[]
+      try {
+        hostnames = await registeredHostnames(input.siteId)
+      } catch {
+        throw unavailable(logger, 'site_origins_unavailable')
+      }
+      if (!hostnames.includes(result.hostname)) throw invalid()
     },
   }
 }

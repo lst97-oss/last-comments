@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { SITE_ACCESS_LEVELS } from '@/lib/site-access'
+
 // Response mirrors. The API returns ad-hoc object literals, so there is no
 // runtime schema to reuse — every schema below carries a `shortcut:` comment
 // naming the function it mirrors, and the two must be updated together.
@@ -290,6 +292,8 @@ export const adminSiteListItemSchema = z
     name: z.string(),
     // Null = the default comment limit (10,000).
     bodyLimit: z.number().int().nullable(),
+    access: z.enum(SITE_ACCESS_LEVELS),
+    gatewayOnly: z.boolean(),
     origins: z.array(z.string()),
   })
   .meta({ id: 'AdminSite' })
@@ -301,6 +305,8 @@ export const adminSiteCreatedSchema = z
     key: z.string(),
     name: z.string(),
     bodyLimit: z.number().int().nullable(),
+    access: z.enum(SITE_ACCESS_LEVELS),
+    gatewayOnly: z.boolean(),
   })
   .meta({ id: 'AdminSiteCreated' })
 

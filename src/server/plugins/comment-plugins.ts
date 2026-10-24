@@ -46,6 +46,11 @@ export type CommentOperationInput = {
   operation: CommentOperation
   siteKey: string
   userId: string | null
+  // Set only for a verified service key that names the visitor it acts for
+  // (the host's proxy). Plugins may bucket by it; never trust it otherwise.
+  clientId?: string
+  // The verified key itself: the rate-limit bucket when no clientId is given.
+  keyId?: string
   request: Request
 }
 

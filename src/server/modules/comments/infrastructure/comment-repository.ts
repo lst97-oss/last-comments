@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
 import { resolveBodyLimit } from '@/lib/comment-schema'
+import type { SiteAccess } from '@/lib/site-access'
 import { getBusinessDb } from '@/server/db/business-sql'
 import {
   comments,
@@ -136,6 +137,20 @@ export async function getSiteId(siteKey: string, db: Db = getBusinessDb()): Prom
   const [site] = await db.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey)).limit(1)
   if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
   return site.id
+}
+
+// Null for an unknown site: the caller then keeps today's behaviour, and the
+// origin check still refuses unregistered writers.
+export async function getSiteAccess(
+  siteKey: string,
+  db: Db = getBusinessDb(),
+): Promise<{ access: SiteAccess; gatewayOnly: boolean } | null> {
+  const [site] = await db
+    .select({ access: sites.access, gatewayOnly: sites.gatewayOnly })
+    .from(sites)
+    .where(eq(sites.key, siteKey))
+    .limit(1)
+  return site ?? null
 }
 
 // Site-scoped on purpose: the moderator composer addresses a thread by page id

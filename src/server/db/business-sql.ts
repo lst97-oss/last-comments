@@ -21,7 +21,8 @@ let sql: SQL | null = null
 
 export function getBusinessSql(): SQL {
   if (!sql) {
-    sql = new SQL(toBunSqlUrl(getBusinessEnv().connectionString))
+    // Bun keeps idle connections open forever, and each one holds a Postgres backend on Neon.
+    sql = new SQL(toBunSqlUrl(getBusinessEnv().connectionString), { idleTimeout: 60 })
   }
   return sql
 }
