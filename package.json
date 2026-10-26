@@ -47,7 +47,7 @@
     "@better-auth/api-key": "1.7.10",
     "@better-auth/drizzle-adapter": "1.7.10",
     "@fontsource-variable/geist": "^5.3.0",
-    "@lst97-oss/last-comments-widgets": "^0.6.1",
+    "@lst97-oss/last-comments-widgets": "^0.6.2",
     "@lst97-oss/last-httprism": "0.2.0",
     "@openrouter/sdk": "^1.5.7",
     "@payloadcms/db-postgres": "4.0.0-beta.4",
