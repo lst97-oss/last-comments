@@ -10,6 +10,7 @@ import { handlerOf } from './helpers/integration'
 const SPEC_PATHS = [
   '/api/comments',
   '/api/comments/{commentId}',
+  '/api/comments/settings',
   '/api/comments/vote',
   '/api/moderation',
   '/api/admin/sites',

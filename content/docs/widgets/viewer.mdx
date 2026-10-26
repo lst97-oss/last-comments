@@ -6,6 +6,8 @@ icon: Eye
 
 `CommentViewer` (Vue `CommentViewer`, Angular `lc-comment-viewer`, vanilla `data-lc-viewer` + `renderCommentViewer`) renders the same list with no composer and no Reply/Edit/Delete/vote buttons — import it where the page only shows comments.
 
+The viewer reads the site's policy like the comments widget. On a `private` site a signed-out visitor gets one sign-in card in place of the thread, and no comments are requested. Pass `signInUrl` (vanilla `data-lc-sign-in-url`) to point the card's button at your sign-in page; without it the button starts the sign-in flow in place. The card follows the host's theme through the `--lc-signin-*` tokens.
+
 ```tsx
 import { CommentViewer } from "@lst97-oss/last-comments-widgets/react";
 

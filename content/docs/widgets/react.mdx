@@ -27,14 +27,19 @@ Props are shared across all four frameworks (`actionMode`, `bodyLimit` and `anon
 | `lazy` | Defer all requests until the widget scrolls into view. Default `false`. |
 | `theme` | `light`, `dark` or `system`. |
 | `themeVars` | Per-instance design overrides — see [Theming](/docs/theming). |
-| `signInUrl` | Host-owned sign-in page. |
+| `signInUrl` | Host-owned sign-in page, the target of the sign-in card's button on `login` and `private` sites. |
+| `onSignInClick` | Called instead of following `signInUrl` when a sign-in button the widget shows is pressed: the sign-in card, or the error block's Sign in action. Without it or `signInUrl`, the button starts the built-in sign-in. |
 | `viewerUserId` | Shows the viewer's own Edit/Delete buttons; empty means guest. |
 | `pageId` | Host-known thread id; moderator mode addresses it instead of matching `pageUrl`. |
-| `viewerRole` | `admin` or `moderator`; enables inline moderation — see [Inline moderation](/docs/widgets/moderation). |
+| `viewerRole` | `admin`; enables inline moderation — see [Inline moderation](/docs/widgets/moderation). |
 | `onModerated` | Callback after a moderation action, lock change or moderator post. |
 | `actionMode` | `icon`, `icon-text` or `text` — how Reply/Edit/Delete and moderator actions render their icons. Default `icon-text`. |
-| `bodyLimit` | Max body characters, counted before trimming. Default `10,000`, which is also the server's ceiling. Set it to the limit the server enforces for the site (the dashboard's Edit site sets it), so the counter matches what the server refuses with `COMMENT_TOO_LONG`. |
-| `anonEditWindowMinutes` | Anonymous edit window. Default `10`, mirroring `anonEditWindowMinutes` in the server `comment-policy.config.ts`. Signed-in authors may edit any time, while guests edit only from the browser that stored the key returned when they posted. |
+| `settings` | The site's public policy as one object: `access` (`open`, `login` or `private`), `bodyLimit`, `anonEditWindowMinutes`, `turnstileSiteKey` and `features.votes` (`false` hides the arrows). Omit it and the widget reads the policy from `GET {baseUrl}/api/comments/settings` once per site, cached for a minute. A failed read falls back to the defaults; the server still enforces every rule. |
+| `bodyLimit` | Override for the max body characters, counted before trimming. Unset, the site's own limit applies (the dashboard's Edit site sets it), so the counter matches what the server refuses with `COMMENT_TOO_LONG`. `10,000` is the ceiling. |
+| `anonEditWindowMinutes` | Override for the guest edit window. Unset, the site's own window applies (default `10`, mirroring `anonEditWindowMinutes` in the server `comment-policy.config.ts`). Signed-in authors may edit any time, while guests edit only from the browser that stored the key returned when they posted. |
+| `math` | Render `$…$` and `$$…$$` as KaTeX. Default `false`; needs the optional `katex` peer. See [Markdown](/docs/markdown). |
+| `mermaid` | Render ```` ```mermaid ```` fences as diagrams. Default `false`; needs the optional `mermaid` peer. See [Markdown](/docs/markdown). |
+| `codeHighlight` | Syntax-highlight fenced code in React with Shiki. Default `true`; `false` keeps the plain `<pre>`. |
 | `turnstileOptions` | Cloudflare widget options (`theme`, `size`, `appearance`, `language`) — see below. |
 | `fetchImpl` | Bring-your-own fetch — log, record, or rewrite to a same-origin proxy. Every request still sends `credentials: 'include'` and the init shape is unchanged. |
 

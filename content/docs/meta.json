@@ -9,6 +9,7 @@
     "client",
     "identity",
     "auth",
+    "api-keys",
     "plugins",
     "pagination",
     "markdown",

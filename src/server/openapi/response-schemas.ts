@@ -36,7 +36,7 @@ export const commentSchema = z
     deletedAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
-    authorRole: z.enum(['admin', 'moderator']).nullable(),
+    authorRole: z.enum(['admin', 'member']).nullable(),
     avatarUrl: z.string().nullable().optional(),
     editKey: z
       .string()
@@ -60,11 +60,23 @@ export const commentListItemSchema = z
     pinnedAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
     editedAt: z.iso.datetime().nullable(),
-    authorRole: z.enum(['admin', 'moderator']).nullable(),
+    authorRole: z.enum(['admin', 'member']).nullable(),
     score: z.number().int().describe('Sum of the votes on this comment'),
     viewerVote: z.union([z.literal(-1), z.literal(1)]).nullable(),
   })
   .meta({ id: 'CommentListItem' })
+
+// shortcut: mirror of PublicSiteSettings in src/server/modules/comments/domain/site-settings.ts
+export const publicSiteSettingsSchema = z
+  .strictObject({
+    version: z.literal(1),
+    access: z.enum(SITE_ACCESS_LEVELS),
+    bodyLimit: z.number().int(),
+    anonEditWindowMinutes: z.number().int(),
+    turnstileSiteKey: z.string().nullable(),
+    features: z.strictObject({ votes: z.boolean() }),
+  })
+  .meta({ id: 'PublicSiteSettings' })
 
 // shortcut: mirror of CommentVoteSummary in comment-repository.ts
 export const voteSummarySchema = z
@@ -91,7 +103,7 @@ export const moderationCommentSchema = z
     createdAt: z.iso.datetime(),
     score: z.number().int(),
     viewerVote: z.union([z.literal(-1), z.literal(1)]).nullable(),
-    authorRole: z.enum(['admin', 'moderator']).nullable(),
+    authorRole: z.enum(['admin', 'member']).nullable(),
   })
   .meta({ id: 'ModerationComment' })
 
@@ -155,8 +167,10 @@ export const moderationSiteSchema = z
     id: z.uuid(),
     key: z.string(),
     name: z.string(),
-    role: z.enum(['admin', 'moderator']),
+    role: z.enum(['admin', 'member']),
     origins: z.array(z.string()),
+    access: z.enum(SITE_ACCESS_LEVELS),
+    gatewayOnly: z.boolean(),
   })
   .meta({ id: 'ModerationSite' })
 
@@ -185,7 +199,7 @@ export const siteUserSchema = z
     name: z.string(),
     email: z.string(),
     createdAt: z.iso.datetime(),
-    role: z.enum(['admin', 'moderator']).nullable(),
+    role: z.enum(['admin', 'member']),
     commentsTotal: z.number().int(),
     lastCommentAt: z.iso.datetime().nullable(),
     blocked: z.boolean(),
@@ -294,6 +308,7 @@ export const adminSiteListItemSchema = z
     bodyLimit: z.number().int().nullable(),
     access: z.enum(SITE_ACCESS_LEVELS),
     gatewayOnly: z.boolean(),
+    votesEnabled: z.boolean(),
     origins: z.array(z.string()),
   })
   .meta({ id: 'AdminSite' })
@@ -307,6 +322,7 @@ export const adminSiteCreatedSchema = z
     bodyLimit: z.number().int().nullable(),
     access: z.enum(SITE_ACCESS_LEVELS),
     gatewayOnly: z.boolean(),
+    votesEnabled: z.boolean(),
   })
   .meta({ id: 'AdminSiteCreated' })
 
@@ -455,7 +471,7 @@ export const apiKeyListItemSchema = z
     enabled: z.boolean(),
     expiresAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
-    metadata: z.strictObject({ siteKey: z.string() }).nullable(),
+    metadata: z.strictObject({ site: z.string() }).nullable(),
     permissions: z.record(z.string(), z.array(z.string())).nullable(),
   })
   .meta({ id: 'ApiKeyListItem' })

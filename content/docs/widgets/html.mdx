@@ -25,13 +25,25 @@ icon: Code
 
 ## Attributes
 
-Every programmatic option also has an attribute, mapped to the same prop:
+These attributes set the same options as the props. Callbacks, `settings`, `pageId` and `fetchImpl` are JavaScript-only.
 
 | Attribute | Prop | Default |
 | --- | --- | --- |
+| `data-lc-site` | `site` | required |
+| `data-lc-base-url` | `baseUrl` | required |
+| `data-lc-page-url` | `pageUrl` | `location.href` |
+| `data-lc-limit` | `limit` | `20` |
+| `data-lc-lazy` | `lazy` (presence turns it on) | off |
+| `data-lc-theme` | `theme` (`light` \| `dark` \| `system`) | `system` |
+| `data-lc-viewer-user-id` | `viewerUserId` | guest |
+| `data-lc-viewer-role` | `viewerRole` (`admin`) | — |
+| `data-lc-math` | `math` (presence turns it on) | off |
+| `data-lc-mermaid` | `mermaid` (presence turns it on) | off |
+| `data-lc-no-code-highlight` | `codeHighlight` (presence turns it off) | highlight on |
 | `data-lc-anon-edit-window-minutes` | `anonEditWindowMinutes` | `10` |
 | `data-lc-action-mode` | `actionMode` (`icon` \| `icon-text` \| `text`) | `icon-text` |
-| `data-lc-body-limit` | `bodyLimit` | `10000` |
+| `data-lc-body-limit` | `bodyLimit` | the site's limit (`10000` if unknown) |
+| `data-lc-sign-in-url` | `signInUrl` (the sign-in card's button, on `login` and `private` sites) | — (the button starts sign-in in place) |
 | `data-lc-turnstile` | `turnstileSiteKey` | — |
 | `data-lc-turnstile-theme` | `turnstileOptions.theme` (`auto` \| `light` \| `dark`) | widget light/dark mode |
 | `data-lc-turnstile-size` | `turnstileOptions.size` (`normal` \| `compact` \| `flexible`) | `normal` |

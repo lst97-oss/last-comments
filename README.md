@@ -40,23 +40,26 @@ Auth providers are configured in `src/server/auth/auth.config.ts` (`better-auth`
 
 ## Public comments API
 
-`GET|POST /api/comments` takes a `site` plus the absolute page `url`; register the page origin as an allowed origin for that site first. Every post carries a Turnstile token when verification is enabled; guests also provide a display name. Responses include vote `score`, the signed-in viewer's `viewerVote`, and the author's site role as `authorRole` (`admin` | `moderator` | `null`).
-- `PUT /api/comments/vote` casts or switches a vote; `DELETE /api/comments/vote?site=…&commentId=…` clears it. Voting needs a session through the first-party deployment or a same-origin proxy.
+`GET|POST /api/comments` takes a `site` plus the absolute page `url`; register the page origin as an allowed origin for that site first. Every post carries a Turnstile token when verification is enabled; guests also provide a display name. Responses include vote `score`, the signed-in viewer's `viewerVote`, and the author's site role as `authorRole` (`admin`, `member` for any other signed-in account, or `null` for a guest). Deleted comments are returned redacted (status `deleted`, empty body and author) so their replies keep their place; hidden comments are left out.
+- `PUT /api/comments/vote` casts or switches a vote; `DELETE /api/comments/vote?site=…&commentId=…` clears it. Voting needs a visitor session, so guests and keys cannot vote. A site can switch voting off (`votesEnabled`, the dashboard's Allow votes); then votes are refused with `403 FEATURE_DISABLED` and the votes already cast are kept. A gateway-only site refuses votes from browsers.
 - Signed-in authors may edit their own comments at any time via `PATCH /api/comments/:id`. Guests receive a one-time `editKey` in the create response and may use it within the guest edit window (`comment-policy.config.ts`, default 10 minutes; `0` = unlimited). Expired guest edits fail with 403 `EDIT_WINDOW_EXPIRED`.
-- Delete stays session-only via `DELETE /api/comments/:id?site=…`.
+- Delete via `DELETE /api/comments/:id?site=…`: a signed-in author deletes with the session; a guest sends the edit key in the `x-lc-edit-key` header, at any time (no edit window). A deleted comment is not removed from the thread: it reads as `[This comment was deleted]` with no body, author or votes, and its replies stay nested under it. An admin can restore it.
 - Page threads are normally created by their first comment. A publisher can register them with `POST /api/admin/pages` (`{ site, url, pageKey?, title? }`, idempotent). A `pageKey` follows the thread when its URL changes. The URL must use one of the site's allowed origins, otherwise `400 PAGE_ORIGIN_NOT_ALLOWED`.
-- Callers are members of the site or a site key holding `pages:write`; `pages:read` lists a site's threads. Instance keys keep `sites:*`.
+- Callers are admins of the site (its site admin, or the instance admin), or a site key holding `pages:write`; `pages:read` lists a site's threads. Instance keys keep `sites:*`. A member is refused.
 - `DELETE /api/admin/pages/{pageId}` or `DELETE /api/admin/pages?pageKey=` removes a page permanently, with its comments, replies and votes. It needs a `pages:delete` key (separate from `pages:write`, so write-only keys cannot delete) or a site admin session. The site's blocks, verifications and memberships stay; the audit log keeps the URL.
 - A site can set its own comment length limit (1 to 10,000 characters) with `PATCH /api/admin/sites/{siteKey}`; the default is 10,000.
 - A site's `access` (`open` | `login` | `private`) sets who may read and post, and `gatewayOnly` refuses callers that hold no site-bound key. Keys holding `comments:read` / `comments:write` let a host proxy load and post comments for its visitors. See `content/docs/auth.mdx`, "Who can comment".
+- `GET /api/comments/settings?site=` publishes the public policy a widget needs (access level, length limit, guest edit window, public Turnstile key). It holds no secrets and is cached for a minute.
 
 Run `bun run plugins:work` as a separate process to deliver plugin events unless the Compose `worker` service is running.
 
 ## Moderation dashboard
 
+The dashboard is for admins: the instance admin, or a site admin for its own sites. Members and commenters see an "Admins only" page (see [Roles and the dashboard](/docs/auth#roles-and-the-dashboard)).
+
 `/moderation` → Pages → _View comments_ renders a thread with `@lst97-oss/last-comments-widgets` (`/react` entry plus its scoped stylesheet): markdown bodies, `hidden`/`deleted` badges, nested replies, pinned comments first, and the moderation row. Only rendering and the composer come from the package; every action still posts to this repo's `/api/moderation`.
 
-The moderator composer posts through `{ target: 'comment-create', site, pageId, parentId?, bodyMarkdown }`. It skips the public origin, guest-name and Turnstile gates because the session is the verification, while remaining site-scoped: unknown `pageId` → 404 `PAGE_NOT_FOUND`, hidden/deleted parent → 404 `PARENT_NOT_FOUND`, locked page → 409 `PAGE_LOCKED`. Bodies are capped at 10,000 characters (`COMMENT_BODY_LIMIT` in `src/lib/comment-schema.ts`), counted before trimming and passed to the widget as `bodyLimit`.
+The admin composer posts through `{ target: 'comment-create', site, pageId, parentId?, bodyMarkdown }`. It skips the public origin, guest-name and Turnstile gates because the session is the verification, while remaining site-scoped: unknown `pageId` → 404 `PAGE_NOT_FOUND`, hidden/deleted parent → 404 `PARENT_NOT_FOUND`, locked page → 409 `PAGE_LOCKED`. Bodies are capped at 10,000 characters (`COMMENT_BODY_LIMIT` in `src/lib/comment-schema.ts`), counted before trimming and passed to the widget as `bodyLimit`.
 
 ## Plugin system
 
@@ -82,7 +85,7 @@ Capabilities: `validateComment` (ordered, five-second timeout), `beforeOperation
 
 ### Rate limiting
 
-The `rate-limit` plugin is enabled by default and allows creates 5/10 minutes, edits and deletes 20/10 minutes, and votes 60/minute per site and requester. Signed-in requests use the Better Auth user ID; guests use a keyed HMAC of the resolved client IP, keyed by `BETTER_AUTH_SECRET`; the raw IP is not stored. The client IP is the request's socket peer, except when the request came from a trusted ingress — then that ingress's client IP header is used (`CF-Connecting-IP` behind Cloudflare, otherwise `x-real-ip`). Trusted ingress is loopback and private networks by default; set `RATE_LIMIT_TRUSTED_PROXY_CIDR` for anything else, so a direct client cannot rotate the header to dodge the limit. DB errors fail closed with 503; over-limit responses include `Retry-After`.
+The `rate-limit` plugin is enabled by default and allows creates 5/10 minutes, edits and deletes 20/10 minutes, and votes 60/minute per site and requester. Signed-in requests use the Better Auth user ID; guests use a keyed HMAC of the resolved client IP, keyed by a key derived from `BETTER_AUTH_SECRET`; the raw IP is not stored. The client IP is the request's socket peer, except when the request came from a trusted ingress — then that ingress's client IP header is used (`CF-Connecting-IP` behind Cloudflare, otherwise `x-real-ip`). Trusted ingress is loopback and private networks by default; set `RATE_LIMIT_TRUSTED_PROXY_CIDR` for anything else, so a direct client cannot rotate the header to dodge the limit. DB errors fail closed with 503; over-limit responses include `Retry-After`.
 
 To remove it, delete it from `installedCommentPlugins` and deploy after running the normal business migrations. Its table and data remain; `bun run db:business:plugins:uninstall rate-limit` explicitly drops them.
 
@@ -99,7 +102,7 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
 ### Filter screening
 
-The `filter` plugin is installed and **on by default** (`enabled: true` in `filter.config.ts`). A hit holds the comment for review as `hidden` instead of rejecting the write. It combines a local `bad-words` engine with the OpenRouter LLM decider (`perplexity/pplx-decider-v1.2`, Decisions API); both engines are enabled by default, `OPENROUTER_API_KEY` is required for the LLM engine, and failures resolve through `failOpen`.
+The `filter` plugin is installed and **on by default** (`enabled: true` in `filter.config.ts`). A hit holds the comment for review as `hidden` instead of rejecting the write. It combines a local `bad-words` engine with the OpenRouter LLM decider (`perplexity/pplx-decider-v1.2`, Decisions API); both engines are enabled by default, `OPENROUTER_API_KEY` is required for the LLM engine, and failures resolve through `failOpen`. Screening sends the author name, comment text, site host and image thumbnails to OpenRouter, so turn `engines.llm` off where that data must stay on your server.
 
 ## Scripts
 
@@ -115,6 +118,8 @@ The `filter` plugin is installed and **on by default** (`enabled: true` in `filt
 | `db:business:migrate`                   | Apply core business migrations and installed-plugin migrations              |
 | `db:business:plugins:uninstall <id>`    | Drop a supported plugin's data and migration history                        |
 | `db:business:grant-admin`               | Grant instance admin to an existing business account                        |
+| `db:business:reset -- --confirm`        | Local only: drop the business schemas and re-apply the migrations from empty |
+| `db:seed:load` / `db:bench:comments`    | Local only: load a 275k-comment fixture, then time the comment queries       |
 | `plugins:work`                          | Deliver plugin outbox events                                                |
 | `stack:up` / `stack:down`               | Build/start or stop the full Compose stack                                  |
 | `smoke`                                 | Boot-contract check against a running server                                |
