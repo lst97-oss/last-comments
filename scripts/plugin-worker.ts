@@ -1,6 +1,10 @@
 import { closeBusinessSql } from '@/server/db/business-sql'
 import { getRequestLogger } from '@/server/observability/logger'
-import { deliverPendingPluginEvents, hasOutboxSubscribers } from '@/server/plugins/plugin-delivery'
+import {
+  deliverPendingPluginEvents,
+  hasOutboxSubscribers,
+  purgeDeliveredPluginEvents,
+} from '@/server/plugins/plugin-delivery'
 
 const logger = getRequestLogger().child({ component: 'plugin-worker' })
 // Without a subscribing plugin the outbox never fills, so a 1s poll only keeps
@@ -27,9 +31,17 @@ function pause(ms: number): Promise<void> {
   })
 }
 
+// Retention runs at most hourly, and only as part of a delivery pass, so no second scheduler is needed.
+const PURGE_EVERY_MS = 3_600_000
+let lastPurge = 0
+
 while (!stopping) {
   try {
     await deliverPendingPluginEvents()
+    if (Date.now() - lastPurge >= PURGE_EVERY_MS) {
+      lastPurge = Date.now()
+      await purgeDeliveredPluginEvents()
+    }
   } catch {
     logger.error('plugin.worker.poll_failed')
   }

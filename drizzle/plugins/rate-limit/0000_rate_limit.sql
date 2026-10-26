@@ -1,6 +1,8 @@
+-- Rate-limit counters for the comment plugin. UNLOGGED: the counters are rebuilt from traffic, so a
+-- crash resets the windows instead of paying for write-ahead logging on every counted operation.
 CREATE SCHEMA IF NOT EXISTS comment_rate_limit;
 --> statement-breakpoint
-CREATE TABLE comment_rate_limit.rate_limit_windows (
+CREATE UNLOGGED TABLE comment_rate_limit.rate_limit_windows (
   site_key text NOT NULL,
   identity_hash text NOT NULL,
   operation text NOT NULL,

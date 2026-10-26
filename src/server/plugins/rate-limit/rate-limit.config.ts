@@ -12,6 +12,11 @@ export const rateLimits: Record<CommentOperation, { count: number; windowSeconds
   'comment.vote': { count: 60, windowSeconds: 60 },
 }
 
+// A key's visitors each get their own bucket, so one key holder could otherwise
+// mint unlimited buckets with fresh client ids. Every visitor on a key also draws
+// on one key-wide bucket of this many times the visitor budget.
+export const KEY_BUCKET_MULTIPLIER = 50
+
 const rateLimitEnvSchema = z.object({
   BETTER_AUTH_SECRET: z.preprocess(
     (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),

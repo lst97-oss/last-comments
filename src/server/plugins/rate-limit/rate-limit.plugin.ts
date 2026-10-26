@@ -1,10 +1,14 @@
 import { sql } from 'drizzle-orm'
 
 import { getBusinessDb } from '@/server/db/business-sql'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { getRequestLogger, type Logger } from '@/server/observability/logger'
 import type { CommentOperation, CommentPlugin } from '@/server/plugins/comment-plugins'
-import { getRateLimitPluginSettings, rateLimits } from '@/server/plugins/rate-limit/rate-limit.config'
+import {
+  getRateLimitPluginSettings,
+  KEY_BUCKET_MULTIPLIER,
+  rateLimits,
+} from '@/server/plugins/rate-limit/rate-limit.config'
 
 export type ClientIpResolver = (request: Request) => string | null
 export type RateLimitWindow = {
@@ -16,6 +20,24 @@ export type RateLimitWindow = {
   retentionSeconds: number
 }
 export type RateLimitStore = (window: RateLimitWindow) => Promise<number>
+
+// The pseudonym key is derived from the auth secret, not used as it is, so the bucket HMAC key never
+// equals the key that signs sessions. The label keeps this derivation separate from any other use.
+async function deriveRateLimitKey(secret: string): Promise<CryptoKey> {
+  const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'HKDF', false, ['deriveKey'])
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array(0),
+      info: new TextEncoder().encode('last-comments:rate-limit-key:v1'),
+    },
+    material,
+    { name: 'HMAC', hash: 'SHA-256', length: 256 },
+    false,
+    ['sign'],
+  )
+}
 
 async function requesterHash(
   secret: string | undefined,
@@ -38,17 +60,16 @@ async function requesterHash(
           ? `ip:${clientIp}`
           : null
   if (!identity || !secret) {
-    throw new HttpError(503, 'RATE_LIMIT_UNAVAILABLE', 'Comment operations are temporarily unavailable', {
-      expose: true,
-    })
+    throw new HttpError(
+      ErrorCode.RATE_LIMIT_UNAVAILABLE.status,
+      ErrorCode.RATE_LIMIT_UNAVAILABLE.code,
+      'Comment operations are temporarily unavailable',
+      {
+        expose: true,
+      },
+    )
   }
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
+  const key = await deriveRateLimitKey(secret)
   const digest = await crypto.subtle.sign(
     'HMAC',
     key,
@@ -56,6 +77,10 @@ async function requesterHash(
   )
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
+
+// Expired windows are swept on about one write in SWEEP_ONE_IN, not inside every upsert, so a counted
+// operation writes one row.
+const SWEEP_ONE_IN = 100
 
 async function incrementRateLimitWindow({
   siteKey,
@@ -66,10 +91,8 @@ async function incrementRateLimitWindow({
   retentionSeconds,
 }: RateLimitWindow) {
   try {
-    const [row] = (await getBusinessDb().execute(sql`
-      WITH expired AS (
-        DELETE FROM comment_rate_limit.rate_limit_windows WHERE window_start < ${now - retentionSeconds}
-      )
+    const db = getBusinessDb()
+    const [row] = (await db.execute(sql`
       INSERT INTO comment_rate_limit.rate_limit_windows (site_key, identity_hash, operation, window_start, count)
       VALUES (${siteKey}, ${identityHash}, ${operation}, ${windowStart}, 1)
       ON CONFLICT (site_key, identity_hash, operation, window_start)
@@ -78,11 +101,22 @@ async function incrementRateLimitWindow({
     `)) as { count: number }[]
     const count = Number(row?.count)
     if (!count) throw new Error('Rate-limit store did not return a count')
+    if (Math.random() * SWEEP_ONE_IN < 1) {
+      // Best effort: a missed sweep only leaves stale windows a little longer.
+      void db
+        .execute(sql`DELETE FROM comment_rate_limit.rate_limit_windows WHERE window_start < ${now - retentionSeconds}`)
+        .catch(() => undefined)
+    }
     return count
   } catch {
-    throw new HttpError(503, 'RATE_LIMIT_UNAVAILABLE', 'Comment operations are temporarily unavailable', {
-      expose: true,
-    })
+    throw new HttpError(
+      ErrorCode.RATE_LIMIT_UNAVAILABLE.status,
+      ErrorCode.RATE_LIMIT_UNAVAILABLE.code,
+      'Comment operations are temporarily unavailable',
+      {
+        expose: true,
+      },
+    )
   }
 }
 
@@ -110,21 +144,36 @@ export function createRateLimitPlugin(
         missingSecretLogged = true
         logger.error('rate_limit.secret_missing')
       }
-      const identityHash = await requesterHash(secret, { userId, clientId, keyId }, request, resolveClientIp)
-      let used: number
-      try {
-        used = await increment({ siteKey, identityHash, operation, windowStart, now, retentionSeconds })
-      } catch {
-        logger.error('rate_limit.storage_unavailable', { operation })
-        throw new HttpError(503, 'RATE_LIMIT_UNAVAILABLE', 'Comment operations are temporarily unavailable', {
-          expose: true,
-        })
+      const spend = async (identity: { userId: string | null; clientId?: string; keyId?: string }, limit: number) => {
+        const identityHash = await requesterHash(secret, identity, request, resolveClientIp)
+        let used: number
+        try {
+          used = await increment({ siteKey, identityHash, operation, windowStart, now, retentionSeconds })
+        } catch {
+          logger.error('rate_limit.storage_unavailable', { operation })
+          throw new HttpError(
+            ErrorCode.RATE_LIMIT_UNAVAILABLE.status,
+            ErrorCode.RATE_LIMIT_UNAVAILABLE.code,
+            'Comment operations are temporarily unavailable',
+            {
+              expose: true,
+            },
+          )
+        }
+        if (used > limit) {
+          throw new HttpError(
+            ErrorCode.RATE_LIMITED.status,
+            ErrorCode.RATE_LIMITED.code,
+            'Too many comment operations',
+            {
+              headers: { 'retry-after': String(Math.max(1, windowStart + windowSeconds - now)) },
+            },
+          )
+        }
       }
-      if (used > count) {
-        throw new HttpError(429, 'RATE_LIMITED', 'Too many comment operations', {
-          headers: { 'retry-after': String(Math.max(1, windowStart + windowSeconds - now)) },
-        })
-      }
+      await spend({ userId, clientId, keyId }, count)
+      // Only a keyed visitor can be multiplied by a client id, so only that path needs the key-wide cap.
+      if (keyId && clientId) await spend({ userId: null, keyId }, count * KEY_BUCKET_MULTIPLIER)
     },
   }
 }

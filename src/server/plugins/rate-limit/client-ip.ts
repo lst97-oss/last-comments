@@ -1,4 +1,6 @@
-import { isProxySourceAllowed, normalizeAddress } from '@/server/http/proxy-source'
+import { isProxySourceAllowed, normalizeAddress, peerAddress } from '@/server/http/proxy-source'
+
+export { peerAddress }
 
 // Ingress we trust to speak for the client. Loopback and RFC1918 cover the
 // documented setup (a reverse proxy on the same host or in the container
@@ -11,14 +13,6 @@ export const DEFAULT_TRUSTED_PROXY_CIDRS = [
   '172.16.0.0/12',
   '192.168.0.0/16',
 ] as const
-
-// The socket peer. srvx (Bun and Node adapters) exposes it as `request.ip`,
-// h3 as `request.context.clientAddress`.
-export function peerAddress(request: Request): string | null {
-  const candidate = request as { ip?: unknown; context?: { clientAddress?: unknown } }
-  const address = candidate.context?.clientAddress ?? candidate.ip
-  return typeof address === 'string' && address.trim() ? address.trim() : null
-}
 
 export function isTrustedProxy(peer: string, cidrs: readonly string[]): boolean {
   const address = normalizeAddress(peer)
