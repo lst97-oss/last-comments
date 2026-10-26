@@ -37,7 +37,10 @@ export default buildConfig({
     },
     {
       slug: 'media',
-      upload: true,
+      // Raster images only. An SVG or HTML upload would otherwise be served from this origin as a document.
+      upload: {
+        mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'],
+      },
       // Defaults to true; without this the migration also creates _media_v
       // version tables that nothing reads.
       versions: false,
@@ -105,6 +108,37 @@ export default buildConfig({
             } catch (cause) {
               req.payload.logger.warn({
                 msg: 'Blog thread registration errored',
+                postSlug: doc.slug,
+                err: cause instanceof Error ? cause.message : String(cause),
+              })
+            }
+          },
+        ],
+        // The thread is keyed by slug, the same key the publish hook registered. A draft never had
+        // a thread, so a 404 is not a failure. Like the publish hook, this logs instead of throwing.
+        afterDelete: [
+          async ({ doc, req }) => {
+            const serverUrl = process.env.PAYLOAD_PUBLIC_SERVER_URL
+            const siteKey = process.env.BLOG_SITE_KEY
+            const apiKey = process.env.BLOG_PUBLISHER_API_KEY
+            if (!serverUrl || !siteKey || !apiKey) return
+            try {
+              const query = new URLSearchParams({ site: siteKey, pageKey: doc.slug })
+              const response = await fetch(`${serverUrl}/api/admin/pages?${query}`, {
+                method: 'DELETE',
+                headers: { 'x-api-key': apiKey },
+              })
+              if (!response.ok && response.status !== 404) {
+                req.payload.logger.warn({
+                  msg: 'Blog thread deletion failed',
+                  postSlug: doc.slug,
+                  status: response.status,
+                  body: await response.text(),
+                })
+              }
+            } catch (cause) {
+              req.payload.logger.warn({
+                msg: 'Blog thread deletion errored',
                 postSlug: doc.slug,
                 err: cause instanceof Error ? cause.message : String(cause),
               })

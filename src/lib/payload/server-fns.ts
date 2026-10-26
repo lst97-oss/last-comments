@@ -9,7 +9,7 @@ import { createServerFn } from '@tanstack/react-start'
 // NOT Next 'use server' actions.
 export const payloadServerFn = createServerFn({ method: 'POST', strict: false })
   .validator((input: { name: string; args: Record<string, unknown> }) => input)
-  .handler(async ({ data }): Promise<unknown> => {
+  .handler(async ({ data }): Promise<Response> => {
     const { getPayloadImportMap } = await import('@/lib/payload/import-map')
     const result = await handleServerFunctions({
       args: data.args,
