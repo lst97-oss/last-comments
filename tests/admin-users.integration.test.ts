@@ -60,7 +60,7 @@ async function setupDirectory(): Promise<DirectoryIds> {
   const blockedId = await insertUser('Blocked preemptive', 'blocked@example.test', new Date('2026-03-01T00:00:00Z'))
   const newestId = await insertUser('Newest quiet', 'newest@example.test', new Date('2026-04-01T00:00:00Z'))
   await db.insert(siteMemberships).values([
-    { siteId, userId: oldestId, role: 'moderator' },
+    { siteId, userId: oldestId, role: 'member' },
     { siteId, userId: newestId, role: 'admin' },
   ])
   // A preemptive block needs no comment to exist; an expired one stops counting.
@@ -75,6 +75,7 @@ async function setupDirectory(): Promise<DirectoryIds> {
 
   await db.insert(comments).values([
     {
+      siteId,
       pageId: page!.id,
       userId: posterId,
       authorName: 'Prolific poster',
@@ -83,6 +84,7 @@ async function setupDirectory(): Promise<DirectoryIds> {
       createdAt: new Date('2026-05-01T00:00:00Z'),
     },
     {
+      siteId,
       pageId: page!.id,
       userId: posterId,
       authorName: 'Prolific poster',
@@ -91,6 +93,7 @@ async function setupDirectory(): Promise<DirectoryIds> {
       createdAt: new Date('2026-05-02T00:00:00Z'),
     },
     {
+      siteId,
       pageId: page!.id,
       userId: expiredId,
       authorName: 'Expired block',
@@ -99,6 +102,7 @@ async function setupDirectory(): Promise<DirectoryIds> {
       createdAt: new Date('2026-05-03T00:00:00Z'),
     },
     {
+      siteId,
       pageId: page!.id,
       userId: null,
       authorName: 'Guest author',
@@ -127,11 +131,12 @@ describe('site user directory', () => {
 
     const poster = users.find((row) => row.userId === posterId)!
     expect(poster.commentsTotal).toBe(2)
-    expect(poster.role).toBeNull()
+    // No stored row: a signed-in commenter is a member.
+    expect(poster.role).toBe('member')
     expect(poster.blocked).toBe(false)
 
     const oldest = users.find((row) => row.userId === oldestId)!
-    expect(oldest.role).toBe('moderator')
+    expect(oldest.role).toBe('member')
     expect(oldest.commentsTotal).toBe(0)
     expect(oldest.lastCommentAt).toBeNull()
 
@@ -202,8 +207,8 @@ describe('admin users API', () => {
     expect(keyed.status).toBe(401)
 
     const { userId, cookie } = await createSignedInUser()
-    await db.insert(siteMemberships).values({ siteId, userId, role: 'moderator' })
-    // The directory carries emails: a site moderator may not read it.
+    await db.insert(siteMemberships).values({ siteId, userId, role: 'member' })
+    // The directory carries emails: a site member may not read it.
     const forbidden = await listUsers(
       new Request(`http://localhost:3000/api/admin/users?site=${siteKey}`, { headers: { cookie } }),
     )
@@ -237,17 +242,24 @@ describe('admin users API', () => {
     const searchedBody = (await searched.json()) as { data: { users: { name: string }[]; total: number } }
     expect(searchedBody.data.total).toBe(1)
 
-    // History stays open to any site member.
-    const history = await listHistory(
+    // History carries hidden and deleted bodies, so it follows the directory: admins only.
+    const memberHistory = await listHistory(
       new Request(`http://localhost:3000/api/admin/users/x/comments?site=${siteKey}`, { headers: { cookie } }),
       { userId: 'x' },
     )
-    expect(history.status).toBe(200)
+    expect(memberHistory.status).toBe(403)
+    const adminHistory = await listHistory(
+      new Request(`http://localhost:3000/api/admin/users/x/comments?site=${siteKey}`, {
+        headers: { cookie: adminCookie },
+      }),
+      { userId: 'x' },
+    )
+    expect(adminHistory.status).toBe(200)
   })
 
   test('serves the settings snapshot to instance admins only, with no secrets', async () => {
     const member = await createSignedInUser()
-    await db.insert(siteMemberships).values({ siteId, userId: member.userId, role: 'moderator' })
+    await db.insert(siteMemberships).values({ siteId, userId: member.userId, role: 'member' })
     const forbidden = await readSettings(
       new Request('http://localhost:3000/api/admin/settings', { headers: { cookie: member.cookie } }),
     )

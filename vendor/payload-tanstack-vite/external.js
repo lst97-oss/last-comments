@@ -1,7 +1,5 @@
+import { devServerExternalPackages as devServerExternalPayloadPackages, serverExternalPackages as serverExternalPayloadPackages } from 'payload/build-config';
 /**
- * SSR/RSC externalization config used by `withPayload`. Kept separate from the
- * client optimizer config (`./optimizeDeps.ts`) so each concern stays small.
- */ /**
  * Packages externalized during dev serve (`ssr.external`). Node's loader resolves
  * their CJS/UMD directly; letting Vite's dev SSR transform touch them can break
  * fragile UMD wrappers (e.g. `pluralize`, whose `this`-based global assignment
@@ -13,6 +11,9 @@
  */ export const ssrExternalPackages = [
     'zod',
     'fast-uri',
+    ...serverExternalPayloadPackages,
+    // Local addition (see README): the leaf packages the beta.2 list externalized and beta.4 dropped.
+    // `sharp` is a native module this app loads for its OG images, so it must never be bundled into SSR.
     'drizzle-kit',
     'drizzle-kit/api',
     'drizzle-orm',
@@ -20,8 +21,9 @@
     'require-in-the-middle',
     'json-schema-to-typescript',
     'pino',
-    'pino-pretty',
     'graphql',
+    'libsql',
+    'pino-pretty',
     'nodemailer',
     'aws4',
     'pluralize',
@@ -37,7 +39,6 @@
     'pg-cloudflare',
     // SQLite (`@payloadcms/db-sqlite`)
     'better-sqlite3',
-    'libsql',
     // Mongo (`@payloadcms/db-mongodb`)
     'mongodb',
     'mongoose'
@@ -60,20 +61,7 @@
     '@azure/storage-blob',
     '@google-cloud/storage'
 ];
-/**
- * External packages for the production `vite build` only (not dev serve).
- *
- * Externalizes the `@payloadcms/*` package boundaries — plus `payload` — so each
- * resolves its own transitive Node deps (`pino`, `drizzle-orm`, `libsql`, …) from
- * its own `node_modules` at runtime. Externalizing only the leaf deps breaks under
- * pnpm: a leaf imported by bundled code becomes an unresolvable bare specifier from
- * `dist/`, since pnpm does not hoist it; see {@link buildBundledPackages}.
- *
- * Kept out of dev's `ssr.external` on purpose: the monorepo resolves these to
- * TypeScript source (`.ts` imported via `.js` specifiers), which only Vite's
- * transform can resolve — an externalized copy would hit Node's raw resolver and
- * fail on the `.js`→`.ts` mismatch.
- */ export const buildExternalPackages = [
+/** Server-only package boundaries loaded directly by Node in development and production. */ export const serverExternalPackages = [
     'payload',
     'payload/node',
     '@payloadcms/drizzle',
@@ -81,7 +69,21 @@
     '@payloadcms/db-postgres',
     '@payloadcms/db-vercel-postgres',
     '@payloadcms/db-sqlite',
-    '@payloadcms/db-d1-sqlite',
+    '@payloadcms/db-d1-sqlite'
+];
+/** Additional installed packages that can bypass Vite's development server transforms. */ export const devExternalPackages = [
+    ...new Set([
+        // Vite otherwise transforms date-fns' full module graph during SSR.
+        'date-fns',
+        ...devServerExternalPayloadPackages,
+        ...serverExternalPackages
+    ])
+];
+/**
+ * Externalizes package boundaries so packages resolve their own transitive dependencies under pnpm.
+ * Leaves that must bundle in production are excluded; see {@link buildBundledPackages}.
+ */ export const buildExternalPackages = [
+    ...serverExternalPackages,
     ...ssrExternalPackages.filter((pkg)=>!buildBundledPackages.includes(pkg))
 ];
 export const payloadNoExternalPatterns = [

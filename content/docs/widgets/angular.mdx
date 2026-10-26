@@ -25,7 +25,7 @@ export class AppComponent {}
 
 ## Inputs
 
-Inputs are signal inputs, so they bind with `[name]`: `site`, `baseUrl`, `pageUrl`, `pageId`, `turnstileSiteKey`, `turnstileOptions`, `limit`, `lazy`, `theme`, `themeVars`, `signInUrl`, `viewerUserId`, `viewerRole`, `anonEditWindowMinutes`, `actionMode`, `bodyLimit` and `fetchImpl`. The full prop list (shared with every framework) is on the [React page](/docs/widgets/react#props).
+Inputs are signal inputs, so they bind with `[name]`: `site`, `baseUrl`, `pageUrl`, `pageId`, `settings`, `turnstileSiteKey`, `turnstileOptions`, `limit`, `lazy`, `theme`, `themeVars`, `signInUrl`, `viewerUserId`, `viewerRole`, `anonEditWindowMinutes`, `actionMode`, `bodyLimit` and `fetchImpl`. The full prop list (shared with every framework) is on the [React page](/docs/widgets/react#props).
 
 ```ts
 @Component({
@@ -34,7 +34,7 @@ Inputs are signal inputs, so they bind with `[name]`: `site`, `baseUrl`, `pageUr
     site="demo"
     baseUrl="/"
     [themeVars]="brand"
-    [viewerRole]="'moderator'"
+    [viewerRole]="'admin'"
     (moderated)="refreshThreads()"
     (signIn)="openSignIn()"
   />`,
@@ -45,6 +45,6 @@ export class DiscussionComponent {}
 ## Outputs
 
 - `(moderated)` — fires after a successful moderation action, lock change or moderator post, so a dashboard can refresh its own thread list. Replaces React's `onModerated` prop. See [Inline moderation](/docs/widgets/moderation).
-- `(signIn)` — fires when the viewer needs to sign in: the error block's sign-in action when no `signInUrl` is configured, or an action that fails with `UNAUTHENTICATED`. The widget still starts the API's OAuth fallback unless `signInUrl` is set.
+- `(signIn)` — fires when the viewer needs to sign in: the sign-in card's button when no `signInUrl` is configured, or an action that fails with `UNAUTHENTICATED`. The widget still starts the API's OAuth fallback unless `signInUrl` is set.
 
 Standalone `lc-vote-buttons` and the `[lcTurnstile]` directive are exported too.

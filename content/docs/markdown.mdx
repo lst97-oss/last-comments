@@ -1,6 +1,6 @@
 ---
 title: Markdown
-description: Which Markdown the widgets render, what the composer offers, and the React syntax-highlighting upgrade.
+description: Which Markdown the widgets render, what the composer offers, math and diagrams, and the React syntax-highlighting upgrade.
 icon: Type
 ---
 
@@ -27,7 +27,20 @@ The Code block action inserts a fenced block with the `language` placeholder sel
 bun add shiki
 ```
 
-Shiki is an optional peer — install it only if comment code fences should be syntax-highlighted.
+Shiki is an optional peer — install it only if comment code fences should be syntax-highlighted. `codeHighlight={false}` (`data-lc-no-code-highlight` in plain HTML) turns the upgrade off.
+
+## Math and diagrams
+
+Two renderers are off by default and load their library only when a body needs one:
+
+- `math` renders `$…$` inline and `$$…$$` as display math with [KaTeX](https://katex.org/).
+- `mermaid` renders ```` ```mermaid ```` fences as diagrams with [Mermaid](https://mermaid.js.org/).
+
+```bash
+bun add katex mermaid
+```
+
+Both are optional peers, so install only the ones you enable. In plain HTML, set the `data-lc-math` or `data-lc-mermaid` attribute to turn one on.
 
 ## Sanitising
 

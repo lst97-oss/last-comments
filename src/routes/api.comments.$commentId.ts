@@ -1,11 +1,17 @@
+import { HttpStatus } from '@lst97-oss/last-httprism'
 import { createFileRoute } from '@tanstack/react-router'
 import { applyCors } from '@/server/http/cors'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { parseJsonBody, parseSearchParams, parseWith } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { operationIdentity, resolveCommentCaller } from '@/server/modules/comments/http/comment-caller'
 import { deleteCommentData, editCommentData } from '@/server/modules/comments/http/comment-handler'
-import { commentIdSchema, editBodySchema, siteQuerySchema } from '@/server/modules/comments/http/comment-schemas'
+import {
+  commentIdSchema,
+  editBodySchema,
+  editKeyHeaderSchema,
+  siteQuerySchema,
+} from '@/server/modules/comments/http/comment-schemas'
 import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight'
 import { publishCommentOperation } from '@/server/plugins/comment-plugins'
 
@@ -22,7 +28,12 @@ export const Route = createFileRoute('/api/comments/$commentId')({
           const caller = await resolveCommentCaller(request, body.site, 'write')
           responseOrigin = caller.responseOrigin
           const userId = caller.principal?.userId ?? null
-          if (!userId && !body.editKey) throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in to edit your comments')
+          if (!userId && !body.editKey)
+            throw new HttpError(
+              ErrorCode.UNAUTHENTICATED.status,
+              ErrorCode.UNAUTHENTICATED.code,
+              'Sign in to edit your comments',
+            )
           await publishCommentOperation({
             operation: 'comment.edit',
             siteKey: body.site,
@@ -41,25 +52,34 @@ export const Route = createFileRoute('/api/comments/$commentId')({
         })({ request })
         return applyCors(response, responseOrigin, 'PATCH, DELETE, OPTIONS')
       },
+      // A signed-in author deletes with the session; a guest with the edit key from create time.
       DELETE: async ({ request, params }) => {
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
           const { site } = parseSearchParams(request.url, siteQuerySchema)
           const caller = await resolveCommentCaller(request, site, 'write')
           responseOrigin = caller.responseOrigin
-          const session = caller.principal
-          if (!session) throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in to delete your comments')
+          const userId = caller.principal?.userId ?? null
+          const rawEditKey = request.headers.get('x-lc-edit-key')
+          const editKey = rawEditKey ? parseWith(editKeyHeaderSchema, rawEditKey) : undefined
+          if (!userId && !editKey)
+            throw new HttpError(
+              ErrorCode.UNAUTHENTICATED.status,
+              ErrorCode.UNAUTHENTICATED.code,
+              'Sign in to delete your comments',
+            )
           await publishCommentOperation({
             operation: 'comment.delete',
             siteKey: site,
-            userId: session.userId,
+            userId,
             ...operationIdentity(caller),
             request,
           })
           const comment = await deleteCommentData({
             siteKey: site,
             commentId: parseWith(commentIdSchema, params.commentId),
-            userId: session.userId,
+            userId,
+            ...(editKey === undefined ? {} : { editKey }),
           })
           return { comment }
         })({ request })
@@ -69,7 +89,7 @@ export const Route = createFileRoute('/api/comments/$commentId')({
         let origin: string | null = null
         const response = await withContext(async () => {
           origin = await resolvePreflightOrigin(request)
-          return new Response(null, { status: 204 })
+          return new Response(null, { status: HttpStatus.NO_CONTENT.code })
         })({ request })
         return applyCors(response, origin, 'PATCH, DELETE, OPTIONS')
       },

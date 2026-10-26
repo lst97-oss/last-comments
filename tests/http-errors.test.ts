@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 
-import { HttpError, toHttpError } from '@/server/http/errors'
+import { MessageCode, statusByCode } from '@lst97-oss/last-httprism'
+
+import { ErrorCode, HttpError, toHttpError } from '@/server/http/errors'
 
 describe('HttpError', () => {
   test('4xx exposes message by default', () => {
@@ -56,5 +58,16 @@ describe('toHttpError', () => {
     expect(mapped.status).toBe(500)
     expect(mapped.code).toBe('INTERNAL_ERROR')
     expect(mapped.expose).toBe(false)
+  })
+})
+
+describe('ErrorCode', () => {
+  test('every entry carries a valid HTTP status and matching key', () => {
+    const entries = Object.entries(ErrorCode)
+    expect(entries).toHaveLength(Object.keys(MessageCode).length + 35)
+    for (const [name, info] of entries) {
+      expect(String(info.code)).toBe(name)
+      expect(statusByCode(info.status)).toBeDefined()
+    }
   })
 })

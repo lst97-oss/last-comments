@@ -157,6 +157,8 @@ export async function resolveOidcSession(
       email: claims.email,
       displayName: claims.name,
       emailVerified: claims.emailVerified,
+      // The IdP asserted the email is verified, so it may attach to an existing account.
+      mergeByEmail: claims.emailVerified,
     },
     { db: deps?.db, autoProvision: deps?.autoProvision ?? selection.autoProvision },
   )

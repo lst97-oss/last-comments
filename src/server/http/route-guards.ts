@@ -4,7 +4,7 @@ import { type Principal, resolveSessionPrincipal } from '@/server/auth/resolve'
 import { getBusinessDb } from '@/server/db/business-sql'
 import { siteMemberships, type siteRole } from '@/server/db/schema'
 import { getServerEnv } from '@/server/env'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { resolvePayloadServerUrl } from '@/server/security/payload-server-url'
 
 // Pure so the rule can be tested without the environment. `publicOrigin` is the
@@ -32,12 +32,12 @@ export function assertSameOrigin(request: Request, message: string): void {
   // Behind the TLS-terminating ingress the request URL is http://, so the
   // configured public origin is checked too.
   if (isAllowedOrigin(request.headers.get('origin'), request.url, configuredPublicOrigin())) return
-  throw new HttpError(403, 'ORIGIN_NOT_ALLOWED', message)
+  throw new HttpError(ErrorCode.ORIGIN_NOT_ALLOWED.status, ErrorCode.ORIGIN_NOT_ALLOWED.code, message)
 }
 
 export async function requirePrincipal(request: Request, message: string): Promise<Principal> {
   const principal = await resolveSessionPrincipal(request)
-  if (!principal) throw new HttpError(401, 'UNAUTHENTICATED', message)
+  if (!principal) throw new HttpError(ErrorCode.UNAUTHENTICATED.status, ErrorCode.UNAUTHENTICATED.code, message)
   return principal
 }
 
@@ -54,4 +54,18 @@ export async function getMembershipRole(siteId: string, userId: string): Promise
     .where(and(eq(siteMemberships.siteId, siteId), eq(siteMemberships.userId, userId)))
     .limit(1)
   return membership?.role ?? null
+}
+
+// The role a signed-in account has on a site, for authorship and display. Only admin rows are stored, so
+// every other signed-in account is a `member`, and a guest (no user) has no role. Authorization must not
+// use this: admin checks read the stored row through `isSiteAdmin`.
+export async function getSiteRole(siteId: string, userId: string | null): Promise<MembershipRole | null> {
+  if (userId === null) return null
+  return (await getMembershipRole(siteId, userId)) ?? 'member'
+}
+
+// Every site-management and member-data read is admin-only. A member can comment and nothing else,
+// so any membership is not enough: check the role, not the row.
+export async function isSiteAdmin(siteId: string, userId: string): Promise<boolean> {
+  return (await getMembershipRole(siteId, userId)) === 'admin'
 }

@@ -31,12 +31,12 @@ test('the user directory is limited to site admins', async () => {
   siteKeys.push(siteKey)
   const [site] = await db().insert(sites).values({ key: siteKey, name: 'Directory site' }).returning({ id: sites.id })
 
-  const moderator = await createSignedInUser()
+  const member = await createSignedInUser()
   const siteAdmin = await createSignedInUser()
   await db()
     .insert(siteMemberships)
     .values([
-      { siteId: site!.id, userId: moderator.userId, role: 'moderator' },
+      { siteId: site!.id, userId: member.userId, role: 'member' },
       { siteId: site!.id, userId: siteAdmin.userId, role: 'admin' },
     ])
 
@@ -45,15 +45,15 @@ test('the user directory is limited to site admins', async () => {
   const request = (cookie: string) =>
     list(new Request(`http://localhost:3000/api/admin/users?site=${siteKey}`, { headers: { cookie } }))
 
-  const moderatorResponse = await request(moderator.cookie)
-  expect(moderatorResponse.status).toBe(403)
-  const moderatorPayload = (await moderatorResponse.json()) as { error: { code: string } }
-  expect(moderatorPayload.error.code).toBe('FORBIDDEN')
+  const memberResponse = await request(member.cookie)
+  expect(memberResponse.status).toBe(403)
+  const memberPayload = (await memberResponse.json()) as { error: { code: string } }
+  expect(memberPayload.error.code).toBe('FORBIDDEN')
 
   const siteAdminResponse = await request(siteAdmin.cookie)
   expect(siteAdminResponse.status).toBe(200)
 
-  adminLoan = await lendInstanceAdmin(moderator.userId)
-  const instanceAdminResponse = await request(moderator.cookie)
+  adminLoan = await lendInstanceAdmin(member.userId)
+  const instanceAdminResponse = await request(member.cookie)
   expect(instanceAdminResponse.status).toBe(200)
 })

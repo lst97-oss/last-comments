@@ -52,11 +52,9 @@ describe('business comment author role', () => {
     await db.insert(sites).values({ key: siteKey, name: 'Role site' })
     const [site] = await db.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey))
     const adminId = await createOwner('Admin author')
-    const moderatorId = await createOwner('Moderator author')
-    await db.insert(siteMemberships).values([
-      { siteId: site!.id, userId: adminId, role: 'admin' },
-      { siteId: site!.id, userId: moderatorId, role: 'moderator' },
-    ])
+    const memberId = await createOwner('Member author')
+    // Only the admin row is stored. The member author has no row, so `member` is derived.
+    await db.insert(siteMemberships).values({ siteId: site!.id, userId: adminId, role: 'admin' })
 
     const admin = await createTestComment({
       siteKey,
@@ -65,12 +63,12 @@ describe('business comment author role', () => {
       authorName: 'Admin author',
       bodyMarkdown: 'Admin comment',
     })
-    const moderator = await createTestComment({
+    const member = await createTestComment({
       siteKey,
       pageUrl: 'https://example.test/roles',
-      userId: moderatorId,
-      authorName: 'Moderator author',
-      bodyMarkdown: 'Moderator comment',
+      userId: memberId,
+      authorName: 'Member author',
+      bodyMarkdown: 'Member comment',
     })
     const guest = await createTestComment({
       siteKey,
@@ -81,7 +79,7 @@ describe('business comment author role', () => {
     })
 
     expect(admin.authorRole).toBe('admin')
-    expect(moderator.authorRole).toBe('moderator')
+    expect(member.authorRole).toBe('member')
     expect(guest.authorRole).toBeNull()
 
     const edited = await editOwnComment({
@@ -94,7 +92,7 @@ describe('business comment author role', () => {
 
     const roles = (rows: { authorName: string; authorRole: string | null }[]) =>
       Object.fromEntries(rows.map((row) => [row.authorName, row.authorRole]))
-    const expected = { 'Admin author': 'admin', 'Moderator author': 'moderator', 'Guest author': null }
+    const expected = { 'Admin author': 'admin', 'Member author': 'member', 'Guest author': null }
     expect(roles(await listPageComments(siteKey, 'https://example.test/roles', { limit: 20, offset: 0 }))).toEqual(
       expected,
     )
@@ -117,11 +115,12 @@ describe('business comment edit window', () => {
       .returning({ id: pages.id })
     const [fresh] = await db
       .insert(comments)
-      .values({ pageId: page!.id, userId: authorId, authorName: 'Author', bodyMarkdown: 'Fresh' })
+      .values({ siteId: site!.id, pageId: page!.id, userId: authorId, authorName: 'Author', bodyMarkdown: 'Fresh' })
       .returning({ id: comments.id })
     const [stale] = await db
       .insert(comments)
       .values({
+        siteId: site!.id,
         pageId: page!.id,
         userId: authorId,
         authorName: 'Author',
@@ -257,7 +256,7 @@ describe('business comment votes', () => {
       .returning({ id: pages.id })
     const [comment] = await db
       .insert(comments)
-      .values({ pageId: page!.id, authorName: 'Guest', bodyMarkdown: 'Vote on this' })
+      .values({ siteId: site!.id, pageId: page!.id, authorName: 'Guest', bodyMarkdown: 'Vote on this' })
       .returning({ id: comments.id })
 
     await expect(
@@ -305,16 +304,16 @@ describe('business comment votes', () => {
     const siteKey = `vote-block-${crypto.randomUUID()}`
     const otherSiteKey = `vote-other-${crypto.randomUUID()}`
     const voterId = crypto.randomUUID()
-    const moderatorId = crypto.randomUUID()
+    const memberId = crypto.randomUUID()
     siteKeys.push(siteKey, otherSiteKey)
-    userIds.push(voterId, moderatorId)
+    userIds.push(voterId, memberId)
     await db.insert(sites).values([
       { key: siteKey, name: 'Voting site' },
       { key: otherSiteKey, name: 'Other voting site' },
     ])
     await db.insert(user).values([
       { id: voterId, name: 'Blocked voter', email: `${voterId}@test.invalid` },
-      { id: moderatorId, name: 'Moderator', email: `${moderatorId}@test.invalid` },
+      { id: memberId, name: 'Member', email: `${memberId}@test.invalid` },
     ])
     const [site] = await db.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey))
     const [page] = await db
@@ -323,14 +322,14 @@ describe('business comment votes', () => {
       .returning({ id: pages.id })
     const [comment] = await db
       .insert(comments)
-      .values({ pageId: page!.id, authorName: 'Guest', bodyMarkdown: 'Vote policy' })
+      .values({ siteId: site!.id, pageId: page!.id, authorName: 'Guest', bodyMarkdown: 'Vote policy' })
       .returning({ id: comments.id })
 
-    await db.insert(userBlocks).values({ siteId: site!.id, userId: voterId, createdByUserId: moderatorId })
+    await db.insert(userBlocks).values({ siteId: site!.id, userId: voterId, createdByUserId: memberId })
     await expect(repository.castCommentVote(siteKey, comment!.id, voterId, 1)).rejects.toMatchObject({
       code: 'USER_BLOCKED',
     })
-    await expect(repository.castCommentVote(otherSiteKey, comment!.id, moderatorId, 1)).rejects.toMatchObject({
+    await expect(repository.castCommentVote(otherSiteKey, comment!.id, memberId, 1)).rejects.toMatchObject({
       code: 'COMMENT_NOT_FOUND',
     })
 
@@ -372,10 +371,10 @@ describe('moderation pages and paging', () => {
     const t0 = new Date('2026-01-01T00:00:00Z').getTime()
     const at = (seconds: number) => new Date(t0 + seconds * 1_000)
     await db.insert(comments).values([
-      { pageId: pageA!.id, authorName: 'A1', bodyMarkdown: 'first', createdAt: at(0) },
-      { pageId: pageA!.id, authorName: 'A2', bodyMarkdown: 'second', status: 'hidden', createdAt: at(1) },
-      { pageId: pageA!.id, authorName: 'A3', bodyMarkdown: 'third', createdAt: at(2) },
-      { pageId: pageB!.id, authorName: 'B1', bodyMarkdown: 'only', createdAt: at(3) },
+      { siteId, pageId: pageA!.id, authorName: 'A1', bodyMarkdown: 'first', createdAt: at(0) },
+      { siteId, pageId: pageA!.id, authorName: 'A2', bodyMarkdown: 'second', status: 'hidden', createdAt: at(1) },
+      { siteId, pageId: pageA!.id, authorName: 'A3', bodyMarkdown: 'third', createdAt: at(2) },
+      { siteId, pageId: pageB!.id, authorName: 'B1', bodyMarkdown: 'only', createdAt: at(3) },
     ])
 
     const summaries = await listModerationPages(siteId)
@@ -431,14 +430,21 @@ describe('moderation pages and paging', () => {
     const now = Date.now()
     const ago = (ms: number) => new Date(now - ms)
     await db.insert(comments).values([
-      { pageId: busy!.id, authorName: 'Amy', bodyMarkdown: 'one', createdAt: ago(50 * 60_000) },
-      { pageId: busy!.id, authorName: 'Bo', bodyMarkdown: 'two', createdAt: ago(40 * 60_000) },
+      { siteId, pageId: busy!.id, authorName: 'Amy', bodyMarkdown: 'one', createdAt: ago(50 * 60_000) },
+      { siteId, pageId: busy!.id, authorName: 'Bo', bodyMarkdown: 'two', createdAt: ago(40 * 60_000) },
       // Hidden rows count for moderators: the window tracks activity, not visibility.
-      { pageId: busy!.id, authorName: 'Amy', bodyMarkdown: 'three', status: 'hidden', createdAt: ago(30 * 60_000) },
-      { pageId: busy!.id, authorName: 'Cy', bodyMarkdown: 'four', createdAt: ago(20 * 60_000) },
-      { pageId: busy!.id, authorName: 'Dee', bodyMarkdown: 'five', createdAt: ago(10 * 60_000) },
+      {
+        siteId,
+        pageId: busy!.id,
+        authorName: 'Amy',
+        bodyMarkdown: 'three',
+        status: 'hidden',
+        createdAt: ago(30 * 60_000),
+      },
+      { siteId, pageId: busy!.id, authorName: 'Cy', bodyMarkdown: 'four', createdAt: ago(20 * 60_000) },
+      { siteId, pageId: busy!.id, authorName: 'Dee', bodyMarkdown: 'five', createdAt: ago(10 * 60_000) },
       // Stale rows stay out of a 7-day window but keep their latest preview.
-      { pageId: quiet!.id, authorName: 'Old', bodyMarkdown: 'stale', createdAt: ago(10 * 86_400_000) },
+      { siteId, pageId: quiet!.id, authorName: 'Old', bodyMarkdown: 'stale', createdAt: ago(10 * 86_400_000) },
     ])
 
     const summaries = await listModerationPages(siteId, { recentDays: 7, previewLimit: 3 })
@@ -482,7 +488,7 @@ describe('moderation pages and paging', () => {
       .returning({ id: pages.id })
     const [comment] = await db
       .insert(comments)
-      .values({ pageId: page!.id, authorName: 'Ada', bodyMarkdown: 'Vote me' })
+      .values({ siteId, pageId: page!.id, authorName: 'Ada', bodyMarkdown: 'Vote me' })
       .returning({ id: comments.id })
     await db.insert(votes).values([
       { commentId: comment!.id, userId: viewerId, value: 1 },

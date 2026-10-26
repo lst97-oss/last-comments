@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 
 // Shared zod → 400 mapper so every module reports validation failures the
 // same way: HttpError(400, 'VALIDATION_ERROR', '<path>: <message>; …').
@@ -11,7 +11,11 @@ export function parseWith<T>(schema: z.ZodType<T>, input: unknown): T {
     return schema.parse(input)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new HttpError(400, 'VALIDATION_ERROR', fromZodIssues(error.issues))
+      throw new HttpError(
+        ErrorCode.VALIDATION_ERROR.status,
+        ErrorCode.VALIDATION_ERROR.code,
+        fromZodIssues(error.issues),
+      )
     }
     throw error
   }
@@ -22,11 +26,15 @@ const MAX_JSON_BODY_BYTES = 128 * 1024
 export async function parseJsonBody<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
   const contentType = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase()
   if (contentType !== 'application/json' && !contentType?.endsWith('+json')) {
-    throw new HttpError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json')
+    throw new HttpError(
+      ErrorCode.UNSUPPORTED_MEDIA_TYPE.status,
+      ErrorCode.UNSUPPORTED_MEDIA_TYPE.code,
+      'Content-Type must be application/json',
+    )
   }
   const contentLength = Number(request.headers.get('content-length'))
   if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) {
-    throw new HttpError(413, 'BODY_TOO_LARGE', 'request body exceeds 128 KiB')
+    throw new HttpError(ErrorCode.BODY_TOO_LARGE.status, ErrorCode.BODY_TOO_LARGE.code, 'request body exceeds 128 KiB')
   }
 
   let json: unknown
@@ -41,7 +49,11 @@ export async function parseJsonBody<T>(request: Request, schema: z.ZodType<T>): 
       size += value.byteLength
       if (size > MAX_JSON_BODY_BYTES) {
         void reader.cancel().catch(() => undefined)
-        throw new HttpError(413, 'BODY_TOO_LARGE', 'request body exceeds 128 KiB')
+        throw new HttpError(
+          ErrorCode.BODY_TOO_LARGE.status,
+          ErrorCode.BODY_TOO_LARGE.code,
+          'request body exceeds 128 KiB',
+        )
       }
       chunks.push(value)
     }
@@ -54,7 +66,11 @@ export async function parseJsonBody<T>(request: Request, schema: z.ZodType<T>): 
     json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
   } catch (error) {
     if (error instanceof HttpError) throw error
-    throw new HttpError(400, 'MALFORMED_JSON', 'request body is not valid JSON')
+    throw new HttpError(
+      ErrorCode.MALFORMED_JSON.status,
+      ErrorCode.MALFORMED_JSON.code,
+      'request body is not valid JSON',
+    )
   }
   return parseWith(schema, json)
 }
@@ -64,11 +80,19 @@ export function parseSearchParams<T>(url: string, schema: z.ZodType<T>): T {
   try {
     params = new URL(url).searchParams
   } catch {
-    throw new HttpError(400, 'VALIDATION_ERROR', 'url: request URL is not valid')
+    throw new HttpError(
+      ErrorCode.VALIDATION_ERROR.status,
+      ErrorCode.VALIDATION_ERROR.code,
+      'url: request URL is not valid',
+    )
   }
   const entries = [...params]
   if (new Set(entries.map(([key]) => key)).size !== entries.length) {
-    throw new HttpError(400, 'VALIDATION_ERROR', 'query: duplicate parameters are not allowed')
+    throw new HttpError(
+      ErrorCode.VALIDATION_ERROR.status,
+      ErrorCode.VALIDATION_ERROR.code,
+      'query: duplicate parameters are not allowed',
+    )
   }
   return parseWith(schema, Object.fromEntries(entries))
 }

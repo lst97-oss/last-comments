@@ -1,9 +1,9 @@
+import { HttpStatus } from '@lst97-oss/last-httprism'
 import { createFileRoute } from '@tanstack/react-router'
-
 import { getBusinessAuth, isRegisteredAuthOrigin } from '@/server/auth/business-auth'
 import { isBetterAuthEnabled } from '@/server/auth/provider-config'
 import { applyCors } from '@/server/http/cors'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { withContext } from '@/server/http/with-context'
 import { selfHostScalarPage } from '@/server/openapi/reference'
 
@@ -14,8 +14,8 @@ const AUTH_METHODS = 'GET, POST, OPTIONS'
 async function handleAuth(request: Request): Promise<Response> {
   if (!isBetterAuthEnabled()) {
     throw new HttpError(
-      404,
-      'AUTH_PROVIDER_DISABLED',
+      ErrorCode.AUTH_PROVIDER_DISABLED.status,
+      ErrorCode.AUTH_PROVIDER_DISABLED.code,
       'The built-in login endpoints are disabled (AUTH_PROVIDERS does not include better-auth). Sign in via the configured identity provider instead.',
     )
   }
@@ -53,7 +53,8 @@ export const Route = createFileRoute('/api/auth/$')({
     handlers: {
       GET: ({ request }) => respondWithCors(request, () => withContext(() => handleAuth(request))({ request })),
       POST: ({ request }) => respondWithCors(request, () => withContext(() => handleAuth(request))({ request })),
-      OPTIONS: async ({ request }) => withCors(new Response(null, { status: 204 }), await allowedOrigin(request)),
+      OPTIONS: async ({ request }) =>
+        withCors(new Response(null, { status: HttpStatus.NO_CONTENT.code }), await allowedOrigin(request)),
     },
   },
 })

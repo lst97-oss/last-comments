@@ -9,14 +9,17 @@ export type ExternalIdentityInput = {
   email?: string | null
   displayName?: string | null
   emailVerified?: boolean
+  // Attach this identity to the existing account that holds `email`. Only for an email the
+  // identity source has proven (a verified OIDC claim) or an operator has chosen to trust.
+  mergeByEmail?: boolean
 }
 
 type BusinessDb = ReturnType<typeof getBusinessDb>
 
 // Link an external subject to the canonical user.id, auto-provisioning on
-// first login. Verified email matches an existing user (same human, new IdP);
-// unverified emails never merge — a separate user is created so a forged
-// claim cannot take over an account.
+// first login. A merge needs `mergeByEmail` (a verified email or an operator
+// opt-in). Without it a new account is created, so a forged claim cannot take
+// over an existing account.
 export async function linkOrProvisionExternalUser(
   input: ExternalIdentityInput,
   options?: { db?: BusinessDb; autoProvision?: boolean },
@@ -42,7 +45,7 @@ export async function linkOrProvisionExternalUser(
 
   if (!autoProvision) throw new Error('Unknown external identity and auto-provision is disabled')
 
-  if (email && input.emailVerified) {
+  if (email && input.mergeByEmail) {
     const [byEmail] = await db
       .select({ id: user.id, email: user.email, name: user.name })
       .from(user)
@@ -63,7 +66,11 @@ export async function linkOrProvisionExternalUser(
   }
 
   const name = input.displayName?.trim() || (email ? email.split('@')[0] : `${input.provider}:${input.subject}`)
-  const stubEmail = email ?? `${input.provider}+${input.subject}@invalid.local`
+  // An address belongs to one account. When another account already holds it, this new
+  // account gets a stub address (the identity row still records the claimed email), so the
+  // insert cannot collide with the unique constraint.
+  const [holder] = email ? await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1) : []
+  const stubEmail = email && !holder ? email : `${input.provider}+${input.subject}@invalid.local`
   const [created] = await db
     .insert(user)
     .values({ id: crypto.randomUUID(), name, email: stubEmail, emailVerified: input.emailVerified ?? false })

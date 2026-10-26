@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { requireSessionUserId } from '@/server/http/route-guards'
 import { withContext } from '@/server/http/with-context'
 import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
@@ -16,7 +16,11 @@ export const Route = createFileRoute('/api/admin/settings')({
         withContext(async () => {
           const userId = await requireSessionUserId(request, 'Sign in to view settings')
           if (!(await hasInstanceAdmin(userId))) {
-            throw new HttpError(403, 'FORBIDDEN', 'Settings are restricted to administrators')
+            throw new HttpError(
+              ErrorCode.FORBIDDEN.status,
+              ErrorCode.FORBIDDEN.code,
+              'Settings are restricted to administrators',
+            )
           }
           return getInstanceSettings()
         })({ request }),

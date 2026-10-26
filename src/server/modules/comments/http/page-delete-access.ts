@@ -1,4 +1,4 @@
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { assertSameOrigin, getMembershipRole, requireSessionUserId } from '@/server/http/route-guards'
 import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
 import { hasServiceKey, requireServiceKey } from '@/server/modules/api-keys/infrastructure/api-key-repository'
@@ -17,7 +17,7 @@ export async function requirePageDeleteAccess(request: Request, siteKey: string)
   const userId = await requireSessionUserId(request, 'Sign in to delete pages')
   if (await hasInstanceAdmin(userId)) return userId
   if ((await getMembershipRole(await getSiteId(siteKey), userId)) !== 'admin') {
-    throw new HttpError(403, 'FORBIDDEN', 'Only site admins can delete pages')
+    throw new HttpError(ErrorCode.FORBIDDEN.status, ErrorCode.FORBIDDEN.code, 'Only site admins can delete pages')
   }
   return userId
 }

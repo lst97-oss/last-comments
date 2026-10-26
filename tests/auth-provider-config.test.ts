@@ -60,8 +60,17 @@ describe('getOidcSettings', () => {
 })
 
 describe('getHeaderProviderSettings', () => {
-  test('proxy trust defaults to off', () => {
+  test('proxy trust defaults to off, and email linking defaults to off', () => {
     expect(getHeaderProviderSettings().AUTH_TRUST_PROXY).toBe(false)
+    expect(getHeaderProviderSettings().AUTH_LINK_BY_EMAIL).toBe(false)
+  })
+
+  test('refuses to trust every peer: trustProxy needs a named proxy CIDR', () => {
+    expect(() => getHeaderProviderSettings({ header: { trustProxy: true } })).toThrow()
+    expect(() => getHeaderProviderSettings({ header: { trustProxy: true, proxyCidr: '*' } })).toThrow()
+    expect(getHeaderProviderSettings({ header: { trustProxy: true, proxyCidr: '10.0.0.1' } }).AUTH_PROXY_CIDR).toBe(
+      '10.0.0.1',
+    )
   })
 
   test('reads trust and header names from the file', () => {

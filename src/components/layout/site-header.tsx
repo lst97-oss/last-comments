@@ -2,7 +2,7 @@
 
 import { Link, useRouterState } from '@tanstack/react-router'
 import { cn } from 'cn'
-import { ChevronDown, MessageSquareText } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
 import { AuthButton } from '@/components/layout/auth-button'
 import { MobileNav } from '@/components/layout/mobile-nav'
@@ -69,7 +69,7 @@ export function SiteHeader() {
           to="/"
           className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <MessageSquareText aria-hidden className="size-4 text-muted-foreground" />
+          <img src="/favicon/favicon.ico" alt="" className="size-8" />
           LAST-COMMENTS
         </Link>
         <nav aria-label="Primary" className="hidden min-w-0 flex-1 items-center gap-1 md:flex">

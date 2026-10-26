@@ -1,7 +1,8 @@
 export type DeleteCommentData = {
   siteKey: string
   commentId: string
-  userId: string
+  userId: string | null
+  editKey?: string
 }
 
 export type DeleteCommentDeps<TResult> = {

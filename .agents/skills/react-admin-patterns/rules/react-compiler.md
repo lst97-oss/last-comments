@@ -63,6 +63,10 @@ Only files where the compiler buys something measurable:
 Keep it to those. The compiler is a client-bundle-only transform (the SSR
 and RSC graphs are not compiled), and the annotation is per file.
 
+`SitesView` and the moderation route call `useWindowEvent` (`useEffectEvent`)
+and `useTransition`. Both still compile: the production build's moderation
+chunk contains the compiler runtime and its cache slots.
+
 ## What the compiler does not replace
 
 - It does not make an effect correct. `useEffect` + `fetch` stays a bug.

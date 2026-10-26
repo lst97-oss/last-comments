@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { resolveSessionPrincipal } from '@/server/auth/resolve'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { assertSameOrigin } from '@/server/http/route-guards'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { createModerationCommentData, editModerationCommentData } from '@/server/modules/comments/http/comment-handler'
 import { actionSchema, listQuerySchema } from '@/server/modules/comments/http/comment-schemas'
-import { requireInstanceAdmin, requireSiteModerator } from '@/server/modules/comments/http/moderation-guards'
+import { requireInstanceAdmin, requireSiteAdmin } from '@/server/modules/comments/http/moderation-guards'
 import {
   castCommentVote,
   clearCommentVote,
@@ -30,18 +30,18 @@ export const Route = createFileRoute('/api/moderation')({
           const { site, pageId, status, sort, limit, offset } = parseSearchParams(request.url, listQuerySchema)
           const { userId } = await requireInstanceAdmin(request)
           if (!site) return { sites: await listModerationSites(userId), isInstanceAdmin: true }
-          const moderator = await requireSiteModerator(request, site)
-          const result = await listModerationComments(moderator.siteId, {
+          const siteAdmin = await requireSiteAdmin(request, site)
+          const result = await listModerationComments(siteAdmin.siteId, {
             pageId,
             status,
             sort,
-            viewerUserId: moderator.userId,
+            viewerUserId: siteAdmin.userId,
             limit,
             offset,
           })
           return {
             sites: await listModerationSites(userId),
-            pages: await listModerationPages(moderator.siteId),
+            pages: await listModerationPages(siteAdmin.siteId),
             comments: result.comments,
             total: result.total,
             isInstanceAdmin: true,
@@ -51,19 +51,20 @@ export const Route = createFileRoute('/api/moderation')({
         withContext(async () => {
           assertSameOrigin(request, 'Moderation requests must use the application origin')
           const body = await parseJsonBody(request, actionSchema)
-          const moderator = await requireSiteModerator(request, body.site)
+          const siteAdmin = await requireSiteAdmin(request, body.site)
           if (body.target === 'comment-create') {
             // Moderation posts skip the public origin, guest-name and
             // rate-limit gates; the session is the verification.
-            const pageUrl = await getPageCanonicalUrl(moderator.siteId, body.pageId)
-            if (!pageUrl) throw new HttpError(404, 'PAGE_NOT_FOUND', 'Page was not found')
+            const pageUrl = await getPageCanonicalUrl(siteAdmin.siteId, body.pageId)
+            if (!pageUrl)
+              throw new HttpError(ErrorCode.PAGE_NOT_FOUND.status, ErrorCode.PAGE_NOT_FOUND.code, 'Page was not found')
             const session = await resolveSessionPrincipal(request)
             const anonymous = body.anonymous === true
             const comment = await createModerationCommentData({
               siteKey: body.site,
               pageUrl,
               parentId: body.parentId,
-              userId: anonymous ? null : moderator.userId,
+              userId: anonymous ? null : siteAdmin.userId,
               authorName: anonymous ? (body.authorName ?? 'Anonymous') : (session?.displayName ?? 'Moderator'),
               bodyMarkdown: body.bodyMarkdown,
             })
@@ -72,14 +73,14 @@ export const Route = createFileRoute('/api/moderation')({
             return { comment }
           }
           if (body.target === 'comment-edit') {
-            // Moderators editing their own comment: same own-comment rule as the
+            // Admins editing their own comment: same own-comment rule as the
             // public PATCH, but keyed to the session rather than a site origin.
             // Trusted like the other moderation writes: never auto-hidden.
             return {
               comment: await editModerationCommentData({
                 siteKey: body.site,
                 commentId: body.commentId,
-                userId: moderator.userId,
+                userId: siteAdmin.userId,
                 bodyMarkdown: body.bodyMarkdown,
               }),
             }
@@ -90,19 +91,19 @@ export const Route = createFileRoute('/api/moderation')({
             // the session instead of a site origin.
             const vote =
               body.value === null
-                ? await clearCommentVote(body.site, body.commentId, moderator.userId)
-                : await castCommentVote(body.site, body.commentId, moderator.userId, body.value)
+                ? await clearCommentVote(body.site, body.commentId, siteAdmin.userId)
+                : await castCommentVote(body.site, body.commentId, siteAdmin.userId, body.value)
             return { vote }
           }
           if (body.target === 'page') {
-            return { page: await setPageLocked(moderator.siteId, moderator.userId, body.pageId, body.locked) }
+            return { page: await setPageLocked(siteAdmin.siteId, siteAdmin.userId, body.pageId, body.locked) }
           }
           if (body.target === 'user') {
-            await setUserBlocked(moderator.siteId, moderator.userId, body.userId, body.blocked)
+            await setUserBlocked(siteAdmin.siteId, siteAdmin.userId, body.userId, body.blocked)
             return { userId: body.userId, blocked: body.blocked }
           }
           return {
-            comment: await setCommentStatus(moderator.siteId, moderator.userId, body.commentId, body.action),
+            comment: await setCommentStatus(siteAdmin.siteId, siteAdmin.userId, body.commentId, body.action),
           }
         })({ request }),
     },

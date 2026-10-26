@@ -4,7 +4,7 @@ description: viewerRole, pageId and onModerated add server-authorized moderation
 icon: ShieldCheck
 ---
 
-Pass `viewerRole` (`admin` or `moderator`, typically with `viewerUserId`) to render inline moderation controls:
+Pass `viewerRole` (`admin`, typically with `viewerUserId`) to render inline moderation controls:
 
 - the composer posts and edits through `/api/moderation` (so a dashboard origin does not need to be in the site's allow-list),
 - `pageId` addresses the thread directly instead of matching `pageUrl` against the site's capped page list,
@@ -15,7 +15,7 @@ Pass `viewerRole` (`admin` or `moderator`, typically with `viewerUserId`) to ren
   site="demo"
   baseUrl="/"
   viewerUserId="usr_123"
-  viewerRole="moderator"
+  viewerRole="admin"
   pageId="page_456"
   onModerated={() => void refreshThreads()}
 />
@@ -32,7 +32,7 @@ Moderators get the same `Comment as` control as any signed-in viewer and may pos
 | Delete | Soft status (`deleted`, restorable through `Restore`), acting immediately from the row menu — no confirmation dialog. A whole page is different: the dashboard's Delete on a page row removes the page permanently, with its comments, replies and votes, after a confirmation. |
 | Thread list | Every status with `hidden`/`deleted` badges; each row offers Hide/Restore, Pin/Unpin, Delete and Block/Unblock user; a page lock/unlock bar above the list. |
 | Votes | See and cast votes in place: the moderation payload carries each row's score and the moderator's own vote (hidden/deleted rows and locked pages never offer them). |
-| Identity | Comment rows carry the author's site role as `authorRole` (`admin` \| `moderator` \| `null`); every widget colours site-admin names with the destructive colour and appends an `Admin` badge (`.lc-admin-badge`); signed-in accounts with no site role get a `Member` badge (`.lc-member-badge`). |
+| Identity | Comment rows carry the author's site role as `authorRole` (`admin` \| `member` \| `null`); every widget colours site-admin names with the destructive colour and appends an `Admin` badge (`.lc-admin-badge`); every other signed-in account is a member and gets a `Member` badge (`.lc-member-badge`); a guest (`null`) gets none. |
 
 The server authorizes every action, so an account without permission sees the `FORBIDDEN` copy and nothing changes.
 

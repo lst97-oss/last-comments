@@ -8,6 +8,7 @@ import {
   commentBodySchema,
   commentIdSchema,
   editBodySchema,
+  editKeyHeaderSchema,
   listQuerySchema,
   pageBodySchema,
   pageDeleteQuerySchema,
@@ -42,6 +43,7 @@ import {
   moderationTakedownSchema,
   pageDeletedSchema,
   pageThreadStatsSchema,
+  publicSiteSettingsSchema,
   sessionPrincipalSchema,
   siteDashboardStatsSchema,
   sitePageSchema,
@@ -111,12 +113,28 @@ registry.registerPath({
   tags: ['comments'],
   summary: 'List the comments of one page',
   description:
-    'Returns the visible comments of a page, oldest first, with the score and the viewer vote. Pass `url` or `pageKey` — the list endpoint returns no total, so it pages by row offset.',
+    'Returns the visible comments of a page, oldest first, with the score and the viewer vote. A deleted comment or reply comes back redacted (status `deleted`, empty body and author) so its replies keep their place. Pass `url` or `pageKey` — the list endpoint returns no total, so it pages by row offset.',
   request: { query: searchSchema },
   responses: {
     200: ok(z.strictObject({ comments: z.array(CommentListItem) })),
     400: errorResponse('Invalid query parameters'),
     403: errorResponse('The site origin is not registered'),
+    503: errorResponse('The database is temporarily unavailable'),
+  },
+})
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/comments/settings',
+  tags: ['comments'],
+  summary: 'Read the public policy of a site',
+  description:
+    'Returns what a widget needs before the visitor types: the site access level, the comment length limit, the guest edit window and the public Turnstile site key. Carries no secrets, and any origin may read it without credentials. Cached for one minute.',
+  request: { query: siteQuerySchema },
+  responses: {
+    200: ok(z.strictObject({ settings: publicSiteSettingsSchema })),
+    400: errorResponse('Invalid query parameters'),
+    404: errorResponse('The site does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
 })
@@ -167,17 +185,19 @@ registry.registerPath({
   path: '/api/comments/{commentId}',
   tags: ['comments'],
   summary: 'Delete your own comment',
-  description: 'Soft-deletes the comment: the row stays and can be restored by a moderator.',
+  description:
+    'Soft-deletes the comment. A signed-in author deletes with the session. A guest sends the `x-lc-edit-key` header with the key received at create time, at any time (no edit window). The row stays: it reads as deleted with no body, and its replies stay under it. A site admin can restore it.',
   request: {
     params: z.strictObject({ commentId: commentIdSchema }),
     query: siteQuerySchema,
+    headers: z.object({ 'x-lc-edit-key': editKeyHeaderSchema.optional() }),
   },
   security: [sessionCookie],
   responses: {
     200: ok(z.strictObject({ comment: Comment })),
-    401: errorResponse('No session'),
+    401: errorResponse('No session and no edit key'),
     403: errorResponse('The author is blocked'),
-    404: errorResponse('The comment does not exist'),
+    404: errorResponse('The comment does not exist, or the edit key does not match it'),
     503: errorResponse('The database is temporarily unavailable'),
   },
 })
@@ -187,14 +207,17 @@ registry.registerPath({
   path: '/api/comments/vote',
   tags: ['votes'],
   summary: 'Cast a vote on a comment',
-  description: 'A vote is `1` (up) or `-1` (down). It replaces the viewer previous vote on that comment.',
+  description:
+    'A vote is `1` (up) or `-1` (down). It replaces the viewer previous vote on that comment. Voting needs a signed-in session: guests and keys cannot vote.',
   request: { body: { content: json(voteBodySchema) } },
   security: [sessionCookie],
   responses: {
     200: ok(z.strictObject({ vote: VoteSummary })),
     400: errorResponse('Invalid body'),
     401: errorResponse('No session'),
-    403: errorResponse('The voter is blocked on this site'),
+    403: errorResponse(
+      'Voting is turned off for this site (FEATURE_DISABLED), the voter is blocked, or the site is gateway-only',
+    ),
     404: errorResponse('The comment does not exist'),
     409: errorResponse('The page is locked'),
     503: errorResponse('The database is temporarily unavailable'),
@@ -212,7 +235,9 @@ registry.registerPath({
     200: ok(z.strictObject({ vote: VoteSummary })),
     400: errorResponse('Invalid query parameters'),
     401: errorResponse('No session'),
-    403: errorResponse('The voter is blocked on this site'),
+    403: errorResponse(
+      'Voting is turned off for this site (FEATURE_DISABLED), the voter is blocked, or the site is gateway-only',
+    ),
     404: errorResponse('The comment does not exist'),
     409: errorResponse('The page is locked'),
     503: errorResponse('The database is temporarily unavailable'),
@@ -225,13 +250,13 @@ registry.registerPath({
   tags: ['moderation'],
   summary: 'List sites, threads and comments for the moderation dashboard',
   description:
-    'Without `site` it returns the sites the moderator belongs to. With `site` it adds that site pages, comments and the total comment count.',
+    'Without `site` it returns the sites the caller belongs to. With `site` it adds that site pages, comments and the total comment count.',
   request: { query: listQuerySchema },
   security: [sessionCookie],
   responses: {
     200: ok(moderationListSchema),
     401: errorResponse('No session'),
-    403: errorResponse('Not a moderator of that site'),
+    403: errorResponse('Not an admin of that site'),
     503: errorResponse('The database is temporarily unavailable'),
   },
 })
@@ -242,7 +267,7 @@ registry.registerPath({
   tags: ['moderation'],
   summary: 'Run a moderation action',
   description:
-    'The `target` field selects the action: hide, restore, delete, pin or unpin a comment; lock or unlock a page; block or unblock a user; post a comment as a moderator; edit a comment; cast or clear a vote.',
+    'The `target` field selects the action: hide, restore, delete, pin or unpin a comment; lock or unlock a page; block or unblock a user; post a comment as an admin; edit a comment; cast or clear a vote.',
   request: { body: { content: json(actionSchema) } },
   security: [sessionCookie],
   responses: {
@@ -256,7 +281,7 @@ registry.registerPath({
     ),
     400: errorResponse('Invalid body'),
     401: errorResponse('No session'),
-    403: errorResponse('Not a moderator of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The comment or page does not exist'),
     409: errorResponse('The page is locked'),
     503: errorResponse('The database is temporarily unavailable'),
@@ -269,12 +294,13 @@ registry.registerPath({
   tags: ['sites'],
   summary: 'List the sites you may see with their allowed origins',
   description:
-    'Instance admins see every site; a site member sees only the sites they belong to. A service key with the `sites:read` scope is instance-level and sees every site.',
+    'The dashboard is for admins. Instance admins see every site; a site admin sees only the sites it administers. A member gets 403. A service key with the `sites:read` scope is instance-level and sees every site.',
   request: {},
   security: sessionOrServiceKey,
   responses: {
     200: ok(z.strictObject({ sites: z.array(adminSiteListItemSchema) })),
     401: errorResponse('No session'),
+    403: errorResponse('The caller is a member, not an admin'),
     503: errorResponse('The database is temporarily unavailable'),
   },
 })
@@ -345,7 +371,7 @@ registry.registerPath({
   responses: {
     200: ok(z.strictObject({ pages: z.array(ModerationPageSummary) })),
     401: errorResponse('No session'),
-    403: errorResponse('Not a member of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -362,7 +388,7 @@ registry.registerPath({
   responses: {
     200: ok(z.strictObject({ takedowns: z.array(moderationTakedownSchema), total: z.number().int() })),
     401: errorResponse('No session'),
-    403: errorResponse('Not a moderator of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -381,7 +407,7 @@ registry.registerPath({
     200: ok(z.strictObject({ page: sitePageSchema })),
     400: errorResponse('Invalid body'),
     401: errorResponse('No session'),
-    403: errorResponse('Not a member of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),
     409: errorResponse('The page key belongs to another page'),
     503: errorResponse('The database is temporarily unavailable'),
@@ -444,7 +470,7 @@ registry.registerPath({
     ),
     400: errorResponse('Invalid query parameters'),
     401: errorResponse('No session'),
-    403: errorResponse('Not a member of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site or the page does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -461,7 +487,7 @@ registry.registerPath({
     200: ok(z.strictObject({ stats: SiteDashboardStats })),
     400: errorResponse('Invalid query parameters'),
     401: errorResponse('No session'),
-    403: errorResponse('Not a member of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -473,7 +499,7 @@ registry.registerPath({
   tags: ['users'],
   summary: 'List the user directory of a site',
   description:
-    'Everyone relevant to one site — commenters, site members and actively blocked users — newest registration first. Guests never appear. Session-only: names and emails are never served to service keys, and site moderators are excluded — only instance admins and site admins may read the directory.',
+    'Everyone relevant to one site — commenters, stored admin rows and actively blocked users — newest registration first. The role of each entry is admin or member: every signed-in account is a member unless it is an admin. Guests never appear. Session-only: names and emails are never served to service keys, and members cannot read the directory — only instance admins and site admins may.',
   request: { query: usersQuerySchema },
   security: [sessionCookie],
   responses: {
@@ -502,7 +528,7 @@ registry.registerPath({
     200: ok(z.strictObject({ comments: z.array(UserCommentHistoryItem), total: z.number().int() })),
     400: errorResponse('Invalid query parameters'),
     401: errorResponse('No session'),
-    403: errorResponse('Not a member of that site'),
+    403: errorResponse('Not an admin of that site'),
     404: errorResponse('The site does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -534,6 +560,7 @@ registry.registerPath({
   responses: {
     200: ok(z.strictObject({ keys: z.array(ApiKeyListItem) })),
     401: errorResponse('No session'),
+    403: errorResponse('The dashboard is restricted to administrators'),
     503: errorResponse('The database is temporarily unavailable'),
   },
 })
@@ -544,14 +571,14 @@ registry.registerPath({
   tags: ['api-keys'],
   summary: 'Issue a service API key',
   description:
-    'Instance keys (no `siteKey`) manage sites. Site keys bind to exactly one site and manage its threads. The plaintext `key` is returned once.',
+    'Instance API keys (no `siteKey`) manage sites. Site-bound API keys bind to exactly one site and manage its threads. The plaintext `key` is returned once.',
   request: { body: { content: json(createBodySchema) } },
   security: [sessionCookie],
   responses: {
     200: ok(z.strictObject({ key: ApiKey })),
     400: errorResponse('Invalid body or scope set'),
     401: errorResponse('No session'),
-    403: errorResponse('Not an admin of that site'),
+    403: errorResponse('Not an admin: the dashboard is for admins, and a site key needs the admin of that site'),
     404: errorResponse('The site does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -568,7 +595,7 @@ registry.registerPath({
     200: ok(updatedResultSchema),
     400: errorResponse('Invalid body or scope set'),
     401: errorResponse('No session'),
-    403: errorResponse('Not the owner of that key'),
+    403: errorResponse('Not an admin, or not the owner of that key'),
     404: errorResponse('The key does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -586,7 +613,7 @@ registry.registerPath({
     200: ok(deletedResultSchema),
     400: errorResponse('Invalid query parameters'),
     401: errorResponse('No session'),
-    403: errorResponse('Not the owner of that key'),
+    403: errorResponse('Not an admin, or not the owner of that key'),
     404: errorResponse('The key does not exist'),
     503: errorResponse('The database is temporarily unavailable'),
   },
@@ -598,10 +625,10 @@ registry.registerPath({
   tags: ['session'],
   summary: 'Resolve the current session through every enabled auth provider',
   description:
-    'Provider-neutral session probe for the dashboard UI. Anonymous callers get `{ principal: null }`, never a 401.',
+    'Provider-neutral session probe for the dashboard UI. Anonymous callers get `{ principal: null, dashboard: false }`, never a 401. `dashboard` is true only for an admin: the instance admin, or an admin of at least one site. A member gets a principal with `dashboard: false`.',
   request: {},
   responses: {
-    200: ok(z.strictObject({ principal: SessionPrincipal.nullable() })),
+    200: ok(z.strictObject({ principal: SessionPrincipal.nullable(), dashboard: z.boolean() })),
   },
 })
 

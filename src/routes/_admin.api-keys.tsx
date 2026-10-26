@@ -5,19 +5,21 @@ import { useState } from 'react'
 
 import { AdminLoginForm } from '@/components/admin/admin-login'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
+import { AdminTourButton } from '@/components/admin/admin-tour-button'
+import { API_KEYS_TOUR } from '@/components/admin/admin-tours'
+import { ApiKeyCreateDialog } from '@/components/admin/api-key-dialog'
+import { ApiKeyRow } from '@/components/admin/api-key-row'
 import { ConfirmDeleteDialog } from '@/components/admin/confirm-delete-dialog'
-import { SiteKeyCreateDialog } from '@/components/admin/site-key-dialog'
-import { SiteKeyRow } from '@/components/admin/site-key-row'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { ItemGroup } from '@/components/ui/item'
 import { Spinner } from '@/components/ui/spinner'
-import { useSiteKeys } from '@/hooks/use-site-keys'
+import { useApiKeys } from '@/hooks/use-api-keys'
 import { ADMIN_SITES_QUERY_KEY, fetchAdminSites } from '@/lib/admin-sites'
+import { scopesEqual, scopesOfKey } from '@/lib/api-keys'
 import { describeApiError } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
-import { scopesEqual, scopesOfKey } from '@/lib/site-keys'
 
 export const Route = createFileRoute('/_admin/api-keys')({
   component: ApiKeysPage,
@@ -31,7 +33,7 @@ function ApiKeysPage() {
     error: keysError,
     clearError,
     drafts,
-    toggleScope,
+    setDraftScopes,
     saveScopes,
     toggleEnabled,
     deleteTarget,
@@ -41,7 +43,7 @@ function ApiKeysPage() {
     deleting,
     patching,
     refresh: refreshKeys,
-  } = useSiteKeys()
+  } = useApiKeys()
   const [createOpen, setCreateOpen] = useState(false)
 
   const sitesQuery = useQuery({
@@ -62,13 +64,13 @@ function ApiKeysPage() {
   }
 
   const manageableSites = sites.filter((site) => isInstanceAdmin || site.role === 'admin')
-  const adminKeys = keys.filter((key) => !key.metadata?.siteKey)
-  const siteKeys = keys.filter((key) => key.metadata?.siteKey)
+  const instanceKeys = keys.filter((key) => !key.metadata?.site)
+  const siteApiKeys = keys.filter((key) => key.metadata?.site)
 
   return (
     <>
       <main className="mx-auto grid w-full max-w-3xl gap-6 text-foreground">
-        <header className="flex flex-wrap items-end justify-between gap-3">
+        <header data-tour="api-keys-intro" className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm text-muted-foreground">Last Comments</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight">API keys</h1>
@@ -76,9 +78,17 @@ function ApiKeysPage() {
               Server-to-server keys with least-privilege permissions. Secrets are shown once at creation.
             </p>
           </div>
-          <Button type="button" onClick={openCreate} disabled={loading || failure.needsSignIn}>
-            Create key
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <AdminTourButton tour={API_KEYS_TOUR} />
+            <Button
+              type="button"
+              data-tour="api-keys-create"
+              onClick={openCreate}
+              disabled={loading || failure.needsSignIn}
+            >
+              Create API key
+            </Button>
+          </div>
         </header>
 
         {loading ? (
@@ -91,42 +101,43 @@ function ApiKeysPage() {
         ) : (
           <>
             {errorMessage && <AdminQueryError body={errorMessage} />}
-            <Card>
+            <Card data-tour="api-keys-list">
               <CardHeader>
-                <CardTitle>Site keys</CardTitle>
+                <CardTitle>API keys</CardTitle>
                 <CardDescription>
-                  {siteKeys.length === 0
-                    ? 'No site keys yet.'
-                    : `${siteKeys.length} ${siteKeys.length === 1 ? 'key' : 'keys'}, each bound to one site.`}
+                  {siteApiKeys.length === 0
+                    ? 'No API keys yet.'
+                    : `${siteApiKeys.length} ${siteApiKeys.length === 1 ? 'API key' : 'API keys'}, each bound to one site.`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {siteKeys.length === 0 ? (
+                {siteApiKeys.length === 0 ? (
                   <Empty>
                     <EmptyHeader>
                       <EmptyMedia variant="icon">
                         <KeyRound />
                       </EmptyMedia>
-                      <EmptyTitle>No site keys yet</EmptyTitle>
+                      <EmptyTitle>No API keys yet</EmptyTitle>
                       <EmptyDescription>
-                        Create your first site key — pick a site, choose permissions, copy the secret.
+                        Create your first API key: pick a site, choose what it needs, then copy the secret.
                       </EmptyDescription>
                     </EmptyHeader>
                   </Empty>
                 ) : (
                   <ItemGroup>
-                    {siteKeys.map((key) => {
+                    {siteApiKeys.map((key) => {
                       const current = scopesOfKey(key)
                       const draft = drafts[key.id] ?? current
                       return (
-                        <SiteKeyRow
+                        <ApiKeyRow
                           key={key.id}
                           apiKey={key}
+                          site={sites.find((item) => item.key === key.metadata?.site)}
                           draft={draft}
                           canSave={!scopesEqual(draft, current)}
                           idPrefix={`key-${key.id}`}
                           pending={patching}
-                          onToggleScope={(scope) => toggleScope(key, scope)}
+                          onChangeScopes={(scopes) => setDraftScopes(key, scopes)}
                           onSave={() => saveScopes(key)}
                           onToggleEnabled={() => toggleEnabled(key)}
                           onRequestDelete={() => requestDelete(key)}
@@ -138,16 +149,16 @@ function ApiKeysPage() {
               </CardContent>
             </Card>
 
-            {adminKeys.length > 0 && (
-              <Card>
+            {instanceKeys.length > 0 && (
+              <Card data-tour="api-keys-instance">
                 <CardHeader>
-                  <CardTitle>Admin keys</CardTitle>
-                  <CardDescription>Unbound keys that manage sites themselves.</CardDescription>
+                  <CardTitle>Instance API keys</CardTitle>
+                  <CardDescription>Not bound to a site. These keys create and manage sites.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ItemGroup>
-                    {adminKeys.map((key) => (
-                      <SiteKeyRow
+                    {instanceKeys.map((key) => (
+                      <ApiKeyRow
                         key={key.id}
                         apiKey={key}
                         draft={scopesOfKey(key)}
@@ -167,7 +178,7 @@ function ApiKeysPage() {
         )}
       </main>
 
-      <SiteKeyCreateDialog
+      <ApiKeyCreateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         sites={manageableSites}
@@ -177,8 +188,8 @@ function ApiKeysPage() {
       <ConfirmDeleteDialog
         open={deleteTarget !== null}
         title={`Delete ${deleteTarget?.name ?? deleteTarget?.id}?`}
-        description="Any embed using this key stops working immediately. This cannot be undone."
-        confirmLabel="Delete key"
+        description="Anything using this key, such as your server or proxy, stops working immediately. This cannot be undone."
+        confirmLabel="Delete API key"
         pendingLabel="Deleting…"
         pending={deleting}
         onOpenChange={(open) => !open && cancelDelete()}

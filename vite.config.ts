@@ -127,6 +127,12 @@ export default defineConfig({
       routeRules: {
         '/admin/**': { headers: { ...PRIVATE_NO_STORE, ...PRIVATE_SECURITY_HEADERS } },
         '/_payload/**': { headers: { ...PRIVATE_NO_STORE, ...PRIVATE_SECURITY_HEADERS } },
+        // The public site settings are the one cacheable API document. This exact rule
+        // must match CACHE_CONTROL in src/routes/api.comments.settings.ts, or the platform
+        // header wins and widgets re-read the policy on every page view.
+        '/api/comments/settings': {
+          headers: { ...PRIVATE_SECURITY_HEADERS, 'cache-control': 'public, max-age=60, stale-while-revalidate=300' },
+        },
         '/api/**': { headers: { ...PRIVATE_NO_STORE, ...PRIVATE_SECURITY_HEADERS } },
       },
     }),

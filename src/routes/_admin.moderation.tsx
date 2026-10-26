@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createServerFn } from '@tanstack/react-start'
+import { useReducer, useState } from 'react'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
+import { AdminTourButton } from '@/components/admin/admin-tour-button'
+import { MODERATION_TOUR, SITES_TOUR } from '@/components/admin/admin-tours'
+import { ApiKeyCreateDialog } from '@/components/admin/api-key-dialog'
 import { PagesView } from '@/components/admin/pages-view'
 import { RecentView, TAKEDOWN_PAGE_SIZE } from '@/components/admin/recent-view'
-import { SiteKeyCreateDialog } from '@/components/admin/site-key-dialog'
 import { SitesView } from '@/components/admin/sites-view'
+import { usePageLock } from '@/components/admin/use-page-lock'
 import { UsersView } from '@/components/admin/users-view'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,13 +18,19 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { asModerationView, type ModerationView } from '@/lib/admin-format'
-import { ADMIN_SITES_QUERY_KEY, fetchAdminSites } from '@/lib/admin-sites'
+import { ADMIN_SITES_QUERY_KEY, fetchAdminSites, type Site } from '@/lib/admin-sites'
 import { describeApiError, readApiData } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
+import { INITIAL_MODERATION_VIEW, moderationViewReducer } from '@/lib/moderation-view-state'
 import { type PageSummary, type TakedownPage } from '@/lib/page-thread'
 import { setupStatusServerFn } from '@/lib/setup-status'
-import { type Site } from '@/lib/site-keys'
 import { type EditSiteValues, type SiteForm } from '@/lib/site-schema'
+
+// The deployment's public origin, for the tour's example site. Dynamic import keeps the server env out of the client bundle.
+const publicOriginServerFn = createServerFn({ method: 'GET' }).handler(async () => {
+  const { getServerEnv } = await import('@/server/env')
+  return { publicOrigin: new URL(getServerEnv().PAYLOAD_PUBLIC_SERVER_URL).origin }
+})
 
 export const Route = createFileRoute('/_admin/moderation')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -30,6 +40,7 @@ export const Route = createFileRoute('/_admin/moderation')({
     const { setupAvailable } = await setupStatusServerFn()
     if (setupAvailable) throw redirect({ to: '/create-admin-user' })
   },
+  loader: async () => await publicOriginServerFn(),
   component: ModerationPage,
   errorComponent: BusinessRouteError,
 })
@@ -38,11 +49,13 @@ function ModerationPage() {
   // The React Compiler compiles this component (annotation mode, client bundle).
   'use memo'
   const { view } = Route.useSearch()
+  const { publicOrigin } = Route.useLoaderData()
   const navigate = Route.useNavigate()
   const queryClient = useQueryClient()
-  const [siteOverride, setSiteOverride] = useState<string | null>(null)
-  const [recentDays, setRecentDays] = useState(7)
-  const [takedownPage, setTakedownPage] = useState(0)
+  const [{ siteOverride, recentDays, takedownPage }, dispatch] = useReducer(
+    moderationViewReducer,
+    INITIAL_MODERATION_VIEW,
+  )
   const [createOpen, setCreateOpen] = useState(false)
   const [keyPrompt, setKeyPrompt] = useState<{ key: string; name: string } | null>(null)
 
@@ -119,13 +132,25 @@ function ModerationPage() {
     },
     onSuccess: async (created) => {
       setCreateOpen(false)
-      setSiteOverride(created.key)
-      setKeyPrompt(created)
+      dispatch({ type: 'siteCreated', site: created.key })
       await Promise.all([sitesQuery.refetch(), allSitesQuery.refetch()])
-      toast.add({
+      // The API key is an offered next step, not a forced one: the site already works for embeds.
+      const toastId = toast.add({
         title: 'Site created',
-        description: `${created.name} · key ${created.key}`,
+        description: (
+          <>
+            {created.name} is ready. Its site key <code className="text-xs">{created.key}</code> works for embeds.
+          </>
+        ),
         type: 'success',
+        timeout: 0,
+        actionProps: {
+          children: 'Create API key',
+          onClick: () => {
+            toast.close(toastId)
+            setKeyPrompt(created)
+          },
+        },
       })
     },
     onError: (cause) => reportFailure('Could not create site', cause),
@@ -173,7 +198,7 @@ function ModerationPage() {
       return siteKey
     },
     onSuccess: async (siteKey) => {
-      if (siteKey === site) setSiteOverride(null)
+      if (siteKey === site) dispatch({ type: 'siteCleared' })
       await Promise.all([sitesQuery.refetch(), allSitesQuery.refetch()])
       toast.add({ title: 'Site deleted', description: siteKey, type: 'success' })
     },
@@ -195,43 +220,50 @@ function ModerationPage() {
     onError: (cause) => reportFailure('Moderation action failed', cause),
   })
 
+  const lockPageMutation = usePageLock(site, () => pagesQuery.refetch())
+
   function switchSite(next: string) {
-    setSiteOverride(next)
-    setTakedownPage(0)
+    dispatch({ type: 'switchSite', site: next })
   }
 
   return (
     <>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 text-foreground">
-        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
+        <header
+          data-tour="moderation-intro"
+          className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5"
+        >
           <div>
             <p className="text-sm text-muted-foreground">Last Comments</p>
             <h1 className="text-3xl font-semibold tracking-tight">Moderation</h1>
           </div>
-          {sites.length > 0 && (
-            <Field orientation="horizontal">
-              <FieldLabel htmlFor="moderation-site" className="text-muted-foreground">
-                Site
-              </FieldLabel>
-              <Select value={site || null} onValueChange={(value) => value && switchSite(value)}>
-                <SelectTrigger id="moderation-site" className="min-w-48">
-                  <SelectValue placeholder="Select a site" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {sites.map((item) => (
-                      <SelectItem key={item.id} value={item.key}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminTourButton tour={view === 'sites' ? SITES_TOUR : MODERATION_TOUR} />
+            {sites.length > 0 && (
+              <Field orientation="horizontal" className="w-auto" data-tour="moderation-site">
+                <FieldLabel htmlFor="moderation-site" className="text-muted-foreground">
+                  Site
+                </FieldLabel>
+                <Select value={site || null} onValueChange={(value) => value && switchSite(value)}>
+                  <SelectTrigger id="moderation-site" className="min-w-48">
+                    <SelectValue placeholder="Select a site" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {sites.map((item) => (
+                        <SelectItem key={item.id} value={item.key}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </div>
         </header>
 
-        <SiteKeyCreateDialog
+        <ApiKeyCreateDialog
           key={keyPrompt?.key ?? 'pending'}
           open={keyPrompt !== null}
           onOpenChange={(open) => !open && setKeyPrompt(null)}
@@ -261,51 +293,52 @@ function ModerationPage() {
             Loading comments…
           </p>
         ) : (
-          <ViewContent
-            view={view}
-            sites={sites}
-            allSites={allSites}
-            site={site}
-            pages={pages}
-            recentDays={recentDays}
-            onRecentDays={(days) => {
-              setRecentDays(days)
-              setTakedownPage(0)
-            }}
-            takedowns={takedownsQuery.data}
-            takedownPage={takedownPage}
-            takedownsFailed={takedownsQuery.isError}
-            onTakedownPage={setTakedownPage}
-            createOpen={createOpen}
-            onCreateOpen={setCreateOpen}
-            onCreateSite={(values) =>
-              createSiteMutation.mutateAsync(values).then(
-                () => true,
-                () => false,
-              )
-            }
-            onEditSite={(siteKey, values) =>
-              editSiteMutation.mutateAsync({ siteKey, ...values }).then(
-                () => true,
-                () => false,
-              )
-            }
-            onDeleteSite={(siteKey) =>
-              deleteSiteMutation.mutateAsync(siteKey).then(
-                () => true,
-                () => false,
-              )
-            }
-            onRefreshPages={() => void pagesQuery.refetch()}
-            onAct={(action) => actMutation.mutateAsync(action).catch(() => undefined)}
-            onDeletePage={(page) =>
-              deletePageMutation.mutateAsync(page).then(
-                () => true,
-                () => false,
-              )
-            }
-            onNavigateView={(next) => void navigate({ to: '/moderation', search: { view: next } })}
-          />
+          <div data-tour="moderation-views" className="flex flex-col gap-6">
+            <ViewContent
+              view={view}
+              sites={sites}
+              allSites={allSites}
+              publicOrigin={publicOrigin}
+              site={site}
+              pages={pages}
+              recentDays={recentDays}
+              onRecentDays={(days) => dispatch({ type: 'recentDays', days })}
+              takedowns={takedownsQuery.data}
+              takedownPage={takedownPage}
+              takedownsFailed={takedownsQuery.isError}
+              onTakedownPage={(page) => dispatch({ type: 'takedownPage', page })}
+              createOpen={createOpen}
+              onCreateOpen={setCreateOpen}
+              onCreateSite={(values) =>
+                createSiteMutation.mutateAsync(values).then(
+                  () => true,
+                  () => false,
+                )
+              }
+              onEditSite={(siteKey, values) =>
+                editSiteMutation.mutateAsync({ siteKey, ...values }).then(
+                  () => true,
+                  () => false,
+                )
+              }
+              onDeleteSite={(siteKey) =>
+                deleteSiteMutation.mutateAsync(siteKey).then(
+                  () => true,
+                  () => false,
+                )
+              }
+              onRefreshPages={() => void pagesQuery.refetch()}
+              onAct={(action) => actMutation.mutateAsync(action).catch(() => undefined)}
+              onLockPage={(page, locked) => lockPageMutation.mutate({ page, locked })}
+              onDeletePage={(page) =>
+                deletePageMutation.mutateAsync(page).then(
+                  () => true,
+                  () => false,
+                )
+              }
+              onNavigateView={(next) => void navigate({ to: '/moderation', search: { view: next } })}
+            />
+          </div>
         )}
       </main>
     </>
@@ -316,6 +349,7 @@ type ViewContentProps = {
   view: ModerationView
   sites: Site[]
   allSites: Site[]
+  publicOrigin: string
   site: string
   pages: PageSummary[]
   recentDays: number
@@ -332,6 +366,7 @@ type ViewContentProps = {
   onDeleteSite: (siteKey: string) => Promise<boolean>
   onRefreshPages: () => void
   onAct: (action: Record<string, string | boolean>) => Promise<void>
+  onLockPage: (page: PageSummary, locked: boolean) => void
   onNavigateView: (view: ModerationView) => void
 }
 

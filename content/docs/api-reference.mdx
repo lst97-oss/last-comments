@@ -6,7 +6,7 @@ icon: Braces
 
 The server publishes two interactive references:
 
-- [Business API reference](/api/reference) — the comments, votes, moderation, sites, pages, stats and setup endpoints (Scalar).
+- [Business API reference](/api/reference) — the comments, votes, moderation, sites, pages, stats, API keys, session and setup endpoints (Scalar).
 - [Auth API reference](/api/auth/reference) — the better-auth endpoints the widgets use for sign-in, sign-out and sessions (Scalar). Only served while the `better-auth` provider is enabled (the default); with external-only `providers` in `auth.config.ts` the whole `/api/auth/*` mount — reference included — answers 404.
 
 Both pages are served only while the OpenAPI plugin is installed on the server; otherwise they answer 404. Enablement is a code registry on the server, so toggling them takes a redeploy.
@@ -15,31 +15,52 @@ Both pages are served only while the OpenAPI plugin is installed on the server; 
 
 Successful responses are `{"data": ...}` and failures are `{"error": {"code": "...", "message": "..."}}`. The widget's error copy is keyed off `error.code` — see [Errors](/docs/errors).
 
+## Who may call what
+
+Three kinds of caller reach the admin paths, and each path below says which one it accepts:
+
+- **Instance admin** — the one account that manages the whole instance. Moderation, instance settings and site creation are its tasks.
+- **Site admin** — an admin of one site. Manages that site's pages, API keys, stats and user directory.
+- **Service key** — a server credential with named scopes. See [API keys and permissions](/docs/api-keys).
+
+A **member** of a site may comment and nothing else: every admin path below refuses it with `403 FORBIDDEN`. The dashboard follows the same rule — see [Roles and the dashboard](/docs/auth#roles-and-the-dashboard).
+
 ## Paths
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/comments` | List the comments of one page (threads page by row offset, no total) |
+| GET | `/api/comments` | List the comments of one page by `site` plus `url` or `pageKey`, with `limit` and `offset` (threads page by row offset, no total). A deleted comment comes back with only its id, parent, time and status, so replies stay nested under it |
+| GET | `/api/comments/settings?site=` | The public policy of a site: access level, comment length limit, guest edit window, public Turnstile key and `features.votes`. No secrets; any origin, no credentials; cached for a minute |
 | POST | `/api/comments` | Post a comment or a reply (Turnstile token + guest name, or a session) |
 | PATCH | `/api/comments/{commentId}` | Edit your own comment (session, or the guest edit key) |
-| DELETE | `/api/comments/{commentId}` | Delete your own comment (session required) |
-| PUT | `/api/comments/vote` | Cast an up/down vote on a comment (session required) |
-| DELETE | `/api/comments/vote` | Clear your vote on a comment (session required) |
-| GET | `/api/moderation` | List sites, threads and comments for the moderation dashboard (session required) |
-| POST | `/api/moderation` | Run a moderation action: hide/restore/delete/pin a comment, lock a page, block a user, post as moderator, edit, vote (session required) |
-| GET | `/api/admin/sites` | List the sites you may see with their allowed origins — instance admins see every site, a member only their own (session or service key) |
-| POST | `/api/admin/sites` | Create a site with its first allowed origin (instance admin or service key) |
-| GET | `/api/admin/pages` | List the registered page threads of one site with recent-window activity (`?recentDays=0..90&preview=1..5`, `0` = all time, session or service key) |
-| GET | `/api/admin/pages/{pageId}` | Read one page thread with its totals, daily trend, top authors and moderation activity (session or service key) |
-| DELETE | `/api/admin/pages/{pageId}?site=` | Delete a page permanently, with its comments, replies and votes. Site admins (session, same-origin) or a `pages:delete` key bound to the site. Audited; returns the counts removed. |
-| DELETE | `/api/admin/pages?site=&pageKey=` or `&url=` | The same delete, addressed by the page's `pageKey` (use this from a CMS) or its canonical URL. Give exactly one. |
-| PATCH | `/api/admin/sites/{siteKey}` | Update a site's name and/or its comment length limit (`bodyLimit`, 1 to 10,000 characters; `null` resets to the default). Site admins or a `sites:update` key. |
-| DELETE | `/api/admin/sites/{siteKey}` | Delete a site and everything in it, including its API keys and rate-limit windows, in one transaction. |
-| GET | `/api/admin/users` | List the user directory of one site — commenters, members, blocked users (`?search=&filter=all|blocked&limit=&offset=`, instance admin or site admin, session required) |
-| GET | `/api/admin/users/{userId}/comments` | Read one user's comment history on a site, hidden and deleted included (session required) |
-| GET | `/api/admin/settings` | Read the read-only instance settings snapshot: plugin status, providers, comment settings (instance admin, session required) |
-| GET | `/api/admin/stats` | Dashboard totals, daily trend, top threads and moderation activity for one site |
-| GET | `/api/admin/api-keys` | List your own API keys with scopes and site bindings (session required) |
-| DELETE | `/api/admin/api-keys?keyId=…` | Delete one of your API keys (owner or instance admin, session required) |
+| DELETE | `/api/comments/{commentId}` | Delete your own comment: a session, or a guest's edit key in the `x-lc-edit-key` header. The comment stays in the thread, redacted |
+| PUT | `/api/comments/vote` | Cast an up/down vote on a comment (session required; `403 FEATURE_DISABLED` when voting is off for the site) |
+| DELETE | `/api/comments/vote` | Clear your vote on a comment (session required; same refusals) |
+| GET | `/api/moderation` | List sites, threads and comments for the moderation dashboard (instance admin session; with `site`, that site's admin as well) |
+| POST | `/api/moderation` | Run a moderation action for one site (instance admin and that site's admin, session required): hide, restore, delete, pin or unpin a comment; lock a page; block a user; post a comment as an admin; edit; vote |
+| GET | `/api/admin/sites` | List the sites you administer with their allowed origins — instance admins see every site, a site admin only its own. A member gets 403 (session, or a service key with `sites:read`) |
+| POST | `/api/admin/sites` | Create a site with its first allowed origin (instance admin or a service key with `sites:create`) |
+| PATCH | `/api/admin/sites/{siteKey}` | Update a site's name, its comment length limit (`bodyLimit`, 1 to 10,000 characters; `null` resets to the default), who may read and post (`access`: `open`, `login` or `private`), `gatewayOnly` and `votesEnabled`. Site admins or a `sites:update` key |
+| DELETE | `/api/admin/sites/{siteKey}` | Delete a site and everything in it, including its API keys and rate-limit windows, in one transaction. Site admins or a `sites:delete` key |
+| GET | `/api/admin/pages` | List the registered page threads of one site with recent-window activity (`?site=&recentDays=0..90&preview=1..5`, `0` = all time). Site admin session, or a `pages:read` key bound to the site |
+| POST | `/api/admin/pages` | Register a page thread up front, idempotent: `{ site, url, pageKey?, title? }`. Site admin session, or a `pages:write` key bound to the site. The URL must use one of the site's allowed origins |
+| GET | `/api/admin/pages/{pageId}` | Read one page thread with its totals, daily trend, top authors and moderation activity. Site admin session, or a `pages:read` key bound to the site |
+| DELETE | `/api/admin/pages/{pageId}?site=` | Delete a page permanently, with its comments, replies and votes. Site admins (session, same-origin) or a `pages:delete` key bound to the site. Audited; returns the counts removed |
+| DELETE | `/api/admin/pages?site=&pageKey=` or `&url=` | The same delete, addressed by the page's `pageKey` (use this from a CMS) or its canonical URL. Give exactly one |
+| GET | `/api/admin/takedowns?site=` | The hidden and deleted comments of one site for the moderation dashboard's Recent tab (`recentDays`, `limit`, `offset`). Instance admin and that site's admin, session required |
+| GET | `/api/admin/users` | List the user directory of one site — commenters, members and blocked users (`?site=&search=&filter=all\|blocked&limit=&offset=`). Instance admin or site admin, session required |
+| GET | `/api/admin/users/{userId}/comments` | Read one user's comment history on a site, hidden and deleted included (`?site=`). Instance admin or site admin, session required |
+| GET | `/api/admin/settings` | Read the read-only instance settings snapshot: plugin status, providers, comment settings. Instance admin, session required |
+| GET | `/api/admin/stats` | Dashboard totals, daily trend, top threads and moderation activity for one site (`?site=&days=`). Site admin session, or a `pages:read` key bound to the site |
+| GET | `/api/admin/api-keys` | List your own API keys with scopes and site bindings. Admin session required (instance admin or a site admin) |
+| POST | `/api/admin/api-keys` | Issue an API key: `{ name, scopes, siteKey?, expiresIn? }`. A site key needs the site's admin; an instance key (no `siteKey`) needs the instance admin |
+| PATCH | `/api/admin/api-keys` | Change a key's scopes or enabled flag: `{ keyId, siteKey?, scopes?, enabled? }`. The key's owner or the instance admin; for a site key, the site's admin too |
+| DELETE | `/api/admin/api-keys?keyId=…` | Delete one of your API keys (the key's owner, or the instance admin; session required) |
+| GET | `/api/session` | The provider-neutral session probe: `{ principal, dashboard }`. Anonymous callers get `principal: null`, never a 401. `dashboard` is true only for an admin |
+| GET | `/api/auth-providers` | The enabled interactive-login providers. Public, no secrets |
+| GET | `/api/initial-admin` | Whether the first-admin setup is still available |
+| POST | `/api/initial-admin` | Create the first instance admin. Only while no user and no instance admin exist |
+| GET | `/api/live` | Liveness probe; never touches the database |
+| GET | `/api/ready` | Readiness probe; `503` with the report when the database is degraded |
 
-The Scalar page is the authoritative list of request schemas and status codes; besides the paths above it also documents `/api/admin/sites/{siteKey}` (rename, delete), `/api/admin/api-keys` (create, update scopes), `/api/session` (provider-neutral session probe), `/api/auth-providers` (enabled providers), `/api/initial-admin` (setup), and the `/api/live` and `/api/ready` health probes.
+The Scalar page is the authoritative list of request and response schemas and status codes. `/.well-known/security.txt` publishes the disclosure contact and its expiry.

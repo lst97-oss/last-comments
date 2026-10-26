@@ -63,6 +63,7 @@ export type HeaderProviderSettings = {
   AUTH_HEADER_USER: string
   AUTH_HEADER_EMAIL: string
   AUTH_HEADER_NAME: string
+  AUTH_LINK_BY_EMAIL: boolean
 }
 
 export function getHeaderProviderSettings(file?: unknown): HeaderProviderSettings {
@@ -73,5 +74,6 @@ export function getHeaderProviderSettings(file?: unknown): HeaderProviderSetting
     AUTH_HEADER_USER: config.header.userHeader,
     AUTH_HEADER_EMAIL: config.header.emailHeader,
     AUTH_HEADER_NAME: config.header.nameHeader,
+    AUTH_LINK_BY_EMAIL: config.header.linkByEmail,
   }
 }

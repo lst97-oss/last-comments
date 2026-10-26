@@ -120,6 +120,8 @@ export function ThreadCommentsSection({
         viewerRole="admin"
         viewerUserId={viewerUserId}
         bodyLimit={bodyLimit}
+        math
+        mermaid
         onModerated={onModerated}
       />
     </section>

@@ -121,6 +121,7 @@ try {
     .values(
       DEMO_COMMENTS.map((comment) => ({
         id: comment.id,
+        siteId,
         pageId: page.id,
         parentId: comment.parentId,
         userId: null,

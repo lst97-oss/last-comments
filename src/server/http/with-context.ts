@@ -1,4 +1,4 @@
-import { toHttpError } from '@/server/http/errors'
+import { ErrorCode, toHttpError } from '@/server/http/errors'
 import { fail, ok } from '@/server/http/response'
 import { getRequestLogger, type Logger } from '@/server/observability/logger'
 
@@ -32,9 +32,11 @@ function genericFailureResponse(requestId?: string): Response {
   })
   if (requestId) headers.set('x-request-id', requestId)
   return new Response(
-    JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.' } }),
+    JSON.stringify({
+      error: { code: ErrorCode.INTERNAL_ERROR.code, message: 'Something went wrong. Please try again.' },
+    }),
     {
-      status: 500,
+      status: ErrorCode.INTERNAL_ERROR.status,
       headers,
     },
   )

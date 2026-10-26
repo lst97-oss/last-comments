@@ -31,7 +31,7 @@ test('vote writes require an allowed origin and signed-in Better Auth session', 
     .returning({ id: pages.id })
   const [comment] = await db
     .insert(comments)
-    .values({ pageId: page!.id, authorName: 'Guest', bodyMarkdown: 'Public vote score' })
+    .values({ siteId: site!.id, pageId: page!.id, authorName: 'Guest', bodyMarkdown: 'Public vote score' })
     .returning({ id: comments.id })
   await db.insert(votes).values({ commentId: comment!.id, userId: voterId, value: 1 })
 

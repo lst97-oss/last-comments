@@ -33,8 +33,8 @@ describe('api-key storage mapping', () => {
         enabled: true,
         expiresAt: null,
         createdAt,
-        // The adapter round-trips metadata through JSON strings.
-        metadata: JSON.stringify({ siteKey: 'demo' }),
+        // The site comes from the api_key_sites join, not from the plugin's metadata.
+        siteKey: 'demo',
         permissions: JSON.stringify({ pages: ['read', 'write'] }),
       }),
     ).toEqual({
@@ -45,7 +45,7 @@ describe('api-key storage mapping', () => {
       enabled: true,
       expiresAt: null,
       createdAt,
-      metadata: { siteKey: 'demo' },
+      metadata: { site: 'demo' },
       permissions: { pages: ['read', 'write'] },
     })
   })
@@ -59,7 +59,7 @@ describe('api-key storage mapping', () => {
       enabled: null,
       expiresAt: null,
       createdAt: new Date('2026-01-01T00:00:00Z'),
-      metadata: null,
+      siteKey: null,
       permissions: null,
     })
     expect(shaped.metadata).toBeNull()

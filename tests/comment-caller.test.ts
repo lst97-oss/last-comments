@@ -13,7 +13,7 @@ const visitor: SessionPrincipal = {
 }
 
 // Every port is a fake, so each test states exactly what the site and the
-// request look like and asserts which checks were reached.
+// request look like and asserts which checks were reached, in order.
 function fakeDeps(overrides: Partial<CallerDeps> = {}) {
   const calls: string[] = []
   const deps: CallerDeps = {
@@ -22,15 +22,9 @@ function fakeDeps(overrides: Partial<CallerDeps> = {}) {
       calls.push(`requireKey:${scope}:${siteKey}`)
       return { id: 'key-1' }
     },
-    siteAccess: async () => ({ access: 'open', gatewayOnly: false }),
-    assertOrigin: async (_siteKey, origin) => {
-      calls.push('assertOrigin')
-      return origin
-    },
-    requireOrigin: async (_siteKey, origin) => {
-      calls.push('requireOrigin')
-      if (!origin) throw new HttpError(403, 'ORIGIN_NOT_ALLOWED', 'Origin is not allowed')
-      return origin
+    siteContext: async (_siteKey, origin) => {
+      calls.push('siteContext')
+      return { access: 'open', gatewayOnly: false, originRegistered: origin !== null }
     },
     resolveSession: async () => {
       calls.push('resolveSession')
@@ -63,11 +57,11 @@ describe('resolveCommentCaller: service keys', () => {
     expect(calls).toEqual([`requireKey:comments:read:${site}`, `requireKey:comments:write:${site}`])
   })
 
-  test('a key caller acts for no user and gets no CORS echo, and skips Origin and session work', async () => {
+  test('a key caller acts for no user and gets no CORS echo, and skips the site, Origin and session work', async () => {
     const { deps, calls } = fakeDeps({ hasKey: () => true })
     const caller = await resolveCommentCaller(pageRequest({ 'x-api-key': 'lck_test' }), site, 'write', deps)
     expect(caller).toEqual({ principal: null, responseOrigin: null, keyId: 'key-1' })
-    expect(calls).not.toContain('requireOrigin')
+    expect(calls).not.toContain('siteContext')
     expect(calls).not.toContain('resolveSession')
   })
 
@@ -113,7 +107,9 @@ describe('resolveCommentCaller: service keys', () => {
 })
 
 describe('resolveCommentCaller: gateway-only sites', () => {
-  const gated = { siteAccess: async () => ({ access: 'open' as const, gatewayOnly: true }) }
+  const gated = {
+    siteContext: async () => ({ access: 'open' as const, gatewayOnly: true, originRegistered: true }),
+  }
 
   test('refuse a keyless caller even with a registered Origin', async () => {
     const { deps, calls } = fakeDeps({ ...gated })
@@ -121,7 +117,7 @@ describe('resolveCommentCaller: gateway-only sites', () => {
       resolveCommentCaller(pageRequest({ origin: 'https://lst97.dev' }), site, 'write', deps),
     )
     expect(error).toMatchObject({ status: 403, code: 'FORBIDDEN' })
-    // The refusal comes before any Origin or session work, so it cannot be bypassed by a header.
+    // The gate is read once, then refused before any session work, so a header cannot get past it.
     expect(calls).toEqual([])
   })
 
@@ -143,7 +139,7 @@ describe('resolveCommentCaller: visitor policy', () => {
     const { deps, calls } = fakeDeps()
     const caller = await resolveCommentCaller(pageRequest(), site, 'read', deps)
     expect(caller).toEqual({ principal: null, responseOrigin: null })
-    expect(calls).toEqual(['assertOrigin'])
+    expect(calls).toEqual(['siteContext'])
   })
 
   test('a read with a cookie resolves the signed-in visitor', async () => {
@@ -152,7 +148,7 @@ describe('resolveCommentCaller: visitor policy', () => {
     expect(caller.principal).toEqual(visitor)
   })
 
-  test('a write always resolves the session and requires an allowed Origin', async () => {
+  test('a write always resolves the session and requires a registered Origin', async () => {
     const { deps, calls } = fakeDeps({
       resolveSession: async () => {
         calls.push('resolveSession')
@@ -160,19 +156,21 @@ describe('resolveCommentCaller: visitor policy', () => {
       },
     })
     const caller = await resolveCommentCaller(pageRequest({ origin: 'https://lst97.dev' }), site, 'write', deps)
-    expect(calls).toEqual(['requireOrigin', 'resolveSession'])
+    expect(calls).toEqual(['siteContext', 'resolveSession'])
     expect(caller.principal).toEqual(visitor)
     expect(caller.responseOrigin).toBe('https://lst97.dev')
   })
 
   test('an open site admits an anonymous write', async () => {
-    const { deps } = fakeDeps({ requireOrigin: async () => 'https://lst97.dev' })
+    const { deps } = fakeDeps()
     const caller = await resolveCommentCaller(pageRequest({ origin: 'https://lst97.dev' }), site, 'write', deps)
     expect(caller.principal).toBeNull()
   })
 
   test('a login site admits an anonymous read but refuses an anonymous write with UNAUTHENTICATED', async () => {
-    const login = { siteAccess: async () => ({ access: 'login' as const, gatewayOnly: false }) }
+    const login = {
+      siteContext: async () => ({ access: 'login' as const, gatewayOnly: false, originRegistered: true }),
+    }
     const { deps } = fakeDeps(login)
     await expect(resolveCommentCaller(pageRequest(), site, 'read', deps)).resolves.toMatchObject({ principal: null })
     const error = await rejection(
@@ -183,7 +181,7 @@ describe('resolveCommentCaller: visitor policy', () => {
 
   test('a login site admits a signed-in write', async () => {
     const { deps } = fakeDeps({
-      siteAccess: async () => ({ access: 'login', gatewayOnly: false }),
+      siteContext: async () => ({ access: 'login', gatewayOnly: false, originRegistered: true }),
       resolveSession: async () => visitor,
     })
     const caller = await resolveCommentCaller(pageRequest({ origin: 'https://lst97.dev' }), site, 'write', deps)
@@ -191,26 +189,48 @@ describe('resolveCommentCaller: visitor policy', () => {
   })
 
   test('a private site refuses an anonymous read with UNAUTHENTICATED', async () => {
-    const { deps } = fakeDeps({ siteAccess: async () => ({ access: 'private', gatewayOnly: false }) })
+    const { deps } = fakeDeps({
+      siteContext: async () => ({ access: 'private', gatewayOnly: false, originRegistered: true }),
+    })
     const error = await rejection(resolveCommentCaller(pageRequest(), site, 'read', deps))
     expect(error).toMatchObject({ status: 401, code: 'UNAUTHENTICATED' })
   })
 
-  test('an unknown site keeps the open behaviour, so the origin check still decides', async () => {
-    const { deps } = fakeDeps({ siteAccess: async () => null })
+  test('an unknown site keeps the open behaviour for a read without an Origin', async () => {
+    const { deps } = fakeDeps({ siteContext: async () => null })
     const caller = await resolveCommentCaller(pageRequest(), site, 'read', deps)
     expect(caller.principal).toBeNull()
   })
 
-  test('an unregistered Origin on a write is refused by the origin check', async () => {
+  test('an unregistered Origin on a write is refused', async () => {
     const { deps } = fakeDeps({
-      requireOrigin: async () => {
-        throw new HttpError(403, 'ORIGIN_NOT_ALLOWED', 'Origin is not allowed')
-      },
+      siteContext: async () => ({ access: 'open', gatewayOnly: false, originRegistered: false }),
     })
     const error = await rejection(
       resolveCommentCaller(pageRequest({ origin: 'https://evil.example' }), site, 'write', deps),
     )
+    expect(error).toMatchObject({ status: 403, code: 'ORIGIN_NOT_ALLOWED' })
+  })
+
+  test('an unregistered Origin on a read is refused too, once the browser sent one', async () => {
+    const { deps } = fakeDeps({
+      siteContext: async () => ({ access: 'open', gatewayOnly: false, originRegistered: false }),
+    })
+    const error = await rejection(
+      resolveCommentCaller(pageRequest({ origin: 'https://evil.example' }), site, 'read', deps),
+    )
+    expect(error).toMatchObject({ status: 403, code: 'ORIGIN_NOT_ALLOWED' })
+  })
+
+  test('a write without any Origin is refused, even on an open site', async () => {
+    const { deps } = fakeDeps()
+    const error = await rejection(resolveCommentCaller(pageRequest(), site, 'write', deps))
+    expect(error).toMatchObject({ status: 403, code: 'ORIGIN_NOT_ALLOWED' })
+  })
+
+  test('a malformed Origin header is refused rather than compared', async () => {
+    const { deps } = fakeDeps()
+    const error = await rejection(resolveCommentCaller(pageRequest({ origin: 'not a url' }), site, 'read', deps))
     expect(error).toMatchObject({ status: 403, code: 'ORIGIN_NOT_ALLOWED' })
   })
 })

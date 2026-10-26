@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm'
 
 import { API_KEY_SCOPES, type ApiKeyScope } from '@/lib/api-key-scopes'
-import type { PluginKey } from '@/lib/site-keys'
+import { type ApiKeyRecord, SITE_BOUND_SCOPES } from '@/lib/api-keys'
 import { getBusinessAuth } from '@/server/auth/business-auth'
 import { getBusinessDb } from '@/server/db/business-sql'
-import { apikey } from '@/server/db/schema'
-import { HttpError } from '@/server/http/errors'
+import { apiKeySites, apikey, sites } from '@/server/db/schema'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 
 export { API_KEY_SCOPES, type ApiKeyScope }
 
@@ -38,7 +38,11 @@ export function assertValidScopeSet(siteKey: string | null, scopes: ApiKeyScope[
       ? (['sites:create', 'sites:read', 'sites:update', 'sites:delete'] as const)
       : (['pages:read', 'pages:write', 'pages:delete', 'comments:read', 'comments:write'] as const)
   if (scopes.length === 0 || !scopes.every((scope) => (allowed as readonly string[]).includes(scope))) {
-    throw new HttpError(400, 'INVALID_SCOPE_SET', 'Scope set is not valid for this key type')
+    throw new HttpError(
+      ErrorCode.INVALID_SCOPE_SET.status,
+      ErrorCode.INVALID_SCOPE_SET.code,
+      'Scope set is not valid for this key type',
+    )
   }
 }
 
@@ -77,24 +81,17 @@ export function permissionsToScopes(permissions: unknown): ApiKeyScope[] {
   return scopes
 }
 
-// Identity-only key inspection for the auth resolve layer: verifies the key
-// without enforcing any scope. Routes still call requireServiceKey(scope)
-// for authorization; resolvePrincipal never authorizes by itself.
-export async function inspectServiceKey(request: Request): Promise<ResolvedServiceKey | null> {
-  const secret = extractBearer(request)
-  if (!secret) return null
-  const auth = getBusinessAuth()
-  const result = await auth.api.verifyApiKey({ body: { key: secret } })
-  if (!result.valid || !result.key) return null
-  const metadata = (result.key.metadata ?? {}) as { siteKey?: unknown }
-  const boundSiteKey = typeof metadata.siteKey === 'string' ? metadata.siteKey : null
-  return {
-    id: result.key.id,
-    siteKey: boundSiteKey,
-    name: result.key.name,
-    actorUserId: result.key.referenceId,
-    scopes: permissionsToScopes(result.key.permissions),
-  }
+type BusinessDb = ReturnType<typeof getBusinessDb>
+
+// The site a key is bound to, read from api_key_sites. Null for an instance key.
+async function boundSiteKeyOf(keyId: string, db: BusinessDb = getBusinessDb()): Promise<string | null> {
+  const [row] = await db
+    .select({ siteKey: sites.key })
+    .from(apiKeySites)
+    .innerJoin(sites, eq(apiKeySites.siteId, sites.id))
+    .where(eq(apiKeySites.apiKeyId, keyId))
+    .limit(1)
+  return row?.siteKey ?? null
 }
 
 // Service keys live in `x-api-key` or in `Authorization`. Only the
@@ -116,28 +113,48 @@ export function hasServiceKey(request: Request): boolean {
   return extractBearer(request) !== null
 }
 
-// Verify + permission-check in one call: plugin checks the permissions map,
-// we check the site binding from metadata.
+// Verify + permission-check in one call: the plugin checks the permissions map,
+// and the site binding comes from api_key_sites. A key that needs a site but has no
+// binding is refused, so a half-created key cannot act on an instance route either.
 export async function requireServiceKey(
   request: Request,
   scope: ApiKeyScope,
   siteKey?: string,
 ): Promise<ResolvedServiceKey> {
   const secret = extractBearer(request)
-  if (!secret) throw new HttpError(401, 'INVALID_API_KEY', 'API key is required')
+  if (!secret)
+    throw new HttpError(ErrorCode.INVALID_API_KEY.status, ErrorCode.INVALID_API_KEY.code, 'API key is required')
   const { resource, action } = SCOPE_TO_PERMISSION[scope]
   const auth = getBusinessAuth()
   const result = await auth.api.verifyApiKey({ body: { key: secret, permissions: { [resource]: [action] } } })
   if (!result.valid || !result.key) {
     const code = result.error?.code
     if (code === 'KEY_NOT_FOUND')
-      throw new HttpError(403, 'INSUFFICIENT_SCOPE', 'API key lacks the required permission')
-    throw new HttpError(401, 'INVALID_API_KEY', 'API key is invalid, revoked, or expired')
+      throw new HttpError(
+        ErrorCode.INSUFFICIENT_SCOPE.status,
+        ErrorCode.INSUFFICIENT_SCOPE.code,
+        'API key lacks the required permission',
+      )
+    throw new HttpError(
+      ErrorCode.INVALID_API_KEY.status,
+      ErrorCode.INVALID_API_KEY.code,
+      'API key is invalid, revoked, or expired',
+    )
   }
-  const metadata = (result.key.metadata ?? {}) as { siteKey?: unknown }
-  const boundSiteKey = typeof metadata.siteKey === 'string' ? metadata.siteKey : null
+  const boundSiteKey = await boundSiteKeyOf(result.key.id)
+  if (boundSiteKey === null && SITE_BOUND_SCOPES.includes(scope)) {
+    throw new HttpError(
+      ErrorCode.INSUFFICIENT_SCOPE.status,
+      ErrorCode.INSUFFICIENT_SCOPE.code,
+      'API key is not bound to a site',
+    )
+  }
   if (boundSiteKey !== (siteKey ?? null)) {
-    throw new HttpError(403, 'INSUFFICIENT_SCOPE', 'API key is not authorized for this site')
+    throw new HttpError(
+      ErrorCode.INSUFFICIENT_SCOPE.status,
+      ErrorCode.INSUFFICIENT_SCOPE.code,
+      'API key is not authorized for this site',
+    )
   }
   return {
     id: result.key.id,
@@ -148,11 +165,10 @@ export async function requireServiceKey(
   }
 }
 
-// Server-side key issuance: permissions + site binding are set here, never
+// Server-side key issuance: permissions and the site binding are set here, never
 // from client input. Unbound keys hold sites:* (manage sites); site-bound keys
-// hold pages:* for exactly one site (register and read its threads).
-// Must run headerless: the plugin rejects server-only fields (permissions)
-// whenever request headers are present.
+// hold pages:* and comments:* for exactly one site. Must run headerless: the plugin
+// rejects server-only fields (permissions) whenever request headers are present.
 export async function issueServiceKey(input: {
   userId: string
   name: string
@@ -161,42 +177,41 @@ export async function issueServiceKey(input: {
   expiresIn?: number
 }) {
   assertValidScopeSet(input.siteKey, input.scopes)
-  const auth = getBusinessAuth()
-  return auth.api.createApiKey({
+  const db = getBusinessDb()
+  // Resolve the site before the key exists, so an unknown site creates nothing.
+  const [site] = input.siteKey
+    ? await db.select({ id: sites.id }).from(sites).where(eq(sites.key, input.siteKey)).limit(1)
+    : []
+  if (input.siteKey && !site)
+    throw new HttpError(ErrorCode.SITE_NOT_FOUND.status, ErrorCode.SITE_NOT_FOUND.code, 'Site was not found')
+
+  const created = await getBusinessAuth().api.createApiKey({
     body: {
       userId: input.userId,
       name: input.name,
       prefix: 'lck_',
-      metadata: input.siteKey ? { siteKey: input.siteKey } : {},
       permissions: scopesToPermissions(input.scopes),
       rateLimitEnabled: false,
       ...(input.expiresIn ? { expiresIn: input.expiresIn } : {}),
     },
   })
+  if (site) {
+    try {
+      await db.insert(apiKeySites).values({ apiKeyId: created.id, siteId: site.id })
+    } catch (error) {
+      // A key without its binding is refused, so the key is removed rather than left behind.
+      await db.delete(apikey).where(eq(apikey.id, created.id))
+      throw error
+    }
+  }
+  return created
 }
-
-type BusinessDb = ReturnType<typeof getBusinessDb>
 
 // Provider-neutral reads/writes straight against our own apikey table. The
 // plugin's /api-key/* endpoints resolve the caller from a better-auth session
 // cookie, so they cannot serve header/OIDC dashboard users; these helpers run
 // under the route's own session guard instead. Storage format matches the
-// plugin exactly (permissions as JSON text, metadata as JSON), so both paths
-// see the same keys.
-function parseKeyMetadata(metadata: unknown): { siteKey?: string } | null {
-  let value = metadata
-  while (typeof value === 'string') {
-    try {
-      value = JSON.parse(value)
-    } catch {
-      return null
-    }
-  }
-  if (typeof value !== 'object' || value === null) return null
-  const record = value as { siteKey?: unknown }
-  return typeof record.siteKey === 'string' ? { siteKey: record.siteKey } : null
-}
-
+// plugin exactly (permissions as JSON text), so both paths see the same keys.
 function parseKeyPermissions(permissions: string | null): Record<string, string[]> | null {
   if (!permissions) return null
   try {
@@ -221,9 +236,9 @@ export function toPluginKey(row: {
   enabled: boolean | null
   expiresAt: Date | null
   createdAt: Date
-  metadata: unknown
+  siteKey: string | null
   permissions: string | null
-}): PluginKey {
+}): ApiKeyRecord {
   return {
     id: row.id,
     name: row.name,
@@ -232,27 +247,31 @@ export function toPluginKey(row: {
     enabled: row.enabled ?? true,
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
-    metadata: parseKeyMetadata(row.metadata),
+    metadata: row.siteKey === null ? null : { site: row.siteKey },
     permissions: parseKeyPermissions(row.permissions),
   }
 }
 
-export type OwnedServiceKey = PluginKey & { actorUserId: string }
+export type OwnedServiceKey = ApiKeyRecord & { actorUserId: string }
 
-export async function listOwnedServiceKeys(userId: string, db: BusinessDb = getBusinessDb()): Promise<PluginKey[]> {
+const keyColumns = {
+  id: apikey.id,
+  name: apikey.name,
+  start: apikey.start,
+  prefix: apikey.prefix,
+  enabled: apikey.enabled,
+  expiresAt: apikey.expiresAt,
+  createdAt: apikey.createdAt,
+  permissions: apikey.permissions,
+  siteKey: sites.key,
+}
+
+export async function listOwnedServiceKeys(userId: string, db: BusinessDb = getBusinessDb()): Promise<ApiKeyRecord[]> {
   const rows = await db
-    .select({
-      id: apikey.id,
-      name: apikey.name,
-      start: apikey.start,
-      prefix: apikey.prefix,
-      enabled: apikey.enabled,
-      expiresAt: apikey.expiresAt,
-      createdAt: apikey.createdAt,
-      metadata: apikey.metadata,
-      permissions: apikey.permissions,
-    })
+    .select(keyColumns)
     .from(apikey)
+    .leftJoin(apiKeySites, eq(apiKeySites.apiKeyId, apikey.id))
+    .leftJoin(sites, eq(sites.id, apiKeySites.siteId))
     .where(eq(apikey.referenceId, userId))
     .orderBy(apikey.createdAt)
   return rows.map(toPluginKey)
@@ -260,19 +279,10 @@ export async function listOwnedServiceKeys(userId: string, db: BusinessDb = getB
 
 export async function readServiceKey(keyId: string, db: BusinessDb = getBusinessDb()): Promise<OwnedServiceKey | null> {
   const [row] = await db
-    .select({
-      id: apikey.id,
-      name: apikey.name,
-      start: apikey.start,
-      prefix: apikey.prefix,
-      enabled: apikey.enabled,
-      expiresAt: apikey.expiresAt,
-      createdAt: apikey.createdAt,
-      metadata: apikey.metadata,
-      permissions: apikey.permissions,
-      actorUserId: apikey.referenceId,
-    })
+    .select({ ...keyColumns, actorUserId: apikey.referenceId })
     .from(apikey)
+    .leftJoin(apiKeySites, eq(apiKeySites.apiKeyId, apikey.id))
+    .leftJoin(sites, eq(sites.id, apiKeySites.siteId))
     .where(eq(apikey.id, keyId))
     .limit(1)
   return row ? { ...toPluginKey(row), actorUserId: row.actorUserId } : null
@@ -288,7 +298,6 @@ export async function updateServiceKeyValues(
     .set({
       ...(patch.permissions ? { permissions: JSON.stringify(patch.permissions) } : {}),
       ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
-      updatedAt: new Date(),
     })
     .where(eq(apikey.id, keyId))
 }

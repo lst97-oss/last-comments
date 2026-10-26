@@ -1,3 +1,5 @@
+import { HttpStatus } from '@lst97-oss/last-httprism'
+
 import { toHttpError } from '@/server/http/errors'
 
 const INTERNAL_ERROR_MESSAGE = 'Something went wrong. Please try again.'
@@ -13,12 +15,15 @@ function mergeHeaders(init?: { headers?: HeadersInit }): Headers {
 }
 
 export function ok<T>(data: T, init?: { status?: number; headers?: HeadersInit }): Response {
-  return Response.json({ data }, { status: init?.status ?? 200, headers: mergeHeaders(init) })
+  return Response.json({ data }, { status: init?.status ?? HttpStatus.OK.code, headers: mergeHeaders(init) })
 }
 
 export function fail(error: unknown, init?: { headers?: HeadersInit }): Response {
   const httpError = toHttpError(error)
-  const canExposeMessage = httpError.status < 500 || ([501, 503].includes(httpError.status) && httpError.expose)
+  const canExposeMessage =
+    httpError.status < 500 ||
+    ([HttpStatus.NOT_IMPLEMENTED.code, HttpStatus.SERVICE_UNAVAILABLE.code].includes(httpError.status) &&
+      httpError.expose)
   const message = canExposeMessage ? httpError.message : INTERNAL_ERROR_MESSAGE
   const headers = new Headers(httpError.headers)
   if (init?.headers) {

@@ -52,14 +52,6 @@ export default {
         ],
       },
       {
-        // Canonical matchMedia listener with proper removeEventListener
-        // cleanup; the listener reads mql.matches (the same source the
-        // subscription came from) and state-start-undefined is the
-        // SSR-safe first-paint pattern.
-        files: ['src/hooks/use-mobile.ts', 'hooks/use-mobile.ts', 'use-mobile.ts'],
-        rules: ['react-hooks-js/set-state-in-effect'],
-      },
-      {
         // The React Compiler runs in annotation mode, so it only compiles
         // the files that opt in with 'use memo' (src/routes/moderation.tsx
         // and src/components/admin/sites-view.tsx). Everywhere else the

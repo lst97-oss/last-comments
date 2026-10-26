@@ -27,8 +27,8 @@ export const authFileSchema = z.strictObject({
     .max(254)
     .optional()
     .transform((value) => (value && value.length > 0 ? value : undefined)),
-  // Reverse-proxy SSO. Only enable behind a proxy you control; requests not
-  // arriving from `proxyCidr` are ignored.
+  // Reverse-proxy SSO. Only enable behind a proxy you control. Trust is decided by the socket peer:
+  // requests whose peer is outside `proxyCidr` are ignored, and a forwarded header never counts.
   header: z
     .strictObject({
       trustProxy: z.boolean().default(false),
@@ -36,6 +36,18 @@ export const authFileSchema = z.strictObject({
       userHeader: z.string().trim().min(1).default('x-forwarded-user'),
       emailHeader: z.string().trim().min(1).default('x-forwarded-email'),
       nameHeader: z.string().trim().min(1).default('x-forwarded-name'),
+      // Off: a proxy login creates its own account even when an existing account has the same email.
+      linkByEmail: z.boolean().default(false),
+    })
+    // Trusting every peer would let any client send identity headers. Name the proxy instead.
+    .superRefine((header, context) => {
+      if (header.trustProxy && header.proxyCidr === '*') {
+        context.addIssue({
+          code: 'custom',
+          path: ['proxyCidr'],
+          message: 'header.proxyCidr must name your proxy (a CIDR or address) while trustProxy is true',
+        })
+      }
     })
     // Full literal so partial file inputs (`{ providers: [...] }`) still
     // resolve: field defaults alone don't cover a missing object.
@@ -45,6 +57,7 @@ export const authFileSchema = z.strictObject({
       userHeader: 'x-forwarded-user',
       emailHeader: 'x-forwarded-email',
       nameHeader: 'x-forwarded-name',
+      linkByEmail: false,
     }),
   oidc: z
     .strictObject({
@@ -70,7 +83,14 @@ export type ResolvedAuthConfig = {
   providers: AuthConfigProviderName[]
   autoProvision: boolean
   bootstrapEmail: string | undefined
-  header: { trustProxy: boolean; proxyCidr: string; userHeader: string; emailHeader: string; nameHeader: string }
+  header: {
+    trustProxy: boolean
+    proxyCidr: string
+    userHeader: string
+    emailHeader: string
+    nameHeader: string
+    linkByEmail: boolean
+  }
   oidc: { emailClaim: string; clockSkewSeconds: number }
 }
 
@@ -87,6 +107,7 @@ export const authConfigDef = definePluginConfig({
       userHeader: 'x-forwarded-user',
       emailHeader: 'x-forwarded-email',
       nameHeader: 'x-forwarded-name',
+      linkByEmail: false,
     },
     oidc: { emailClaim: 'email', clockSkewSeconds: 60 },
   } satisfies AuthFileConfig,

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { HttpError } from '@/server/http/errors'
-import { getMembershipRole, requireSessionUserId } from '@/server/http/route-guards'
+import { ErrorCode, HttpError } from '@/server/http/errors'
+import { isSiteAdmin, requireSessionUserId } from '@/server/http/route-guards'
 import { parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
@@ -10,8 +10,9 @@ import { statsQuerySchema } from '@/server/modules/comments/http/comment-schemas
 import { getSiteId, getSiteStats } from '@/server/modules/comments/infrastructure/comment-repository'
 
 // Same access rule as page management: service keys need pages:read bound to
-// the site; sessions need instance admin or membership of that site. Reads
-// take no same-origin check (browsers omit Origin on same-origin GET).
+// the site; sessions need instance admin or admin of that site. A member
+// comments and gets no dashboard. Reads take no same-origin check (browsers
+// omit Origin on same-origin GET).
 async function requireStatsAccess(request: Request, siteKey: string): Promise<void> {
   if (hasServiceKey(request)) {
     await requireServiceKey(request, 'pages:read', siteKey)
@@ -19,8 +20,8 @@ async function requireStatsAccess(request: Request, siteKey: string): Promise<vo
   }
   const userId = await requireSessionUserId(request, 'Sign in to view dashboard stats')
   if (await hasInstanceAdmin(userId)) return
-  if ((await getMembershipRole(await getSiteId(siteKey), userId)) === null) {
-    throw new HttpError(403, 'FORBIDDEN', 'You cannot view this site')
+  if (!(await isSiteAdmin(await getSiteId(siteKey), userId))) {
+    throw new HttpError(ErrorCode.FORBIDDEN.status, ErrorCode.FORBIDDEN.code, 'Only site admins can view this site')
   }
 }
 

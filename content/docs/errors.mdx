@@ -70,3 +70,35 @@ The rendered block carries `data-lc-error` and `data-error-code` (empty when the
 | `SIGN_OUT_FAILED` | The sign-out request failed. |
 
 The list is `ApiError.code` in `packages/client/src/index.ts`.
+
+## API codes
+
+The server also returns codes the widgets never show, because the widgets send requests that cannot produce them. Your own server sees these from the API, in the `error.code` field.
+
+| Code | Status | Meaning |
+| --- | --- | --- |
+| `RATE_LIMITED` | 429 | Too many comment operations for this visitor, site and operation. The response has `Retry-After`. |
+| `RATE_LIMIT_UNAVAILABLE` | 503 | The rate-limit store could not be read or written. Writes fail closed. |
+| `COMMENT_PLUGIN_UNAVAILABLE` | 503 | A comment plugin did not answer in time. Retry shortly. |
+| `DATABASE_UNAVAILABLE` | 503 | The database is temporarily unavailable. Retry shortly. |
+| `OG_RENDER_BUSY` | 503 | The social card renderer is at its concurrency limit. The response has `Retry-After`. |
+| `AUTHOR_NAME_REQUIRED` | 400 | A guest comment needs an `authorName`. A signed-in account does not. |
+| `INVALID_PAGE_URL` | 400 | `url` is not an absolute HTTP(S) URL. |
+| `INVALID_PAGE_KEY` | 400 | `pageKey` is not a lowercase slug of up to 120 characters. |
+| `PAGE_KEY_MISMATCH` | 409 | The `pageKey` belongs to a different thread from the `url`. Threads are never merged. |
+| `PAGE_ORIGIN_NOT_ALLOWED` | 400 | A key tried to open a thread on a page URL whose origin the site has not registered. Register the origin first. |
+| `PAGE_NOT_FOUND` | 404 | The page does not exist on this site. |
+| `PAGE_UNAVAILABLE` | 500 | The page could not be created for the comment. Retry. |
+| `BODY_TOO_LARGE` | 413 | The JSON body is over 128 KiB. |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | The request body is not `application/json`. |
+| `INVALID_API_KEY` | 401 | The key is missing, invalid, revoked or expired. |
+| `API_KEY_NOT_FOUND` | 404 | No key with that id exists for this scope, or it belongs to another site. |
+| `INVALID_SCOPE_SET` | 400 | The scopes do not fit the key type: a site key takes page and comment scopes, an instance key takes `sites:*`. |
+| `NOTHING_TO_UPDATE` | 400 | A key update passed neither `scopes` nor `enabled`. |
+| `SITE_KEY_EXISTS` | 409 | A site with that key already exists. |
+| `SETUP_UNAVAILABLE` | 409 | The first-admin setup has already been used. |
+| `ADMIN_SIGNUP_FAILED` | 400 | The first admin account could not be created. |
+| `FEATURE_DISABLED` | 403 | Voting is off for this site (`votesEnabled`). Votes already cast are kept. |
+| `AUTH_PROVIDER_DISABLED` | 404 | The built-in login endpoints are off because `better-auth` is not in the enabled providers. Sign in through the configured provider. |
+| `OPENAPI_DISABLED` | 404 | The OpenAPI document and its reference page are not installed on this server. |
+| `INTERNAL_ERROR` | 500 | An unexpected failure. The message is generic; the request ID in `x-request-id` finds the log line. |

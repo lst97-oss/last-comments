@@ -17,9 +17,12 @@ The repository ships a `compose.yaml` stack for local development and small self
 
 ```bash
 cp .env.example .env
-# set PAYLOAD_SECRET, BETTER_AUTH_SECRET and both database URLs
+# set PAYLOAD_SECRET, BETTER_AUTH_SECRET (32+ random characters each) and both database URLs
+# local http://localhost runs only: also set NODE_ENV=development (Compose defaults to production)
 bun run stack:up
 ```
+
+Compose has no default secrets: it refuses to start until `PAYLOAD_SECRET` and `BETTER_AUTH_SECRET` are set. Production mode also refuses placeholder values such as the ones earlier releases shipped.
 
 `stack:up` is `docker compose up -d --build --wait`. The equivalent raw commands are:
 
@@ -99,15 +102,15 @@ Secrets:
 | `TAILSCALE_OAUTH_CLIENT_ID` | Tailscale OAuth client; needs the `auth_keys` write scope and `tag:ci` in its tag list |
 | `TAILSCALE_OAUTH_CLIENT_SECRET` | OAuth client secret |
 | `SSH_KEY_B64` | base64 of the private key whose public half is in the host's `authorized_keys` |
-| `PAYLOAD_SECRET` | Payload secret, 32+ characters |
-| `BETTER_AUTH_SECRET` | better-auth secret, 32+ characters |
+| `PAYLOAD_SECRET` | Payload secret, required, 32+ characters, no default |
+| `BETTER_AUTH_SECRET` | better-auth secret, required, 32+ characters, no default; also derives the rate-limit key |
 | `DATABASE_URL` | Postgres URL for the Payload database (append `?sslmode=...` when it uses TLS) |
 | `BUSINESS_DATABASE_URL` | Postgres URL for the business database (same conventions) |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Real Turnstile widget; the testing keys pass but verify nothing |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Token for the `tunnel` profile |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional; set both or neither |
 | `BLOG_SITE_KEY`, `BLOG_PUBLISHER_API_KEY` | Optional; enables the blog comment widget |
-| `OPENROUTER_API_KEY` | Optional; filter plugin |
+| `OPENROUTER_API_KEY` | Optional; enables the filter LLM engine, which sends comment text, author names and images to OpenRouter |
 | `GHCR_TOKEN` | Optional PAT with `read:packages`; defaults to `GITHUB_TOKEN` |
 
 Variables: `TAILSCALE_HOST` (the host's tailnet address, e.g. `100.102.247.97`), `SSH_USER` (defaults to `lst97`), `APP_PORT` (defaults to `3000`).
@@ -130,3 +133,7 @@ docker compose up -d
 ```
 
 The `migrate` service runs before the app starts. Rebuild after changing dependencies or source. If a migration fails, `docker compose logs migrate` shows the error and the app does not start.
+
+### Moving to 0.3.0 needs a new business database
+
+0.3.0 replaces the comment and API-key schema with one baseline, and nothing is backfilled from 0.2.x. Point `BUSINESS_DATABASE_URL` at a new, empty database before the first start, and the `migrate` service applies the baseline there. Comments, votes and API keys in the old business database do not carry over. The Payload database (`DATABASE_URL`) needs no such change.

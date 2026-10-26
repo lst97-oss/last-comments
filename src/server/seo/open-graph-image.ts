@@ -12,6 +12,7 @@ import sharp from 'sharp'
 import { z } from 'zod'
 
 import { OG_FRAMEWORKS, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '@/lib/seo/og-image'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { parseSearchParams } from '@/server/http/validation'
 import { renderTextPaths, wrapText } from '@/server/seo/og-text'
 
@@ -65,11 +66,39 @@ export async function handleOpenGraphImage(url: string): Promise<Response> {
   })
 }
 
+// Each uncached card is CPU work on an unauthenticated route. Cap the renders in flight; a saturated
+// instance answers 503 and a crawler retries. Cache hits never count against the cap.
+const MAX_CONCURRENT_RENDERS = 4
+let activeRenders = 0
+
+export async function withRenderSlot<T>(render: () => Promise<T>): Promise<T> {
+  if (activeRenders >= MAX_CONCURRENT_RENDERS) {
+    throw new HttpError(
+      ErrorCode.OG_RENDER_BUSY.status,
+      ErrorCode.OG_RENDER_BUSY.code,
+      'Image rendering is busy, retry shortly',
+      {
+        expose: true,
+        headers: { 'retry-after': '2' },
+      },
+    )
+  }
+  activeRenders++
+  try {
+    return await render()
+  } finally {
+    activeRenders--
+  }
+}
+
 export async function renderOpenGraphImage(input: OpenGraphImageInput): Promise<Uint8Array> {
   const key = `${input.title}\n${input.description}`
   const cached = cache.get(key)
   if (cached) return cached
+  return withRenderSlot(() => renderUncached(key, input))
+}
 
+async function renderUncached(key: string, input: OpenGraphImageInput): Promise<Uint8Array> {
   const artwork = decodeDataUrl(artworkDataUrl)
   const metadata = await sharp(artwork).metadata()
   const width = metadata.width ?? OG_IMAGE_WIDTH

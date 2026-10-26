@@ -9,7 +9,7 @@ describe('applyCors', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('https://www.lst97.dev')
     expect(response.headers.get('access-control-allow-credentials')).toBe('true')
     expect(response.headers.get('access-control-allow-methods')).toBe('GET, POST, OPTIONS')
-    expect(response.headers.get('access-control-allow-headers')).toBe('content-type')
+    expect(response.headers.get('access-control-allow-headers')).toBe('content-type, x-lc-edit-key')
     expect(response.headers.get('vary')).toBe('Origin')
   })
 

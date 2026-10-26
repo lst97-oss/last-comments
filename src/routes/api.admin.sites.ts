@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { assertSameOrigin, requireSessionUserId } from '@/server/http/route-guards'
 import { parseJsonBody } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { adminSiteSchema } from '@/server/modules/admin/http/admin-schemas'
+import { requireDashboardUser } from '@/server/modules/admin/http/dashboard-guard'
 import {
   createAdminSite,
   hasInstanceAdmin,
@@ -23,7 +24,8 @@ async function requireSiteReader(request: Request): Promise<string | null> {
   }
   // Reads take no same-origin check: browsers omit Origin on same-origin GET,
   // and a cross-origin caller cannot read the JSON without CORS headers.
-  return requireSessionUserId(request, 'Sign in to manage sites')
+  // The list is the dashboard's, so only admins read it. Members get no sites list.
+  return requireDashboardUser(request, 'Sign in to manage sites')
 }
 
 async function requireSiteCreator(request: Request): Promise<string | null> {
@@ -34,7 +36,11 @@ async function requireSiteCreator(request: Request): Promise<string | null> {
   assertSameOrigin(request, SITE_MANAGEMENT_ORIGIN_MESSAGE)
   const userId = await requireSessionUserId(request, 'Sign in to manage sites')
   if (!(await hasInstanceAdmin(userId))) {
-    throw new HttpError(403, 'FORBIDDEN', 'Only the instance admin can create sites')
+    throw new HttpError(
+      ErrorCode.FORBIDDEN.status,
+      ErrorCode.FORBIDDEN.code,
+      'Only the instance admin can create sites',
+    )
   }
   return userId
 }
@@ -63,7 +69,11 @@ export const Route = createFileRoute('/api/admin/sites')({
             return { site: await createAdminSite(ownerUserId, body) }
           } catch (error) {
             if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
-              throw new HttpError(409, 'SITE_KEY_EXISTS', 'A site with this key already exists')
+              throw new HttpError(
+                ErrorCode.SITE_KEY_EXISTS.status,
+                ErrorCode.SITE_KEY_EXISTS.code,
+                'A site with this key already exists',
+              )
             }
             throw error
           }

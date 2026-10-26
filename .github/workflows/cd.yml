@@ -20,7 +20,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PUBLIC_URL: https://last-comments.lst97.dev
   IMAGE: ghcr.io/lst97-oss/last-comments
   # workflow_run has no github.sha of the deployed commit; it carries the sha.
   DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -33,10 +32,13 @@ jobs:
     timeout-minutes: 30
     environment:
       name: production
-      url: https://last-comments.lst97.dev
+      url: ${{ vars.PAYLOAD_PUBLIC_SERVER_URL }}
+    env:
+      # Per-environment domain; the production value lives in the GitHub variable.
+      PUBLIC_URL: ${{ vars.PAYLOAD_PUBLIC_SERVER_URL }}
     steps:
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v4.2.0
+        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}

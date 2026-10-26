@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { HttpError } from '@/server/http/errors'
-import { assertSameOrigin, getMembershipRole, requireSessionUserId } from '@/server/http/route-guards'
+import { ErrorCode, HttpError } from '@/server/http/errors'
+import { assertSameOrigin, isSiteAdmin, requireSessionUserId } from '@/server/http/route-guards'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
@@ -15,9 +15,10 @@ import {
   upsertPage,
 } from '@/server/modules/comments/infrastructure/comment-repository'
 
-// Session callers are instance admins or members of the target site; service
-// keys need pages:read / pages:write bound to that exact site. Reads take no
-// same-origin check (browsers omit Origin on same-origin GET).
+// Session callers are instance admins or admins of the target site; service
+// keys need pages:read / pages:write bound to that exact site. A member cannot
+// manage pages. Reads take no same-origin check (browsers omit Origin on
+// same-origin GET).
 async function requirePageAccess(
   request: Request,
   siteKey: string,
@@ -30,8 +31,8 @@ async function requirePageAccess(
   if (scope === 'pages:write') assertSameOrigin(request, 'Page management must use the application origin')
   const userId = await requireSessionUserId(request, 'Sign in to manage pages')
   if (await hasInstanceAdmin(userId)) return
-  if ((await getMembershipRole(await getSiteId(siteKey), userId)) === null) {
-    throw new HttpError(403, 'FORBIDDEN', 'You cannot manage this site')
+  if (!(await isSiteAdmin(await getSiteId(siteKey), userId))) {
+    throw new HttpError(ErrorCode.FORBIDDEN.status, ErrorCode.FORBIDDEN.code, 'Only site admins can manage pages')
   }
 }
 
@@ -63,7 +64,11 @@ export const Route = createFileRoute('/api/admin/pages')({
         withContext(async () => {
           const { site, pageKey, url } = parseSearchParams(request.url, pageDeleteQuerySchema)
           if ((pageKey === undefined) === (url === undefined)) {
-            throw new HttpError(400, 'VALIDATION_ERROR', 'Give exactly one of pageKey or url')
+            throw new HttpError(
+              ErrorCode.VALIDATION_ERROR.status,
+              ErrorCode.VALIDATION_ERROR.code,
+              'Give exactly one of pageKey or url',
+            )
           }
           const actorUserId = await requirePageDeleteAccess(request, site)
           const target = pageKey === undefined ? { url: url ?? '' } : { pageKey }

@@ -5,14 +5,21 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 
 type DiagramStatus = { state: 'loading' } | { state: 'ready'; svg: string } | { state: 'error'; error: string }
+// The render key (theme + chart) that produced a status. A status from another key is stale.
+type DiagramResult = { renderKey: string; status: DiagramStatus }
+
+const LOADING: DiagramStatus = { state: 'loading' }
 
 // Client-only Mermaid renderer. `mermaid` touches `document` at import time,
 // so it stays behind a dynamic import and never enters the SSR/RSC graph.
 // Callers split ```mermaid fences out before the base markdown pipeline runs.
 export function MermaidDiagram({ chart }: { chart: string }) {
   const rawId = useId()
-  const [status, setStatus] = useState<DiagramStatus>({ state: 'loading' })
   const { resolvedTheme } = useTheme()
+  const renderKey = `${resolvedTheme}:${chart}`
+  const [result, setResult] = useState<DiagramResult | null>(null)
+  // Derived, not stored: a new chart or theme shows the loading state on this render, with no extra pass.
+  const status = result?.renderKey === renderKey ? result.status : LOADING
   // Monotonic render generation: only the latest attempt may paint. Each
   // attempt also gets its own diagram id — mermaid requires ids to be unique
   // and overlapping same-id renders corrupt each other's DOM containers.
@@ -22,7 +29,6 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     const baseId = `lc-mermaid-${rawId.replace(/[^a-zA-Z0-9]/g, '')}`
     const dark = resolvedTheme === 'dark'
     let cancelled = false
-    setStatus({ state: 'loading' })
 
     async function render() {
       const gen = (stateRef.current.gen += 1)
@@ -32,10 +38,11 @@ export function MermaidDiagram({ chart }: { chart: string }) {
         mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' })
         const { svg: rendered } = await mermaid.render(`${baseId}-g${gen}`, chart)
         if (cancelled || gen !== stateRef.current.gen) return
-        setStatus({ state: 'ready', svg: rendered })
+        setResult({ renderKey, status: { state: 'ready', svg: rendered } })
       } catch (cause) {
         if (cancelled || gen !== stateRef.current.gen) return
-        setStatus({ state: 'error', error: cause instanceof Error ? cause.message : String(cause) })
+        const error = cause instanceof Error ? cause.message : String(cause)
+        setResult({ renderKey, status: { state: 'error', error } })
       }
     }
 
@@ -43,7 +50,7 @@ export function MermaidDiagram({ chart }: { chart: string }) {
     return () => {
       cancelled = true
     }
-  }, [chart, rawId, resolvedTheme])
+  }, [chart, renderKey, rawId, resolvedTheme])
 
   if (status.state === 'error') {
     return (

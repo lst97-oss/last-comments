@@ -190,4 +190,44 @@ describe('rate-limit plugin', () => {
       else Bun.env.BETTER_AUTH_SECRET = previousSecret
     }
   })
+
+  test('caps a key holder who rotates client ids at the key-wide budget', async () => {
+    const previousSecret = Bun.env.BETTER_AUTH_SECRET
+    Bun.env.BETTER_AUTH_SECRET = 'test-secret-that-is-long-enough-32'
+    // A real per-identity counter: each fresh client id starts at zero, as it would in storage.
+    const counts = new Map<string, number>()
+    const plugin = createRateLimitPlugin(
+      () => null,
+      async ({ siteKey, identityHash, operation, windowStart }) => {
+        const slot = `${siteKey}|${identityHash}|${operation}|${windowStart}`
+        const next = (counts.get(slot) ?? 0) + 1
+        counts.set(slot, next)
+        return next
+      },
+      undefined,
+      {
+        'comment.create': { count: 5, windowSeconds: 600 },
+        'comment.edit': { count: 20, windowSeconds: 600 },
+        'comment.delete': { count: 20, windowSeconds: 600 },
+        'comment.vote': { count: 60, windowSeconds: 60 },
+      },
+    )
+    const request = new Request('https://comments.example/api/comments', { method: 'POST' })
+    const attempt = (clientId: string) =>
+      plugin.beforeOperation?.(
+        { operation: 'comment.create', siteKey: 'docs', userId: null, request, keyId: 'key-1', clientId },
+        new AbortController().signal,
+      )
+    try {
+      // 5 per visitor x KEY_BUCKET_MULTIPLIER (50) = 250 across the key; each fresh client id stays under its own 5.
+      for (let index = 0; index < 250; index += 1) await attempt(`rotating-client-${index}-0000000000`)
+      await expect(attempt('rotating-client-fresh-0000000000')).rejects.toMatchObject({
+        status: 429,
+        code: 'RATE_LIMITED',
+      })
+    } finally {
+      if (previousSecret === undefined) delete Bun.env.BETTER_AUTH_SECRET
+      else Bun.env.BETTER_AUTH_SECRET = previousSecret
+    }
+  })
 })

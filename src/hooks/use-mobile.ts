@@ -1,22 +1,23 @@
-import * as React from 'react'
+import { useSyncExternalStore } from 'react'
 
 // The JS-visible copy of Tailwind's `md` breakpoint. The media query is the
-// single source of truth: the listener reads it instead of measuring the
-// window separately, so both can never disagree.
+// single source of truth: the subscription and the snapshot read the same
+// `matchMedia` result, so the two can never disagree.
 const MOBILE_BREAKPOINT = 768
+const MOBILE_QUERY = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+function subscribe(onChange: () => void): () => void {
+  const mql = window.matchMedia(MOBILE_QUERY)
+  mql.addEventListener('change', onChange)
+  return () => mql.removeEventListener('change', onChange)
+}
 
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(mql.matches)
-    }
-    mql.addEventListener('change', onChange)
-    setIsMobile(mql.matches)
-    return () => mql.removeEventListener('change', onChange)
-  }, [])
+function getSnapshot(): boolean {
+  return window.matchMedia(MOBILE_QUERY).matches
+}
 
-  return !!isMobile
+// The server has no viewport, so it renders the desktop layout and the client
+// corrects it on hydration, the same first paint as before.
+export function useIsMobile(): boolean {
+  return useSyncExternalStore(subscribe, getSnapshot, () => false)
 }

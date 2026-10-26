@@ -60,11 +60,24 @@ admin or support — are `illicit_pii`. Malware links and commands such as
 Extraction mirrors the review widget renderer (`http(s)` only — `data:` /
 `blob:` / `javascript:` fall back to alt text in the widget and are never
 fetched here). Each kept image (default max 3) is fetched with a per-image
-timeout + byte cap (loopback/RFC-1918 hosts blocked), downscaled with `sharp`
-to a 512px JPEG q60 thumbnail, and sent as an `image_url` part in the same
-one-shot decisions request (with `detail: 'low'`). An empty image schema set
-skips all fetching (zero vision cost). Thumbnails are in-memory only and
-never stored.
+timeout + byte cap, downscaled with `sharp` to a 512px JPEG q60 thumbnail, and
+sent as an `image_url` part in the same one-shot decisions request (with
+`detail: 'low'`). An empty image schema set skips all fetching (zero vision
+cost). Thumbnails are in-memory only and never stored.
+
+The fetch is a server-side request to a commenter's URL, so it is guarded per
+hop: only ports 80 and 443 are used; every address the host resolves to must be
+public (loopback, private, link-local and cloud-metadata, carrier-grade NAT,
+unique-local, multicast and reserved ranges are refused, IPv4-mapped and 6to4
+forms included); redirects are followed one checked hop at a time (at most
+three); and the body is read only up to the byte cap. The DNS check and the
+connection are two steps, so a name that changes its answer in between is a
+remaining gap (see `shortcut:` in `image-prep.ts`).
+
+**Data leaves the instance.** When the LLM engine is on, the author name, the
+comment text, the site host and the image thumbnails are sent to OpenRouter for
+every screened comment. Turn `engines.llm` off, or leave `OPENROUTER_API_KEY`
+unset, if that data must stay on your server.
 
 ## What a hit does
 

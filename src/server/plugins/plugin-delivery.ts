@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, lte, ne, notExists, sql } from 'drizzle-orm'
 
 import { getBusinessDb } from '@/server/db/business-sql'
 import { pluginDeliveries, pluginEvents } from '@/server/db/schema'
@@ -8,6 +8,9 @@ import { type CommentEventType, getCommentPlugins } from '@/server/plugins/comme
 const MAX_ATTEMPTS = 8
 const DELIVERY_LEASE_MS = 60_000
 const HANDLER_TIMEOUT_MS = 30_000
+const BATCH_SIZE = 20
+// Delivered events stay this long for audit, then go with their delivery rows.
+const EVENT_RETENTION_MS = 30 * 86_400_000
 const logger = getRequestLogger().child({ component: 'plugin-delivery' })
 
 export function getPluginRetryDelayMs(attempt: number): number {
@@ -20,47 +23,55 @@ export function hasOutboxSubscribers(plugins = getCommentPlugins()): boolean {
 }
 
 export async function deliverPendingPluginEvents(db = getBusinessDb(), now = new Date()): Promise<number> {
-  const due = await db
-    .select({
+  // One locked claim per batch: SKIP LOCKED means two workers never take the same row, and the lease
+  // (next_attempt_at) moves forward in the same write. A crashed worker's rows come due again.
+  const claimed = await db
+    .update(pluginDeliveries)
+    .set({
+      status: 'processing',
+      attempts: sql`${pluginDeliveries.attempts} + 1`,
+      nextAttemptAt: new Date(now.getTime() + DELIVERY_LEASE_MS),
+    })
+    .where(
+      inArray(
+        pluginDeliveries.id,
+        db
+          .select({ id: pluginDeliveries.id })
+          .from(pluginDeliveries)
+          .where(
+            and(inArray(pluginDeliveries.status, ['pending', 'processing']), lte(pluginDeliveries.nextAttemptAt, now)),
+          )
+          .orderBy(asc(pluginDeliveries.nextAttemptAt))
+          .limit(BATCH_SIZE)
+          .for('update', { skipLocked: true }),
+      ),
+    )
+    .returning({
       deliveryId: pluginDeliveries.id,
       pluginId: pluginDeliveries.pluginId,
       attempts: pluginDeliveries.attempts,
-      eventId: pluginEvents.id,
-      siteId: pluginEvents.siteId,
-      eventType: pluginEvents.eventType,
-      apiVersion: pluginEvents.apiVersion,
-      aggregateId: pluginEvents.aggregateId,
-      payload: pluginEvents.payload,
-      occurredAt: pluginEvents.occurredAt,
+      eventId: pluginDeliveries.eventId,
     })
-    .from(pluginDeliveries)
-    .innerJoin(pluginEvents, eq(pluginDeliveries.eventId, pluginEvents.id))
-    .where(and(inArray(pluginDeliveries.status, ['pending', 'processing']), lte(pluginDeliveries.nextAttemptAt, now)))
-    .orderBy(asc(pluginDeliveries.nextAttemptAt))
-    .limit(20)
+  if (claimed.length === 0) return 0
+
+  const events = await db
+    .select()
+    .from(pluginEvents)
+    .where(
+      inArray(
+        pluginEvents.id,
+        claimed.map((delivery) => delivery.eventId),
+      ),
+    )
+  const eventById = new Map(events.map((event) => [event.id, event]))
 
   let processed = 0
-  for (const delivery of due) {
-    const [claimed] = await db
-      .update(pluginDeliveries)
-      .set({
-        status: 'processing',
-        attempts: sql`${pluginDeliveries.attempts} + 1`,
-        nextAttemptAt: new Date(now.getTime() + DELIVERY_LEASE_MS),
-      })
-      .where(
-        and(
-          eq(pluginDeliveries.id, delivery.deliveryId),
-          inArray(pluginDeliveries.status, ['pending', 'processing']),
-          lte(pluginDeliveries.nextAttemptAt, now),
-        ),
-      )
-      .returning({ attempts: pluginDeliveries.attempts })
-    if (!claimed) continue
-
+  for (const delivery of claimed) {
+    const event = eventById.get(delivery.eventId)
+    if (!event) continue
     processed += 1
     const plugin = getCommentPlugins().find((candidate) => candidate.id === delivery.pluginId)
-    const eventType = delivery.eventType as CommentEventType
+    const eventType = event.eventType as CommentEventType
     try {
       if (!plugin?.handleEvent || !plugin.events?.includes(eventType)) {
         throw new Error('PLUGIN_NOT_REGISTERED')
@@ -70,13 +81,13 @@ export async function deliverPendingPluginEvents(db = getBusinessDb(), now = new
       try {
         await Promise.race([
           plugin.handleEvent({
-            id: delivery.eventId,
-            siteId: delivery.siteId,
+            id: event.id,
+            siteId: event.siteId,
             type: eventType,
             apiVersion: 1,
-            aggregateId: delivery.aggregateId,
-            occurredAt: delivery.occurredAt.toISOString(),
-            payload: delivery.payload,
+            aggregateId: event.aggregateId,
+            occurredAt: event.occurredAt.toISOString(),
+            payload: event.payload,
             signal: controller.signal,
           }),
           new Promise<never>((_, reject) => {
@@ -95,25 +106,45 @@ export async function deliverPendingPluginEvents(db = getBusinessDb(), now = new
         .where(eq(pluginDeliveries.id, delivery.deliveryId))
     } catch (error) {
       const missingPlugin = error instanceof Error && error.message === 'PLUGIN_NOT_REGISTERED'
-      const exhausted = claimed.attempts >= MAX_ATTEMPTS
+      const exhausted = delivery.attempts >= MAX_ATTEMPTS
       const status = missingPlugin || exhausted ? 'dead_letter' : 'pending'
       const lastError = missingPlugin ? 'PLUGIN_NOT_REGISTERED' : 'PLUGIN_HANDLER_ERROR'
       await db
         .update(pluginDeliveries)
         .set({
           status,
-          nextAttemptAt: new Date(now.getTime() + getPluginRetryDelayMs(claimed.attempts)),
+          nextAttemptAt: new Date(now.getTime() + getPluginRetryDelayMs(delivery.attempts)),
           lastError,
         })
         .where(eq(pluginDeliveries.id, delivery.deliveryId))
       logger.warn('plugin.delivery.failed', {
         pluginId: delivery.pluginId,
         eventType,
-        attempt: claimed.attempts,
+        attempt: delivery.attempts,
         status,
         code: lastError,
       })
     }
   }
   return processed
+}
+
+// Removes events whose every delivery finished, once they are older than the retention window.
+// Events with a pending or dead-letter delivery stay, so a retry or an investigation still has them.
+export async function purgeDeliveredPluginEvents(db = getBusinessDb(), now = new Date()): Promise<number> {
+  const removed = await db
+    .delete(pluginEvents)
+    .where(
+      and(
+        lte(pluginEvents.occurredAt, new Date(now.getTime() - EVENT_RETENTION_MS)),
+        notExists(
+          db
+            .select({ id: pluginDeliveries.id })
+            .from(pluginDeliveries)
+            .where(and(eq(pluginDeliveries.eventId, pluginEvents.id), ne(pluginDeliveries.status, 'delivered'))),
+        ),
+      ),
+    )
+    .returning({ id: pluginEvents.id })
+  return removed.length
 }

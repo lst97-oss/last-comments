@@ -55,18 +55,39 @@ Identity headers from a proxy that already authenticated the user (Cloudflare Ac
 providers: ['header'],
 header: {
   trustProxy: true,
-  proxyCidr: '10.0.0.0/8',
+  proxyCidr: '10.0.0.0/8', // the address your app sees for the proxy
   userHeader: 'x-forwarded-user',
   emailHeader: 'x-forwarded-email',
   nameHeader: 'x-forwarded-name', // default shown; omit keys you don't override
+  linkByEmail: false, // default: a proxy login never attaches to an existing account
 },
 ```
 
 <Callout type="error" title="Fail closed by default">
-  Without `trustProxy: true` the headers are ignored entirely. With it, requests arriving outside `proxyCidr` are ignored too — a misconfigured proxy fails closed instead of trusting forged headers.
+  Without `trustProxy: true` the headers are ignored entirely. With it, the proxy is recognised by the socket address your app sees, never by a forwarded header a client can write, and any request from outside `proxyCidr` is ignored. `proxyCidr: '*'` is refused while `trustProxy` is on, so a misconfigured proxy cannot trust every client.
 </Callout>
+
+By default a proxy login creates its own account, even when an existing account has the same email. Set `linkByEmail: true` only if the proxy's email is the authority for that account and you accept that the proxy vouches for it. Turning it on lets a proxy login sign in to whichever account holds that address, including the instance admin.
 </Tab>
 </Tabs>
+
+## Roles and the dashboard
+
+An account can hold one role per site, and one account may also be the instance admin:
+
+| Role | Who holds it | What it can do |
+| --- | --- | --- |
+| Instance admin | One account: the one created during setup, or granted with `bun run db:business:grant-admin` | Everything: moderation of every site, instance settings, creating sites, and every site's admin tasks |
+| Site admin (`admin`) | The account that created the site, on that site | Manage the site: its settings, pages, API keys, stats, user directory and comment history |
+| Member (`member`) | Every other signed-in account on a site, derived automatically: no row is stored | Comment, edit its own comments, and vote, as the site's access level allows. No dashboard, no management |
+
+A guest (no account) has no role. The public `Member` badge marks a member; an admin's comments carry the `Admin` badge.
+
+The dashboard is for admins: the instance admin, or a site admin of at least one site. After sign-in, a member sees an "Admins only" page, and the dashboard's data endpoints refuse the same identity with `403 FORBIDDEN`. The server decides both: `GET /api/session` returns a `dashboard` flag, and each admin route checks the role on every request. Hiding a link is never the only control.
+
+Inside the dashboard, comment moderation (the Moderation area and `/api/moderation`) and the instance settings are the instance admin's tasks. A site admin manages its own sites' pages, API keys, stats and users.
+
+Only admin rows are stored. The account that creates a site in the dashboard becomes its admin; a site created with an instance key has no creator account, so no admin is set. Every other signed-in account is a `member` on every site automatically, and nothing is written at login or registration.
 
 ## Identity mapping
 
@@ -81,7 +102,7 @@ External subjects link to the canonical user row (`external_identities`: provide
 
 Publisher keys (`lck_*`) verify before any session provider and are unaffected by the choice above — machine callers keep working when interactive login moves to OIDC or proxy SSO. Keys are issued server-side only, with permissions and site binding the client can never set.
 
-Two comment scopes let a host server act for its visitors without exposing the key to the browser: `comments:read` loads a site's comments and `comments:write` posts and edits guest comments. A key holding them never acts as a user, and votes stay session-only. Both scopes need a key bound to one site.
+Two comment scopes let a host server act for its visitors without exposing the key to the browser: `comments:read` loads a site's comments and `comments:write` posts and edits guest comments. A key holding them never acts as a user, and votes stay session-only. A key may relay a guest's edit key, so the host can let a guest edit or delete their own comment: in the JSON body as `editKey` for `PATCH`, and in the `x-lc-edit-key` header for `DELETE`. Both scopes need a key bound to one site. The [API keys and permissions](/docs/api-keys) guide lists which permission each site setting needs and how to handle the key.
 
 ## Who can comment: access and the gateway
 
@@ -93,6 +114,8 @@ Each site has two settings, set in the dashboard or with `PATCH /api/admin/sites
 | `login` | yes | no: needs a signed-in session or a key |
 | `private` | no: needs a session or a key | no: needs a session or a key |
 
+The widgets show a signed-out visitor these states without a request that would be refused. On a `login` site the composer is replaced by a sign-in card and Reply opens the same card. On a `private` site the thread is replaced by one card and the list is not requested. The card follows the host's theme through the `--lc-signin-*` tokens.
+
 `gatewayOnly` (default `false`) is the transport setting. When it is on, a request without a site-bound key is refused with `403 FORBIDDEN`, even with a registered Origin. An Origin header is set by the caller, so it proves nothing against a script or curl; the key is what proves the request came through your host.
 
 Pick the setting that matches what your host can run:
@@ -102,6 +125,8 @@ Pick the setting that matches what your host can run:
 | No server (static site, GitHub Pages) | Nowhere: a key in browser code is public | `open` with the default widget. Turnstile and rate limits are the only protection. |
 | A function or edge runtime | The function's environment | `open` plus `gatewayOnly`, with a small proxy function. |
 | A full server | The application's environment | `open` plus `gatewayOnly`, with the proxy in the application. |
+
+A key skips these settings. The [permissions by site setting](/docs/api-keys#permissions-by-site-setting) table lists what a host's key needs for each option.
 
 `login` and `private` use the comments service's own session cookie, which a browser sends only to the API's registrable domain. Use them only when the API sits on a sibling subdomain of the page (for example `comments.example.com` for `www.example.com`). They are not an option for an arbitrary static host.
 
@@ -116,7 +141,8 @@ Policy lives in `src/server/auth/auth.config.ts`; endpoint identity and credenti
 | `providers` | Enabled providers, first match wins (`AUTH_PROVIDERS` env overrides when set) | `['better-auth']` |
 | `autoProvision` | Create linked users on first external login | `true` |
 | `bootstrapEmail` | Only address allowed to claim the first admin remotely | unset |
-| `header.trustProxy` / `header.proxyCidr` | Enable proxy SSO / allowed proxy source | `false` / `*` |
+| `header.trustProxy` / `header.proxyCidr` | Enable proxy SSO / the proxy's address or CIDR (required with `trustProxy`; `*` is refused) | `false` / `*` |
+| `header.linkByEmail` | Attach a proxy login to the existing account with the same email | `false` |
 | `header.userHeader` / `header.emailHeader` / `header.nameHeader` | Trusted header names | `x-forwarded-*` |
 | `oidc.emailClaim` / `oidc.clockSkewSeconds` | Email claim name / expiry leeway | `'email'` / `60` |
 

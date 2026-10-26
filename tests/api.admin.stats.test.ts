@@ -60,6 +60,7 @@ test('dashboard stats aggregate totals, a zero-filled daily series and moderatio
     .insert(comments)
     .values([
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Visible today',
         bodyMarkdown: 'One',
@@ -67,6 +68,7 @@ test('dashboard stats aggregate totals, a zero-filled daily series and moderatio
         createdAt: now,
       },
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Visible yesterday',
         bodyMarkdown: 'Two',
@@ -74,6 +76,7 @@ test('dashboard stats aggregate totals, a zero-filled daily series and moderatio
         createdAt: yesterday,
       },
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Hidden',
         bodyMarkdown: 'Three',
@@ -81,13 +84,16 @@ test('dashboard stats aggregate totals, a zero-filled daily series and moderatio
         createdAt: yesterday,
       },
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Deleted',
         bodyMarkdown: 'Four',
         status: 'deleted',
+        deletedAt: twoDaysAgo,
         createdAt: twoDaysAgo,
       },
       {
+        siteId: site!.id,
         pageId: quietPage!.id,
         authorName: 'Quiet thread',
         bodyMarkdown: 'Five',

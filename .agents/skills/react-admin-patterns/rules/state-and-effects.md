@@ -53,6 +53,48 @@ useEffect(() => { … }, [markdown])
 When the effect genuinely needs the derived value, derive it *inside* the
 effect or memoize the derivation on the primitive input.
 
+## Subscriptions use `useSyncExternalStore`
+
+A value owned by something outside React (a media query, the theme class) is
+read through `useSyncExternalStore`, not mirrored into state by an effect:
+
+```tsx
+// ✓ React reads the store during render and resubscribes when it changes
+const isMobile = useSyncExternalStore(subscribe, getSnapshot, () => false)
+
+// ✗ a copy of the store, kept in sync by an effect
+const [isMobile, setIsMobile] = useState(false)
+useEffect(() => { … setIsMobile(mql.matches) … }, [])
+```
+
+`src/hooks/use-mobile.ts` and `src/hooks/use-widget-theme.ts` are the examples.
+
+## Long-lived listeners use `useEffectEvent`
+
+A listener subscribed once must still read the latest props. Pass the handler to
+`useWindowEvent(type, handler)` (`src/hooks/use-window-event.ts`), which wraps it in
+`useEffectEvent`. Never put the effect event in a dependency array.
+
+## One change that resets another uses `useReducer`
+
+When a new search must return both list cursors to page 0, the fields that
+change together belong in one reducer, so the reset cannot be forgotten at a call site:
+
+```tsx
+const [{ search, filter, directoryPage }, dispatch] = useReducer(userDirectoryReducer, INITIAL_USER_DIRECTORY)
+dispatch({ type: 'search', search: value }) // also resets directoryPage
+```
+
+The reducers are pure functions in `src/lib/site-users.ts` and
+`src/lib/moderation-view-state.ts`, and they are unit-tested directly.
+
+## Pending state for async actions uses `useTransition`
+
+`const [pending, startTransition] = useTransition()` tracks an async action
+without a `setPending(true)` / `finally` pair. The action must resolve rather
+than reject (for example, to a boolean), because an unhandled rejection escapes
+the transition.
+
 ## Effects that stay
 
 These are legitimate and must not be "fixed":
@@ -61,8 +103,8 @@ These are legitimate and must not be "fixed":
 |---|---|
 | `src/components/blog/blog-markdown.tsx` | Shiki highlights after the DOM is painted; the `AbortController` aborts a superseded pass |
 | `src/components/landing/landing-code-block.tsx` | same, for the landing-page code blocks |
-| `src/components/blog/mermaid-diagram.tsx` | Mermaid renders asynchronously; a generation counter lets only the latest attempt paint |
-| `src/hooks/use-mobile.ts` | subscribes to a media query; `mql.matches` is the single source of truth for the breakpoint |
+| `src/components/blog/mermaid-diagram.tsx` | Mermaid renders asynchronously; its result is keyed on theme and chart, and a generation counter lets only the latest attempt paint |
+| `src/hooks/use-window-event.ts` | subscribes a window event listener; the handler is an effect event, so the listener is not re-added when the handler changes |
 | `src/hooks/use-blog-thread.ts` | asks the server to create a thread that the page turned out not to have |
 | `src/routes/_payload.tsx` | load-bearing unmount cleanup for the Payload admin shell |
 

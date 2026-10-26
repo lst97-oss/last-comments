@@ -54,30 +54,39 @@ export type SessionPrincipalClient = {
   provider: AuthProviderName
 }
 
-// Provider-neutral replacement for authClient.useSession: with the built-in
-// provider it wraps the better-auth session; otherwise it probes
-// GET /api/session, which resolves through every enabled provider (proxy
-// headers arrive on the fetch automatically; OIDC bearer users hold no
-// dashboard session, so the probe correctly reports signed-out).
-async function fetchSessionPrincipal(): Promise<SessionPrincipalClient | null> {
+// The server's answer to GET /api/session: who is signed in, and whether that identity may use the
+// dashboard. Only admins may (the instance admin, or an admin of a site).
+type SessionState = { principal: SessionPrincipalClient | null; dashboard: boolean }
+
+// Provider-neutral replacement for authClient.useSession. GET /api/session resolves through every enabled
+// provider (proxy headers arrive on the fetch automatically; OIDC bearer users hold no dashboard session,
+// so the probe correctly reports signed-out). A failed probe fails closed: no principal, no dashboard.
+async function fetchSessionState(): Promise<SessionState> {
   const response = await fetch('/api/session', { headers: { accept: 'application/json' } })
-  if (!response.ok) return null
-  const body = (await response.json()) as { data?: { principal?: SessionPrincipalClient | null } }
-  return body.data?.principal ?? null
+  if (!response.ok) return { principal: null, dashboard: false }
+  const body = (await response.json()) as {
+    data?: { principal?: SessionPrincipalClient | null; dashboard?: boolean }
+  }
+  return { principal: body.data?.principal ?? null, dashboard: body.data?.dashboard === true }
 }
 
-export function useSessionPrincipal(): { principal: SessionPrincipalClient | null; isPending: boolean } {
+export function useSessionPrincipal(): {
+  principal: SessionPrincipalClient | null
+  dashboard: boolean
+  isPending: boolean
+} {
   const providers = useAuthProviders()
   const betterAuthOn = !providers || providers.includes('better-auth')
   const { data: session, isPending: sessionPending } = authClient.useSession()
+  // Every signed-in identity is probed, including the better-auth one: only the server knows whether that
+  // account administers a site. Other providers have no client session, so they are probed unconditionally.
+  // Until the provider list resolves, the better-auth branch is in charge.
   const probe = useQuery({
-    queryKey: ['session-principal'],
-    queryFn: fetchSessionPrincipal,
+    queryKey: ['session-state', session?.user.id ?? null],
+    queryFn: fetchSessionState,
     staleTime: 60_000,
     retry: false,
-    // The probe only answers for providers that do not own a client session;
-    // until the provider list resolves the better-auth branch is in charge.
-    enabled: !betterAuthOn,
+    enabled: !betterAuthOn || Boolean(session),
   })
   if (betterAuthOn) {
     return {
@@ -89,8 +98,13 @@ export function useSessionPrincipal(): { principal: SessionPrincipalClient | nul
             provider: 'better-auth' as const,
           }
         : null,
-      isPending: sessionPending,
+      dashboard: session ? probe.data?.dashboard === true : false,
+      isPending: sessionPending || (Boolean(session) && probe.isPending),
     }
   }
-  return { principal: probe.data ?? null, isPending: probe.isPending }
+  return {
+    principal: probe.data?.principal ?? null,
+    dashboard: probe.data?.dashboard === true,
+    isPending: probe.isPending,
+  }
 }

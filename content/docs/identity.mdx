@@ -12,16 +12,20 @@ The identity menu offers `Sign in…`. It links to `signInUrl` when the host pro
 
 ## Signed-in visitors
 
+A site's access level decides who may write. On an `open` site anyone can comment anonymously. On a `login` site anyone can read, but writing needs a sign-in, and the `Anonymous` option is not offered. On a `login` site a signed-out visitor sees a sign-in card in place of the composer, and Reply opens the same card under the comment. On a `private` site a signed-out visitor sees one sign-in card in place of the thread, and the comments are not requested. The widget reads the level from the service, and the service enforces it either way.
+
 Signed-in visitors can switch between `Anonymous` and `<name> (you)`, and `Sign out` ends the API session (`POST {baseUrl}/api/auth/sign-out`). The widget detects the session from the API (`GET {baseUrl}/api/auth/get-session`), with the host's `viewerUserId` prop as the fallback when the API cannot answer (no same-origin proxy): when signed in, the composer drops the guest name field, posting uses the session identity, and votes work; the identity menu lets the user post anonymously instead. The Turnstile challenge stays in the composer for every identity — the server verifies every comment, signed-in ones included.
 
 ## Guest comments
 
-Guest comments — the anonymous identity, or any visitor without a session — are posted **without** the session cookie (`credentials: 'omit'`), so the API attributes them to the guest name (blank posts as `Anonymous`). A proxy that attaches the session server-side will attribute them to the account instead, and Edit/Delete/votes do not apply to guest comments.
+Guest comments — the anonymous identity, or any visitor without a session — are posted **without** the session cookie (`credentials: 'omit'`), so the API attributes them to the guest name (blank posts as `Anonymous`). A proxy that attaches the session server-side will attribute them to the account instead. Guests edit and delete their own comment with the edit key they received at create time; votes need a signed-in session.
 
 <Callout type="info" title="Anonymous edit window">
-  A guest may edit only from the browser that stored the key returned when they posted, and only within `anonEditWindowMinutes` (default `10`). Signed-in authors may edit any time.
+  A guest may edit only from the browser that stored the key returned when they posted, and only within `anonEditWindowMinutes` (default `10`). Signed-in authors may edit any time. Delete has no window: a guest can delete their comment with the key at any time.
 </Callout>
+
+A comment a moderator has hidden is under review, so its author cannot delete it: the request returns `404 COMMENT_NOT_FOUND`. A moderator restore makes it visible again.
 
 ## Auth providers
 
-The server resolves every request to a provider-neutral identity. Deployers pick the providers in `src/server/auth/auth.config.ts`: `better-auth` (default built-in email/password plus optional Google OAuth — the only provider serving the dashboard sign-in form and `/api/auth/*`), `oidc-jwt` (Bearer JWTs from an existing identity provider), or `header` (reverse-proxy SSO headers). External subjects link to the canonical user (verified emails link, unverified never merge), and service keys (`lck_*`) are unaffected. Full setup, first-admin bootstrap, and the configuration reference live in [Auth providers](/docs/auth).
+The server resolves every request to a provider-neutral identity. Deployers pick the providers in `src/server/auth/auth.config.ts`: `better-auth` (default built-in email/password plus optional Google OAuth — the only provider serving the dashboard sign-in form and `/api/auth/*`), `oidc-jwt` (Bearer JWTs from an existing identity provider), or `header` (reverse-proxy SSO headers). External subjects link to the canonical user: an OIDC login with a verified email attaches to the account that holds it, and a proxy login attaches only with `header.linkByEmail`. Any other login gets its own account, so a claimed email never takes over an existing one. Service keys (`lck_*`) are unaffected. Full setup, first-admin bootstrap, and the configuration reference live in [Auth providers](/docs/auth).

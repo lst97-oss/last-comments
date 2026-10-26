@@ -1,22 +1,11 @@
-import { HttpError } from '@/server/http/errors'
+import type { CommentEventType } from '@/server/db/vocabularies'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { getCommentEditSettings } from '@/server/plugins/comment-policy.config'
 import { installedCommentPlugins } from '@/server/plugins/config'
 import { getTurnstilePluginSettings } from '@/server/plugins/turnstile/turnstile.config'
 
-export type CommentEventType =
-  | 'comment.created'
-  | 'comment.edited'
-  | 'comment.hidden'
-  | 'comment.deleted'
-  | 'comment.restored'
-  | 'comment.pinned'
-  | 'page.locked'
-  | 'page.unlocked'
-  | 'page.deleted'
-  | 'user.blocked'
-  | 'user.unblocked'
-  | 'user.verified'
-  | 'user.unverified'
+// The event vocabulary lives in the schema's module, so the CHECK and this union cannot drift.
+export type { CommentEventType }
 
 export type CommentValidationInput = {
   siteId: string
@@ -107,9 +96,14 @@ export async function publishCommentValidation(
   verificationRequired = getCommentPluginSettings().verificationRequired,
 ): Promise<void> {
   if (verificationRequired && !plugins.some((plugin) => plugin.verificationProvider && plugin.validateComment)) {
-    throw new HttpError(503, 'COMMENT_VERIFICATION_UNAVAILABLE', 'Comment verification is temporarily unavailable', {
-      expose: true,
-    })
+    throw new HttpError(
+      ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.status,
+      ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.code,
+      'Comment verification is temporarily unavailable',
+      {
+        expose: true,
+      },
+    )
   }
 
   for (const plugin of plugins) {
@@ -125,8 +119,8 @@ export async function publishCommentValidation(
             controller.abort()
             reject(
               new HttpError(
-                503,
-                'COMMENT_VERIFICATION_UNAVAILABLE',
+                ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.status,
+                ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.code,
                 'Comment verification is temporarily unavailable',
                 { expose: true },
               ),
@@ -204,9 +198,14 @@ export async function publishCommentOperation(
           timer = setTimeout(() => {
             controller.abort()
             reject(
-              new HttpError(503, 'COMMENT_PLUGIN_UNAVAILABLE', 'Comment operations are temporarily unavailable', {
-                expose: true,
-              }),
+              new HttpError(
+                ErrorCode.COMMENT_PLUGIN_UNAVAILABLE.status,
+                ErrorCode.COMMENT_PLUGIN_UNAVAILABLE.code,
+                'Comment operations are temporarily unavailable',
+                {
+                  expose: true,
+                },
+              ),
             )
           }, COMMENT_VALIDATION_TIMEOUT_MS)
         }),

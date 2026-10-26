@@ -53,8 +53,8 @@ jobs:
       # Production builds reject loopback origins.
       PAYLOAD_PUBLIC_SERVER_URL: https://example.com
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: oven-sh/setup-bun@v2.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
@@ -116,14 +116,18 @@ jobs:
       # as host.docker.internal (mapped to host-gateway in compose.yaml).
       DATABASE_URL: postgres://postgres:postgres@host.docker.internal:5432/last-comments-test
       BUSINESS_DATABASE_URL: postgres://business:business@host.docker.internal:5435/business_comments
+      # Compose requires both secrets, and it runs in production mode, which needs a public origin.
+      PAYLOAD_SECRET: ci-only-dummy-secret-override-at-runtime-1234567890
+      BETTER_AUTH_SECRET: ci-only-better-auth-secret-override-at-runtime-1234567890
+      PAYLOAD_PUBLIC_SERVER_URL: https://example.com
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Read Bun version
         run: echo "BUN_VERSION=$(cat .bun-version)" >> "$GITHUB_ENV"
-      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -131,7 +135,7 @@ jobs:
       # main publishes the image the CD pulls; PRs only load it for the stack
       # smoke test below (buildx cannot load and push in one step).
       - name: Build image
-        uses: docker/build-push-action@v7.4.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

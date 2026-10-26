@@ -2,21 +2,26 @@
 # no database: set DATABASE_URL and BUSINESS_DATABASE_URL in .env (copy
 # .env.example), appending `?sslmode=...` when that server needs TLS. Compose
 # v2.24+ required. Turnstile defaults are Cloudflare's public testing keys.
+#
+# Secrets have no defaults: set PAYLOAD_SECRET and BETTER_AUTH_SECRET (32+
+# random characters each) in .env. NODE_ENV defaults to production, which
+# rejects loopback public URLs and placeholder secrets. For local http://localhost
+# runs, set NODE_ENV=development in .env.
 
 name: last-comments
 
 x-app-environment: &app-environment
-  NODE_ENV: ${NODE_ENV:-development}
+  NODE_ENV: ${NODE_ENV:-production}
   HOST: 0.0.0.0
   PORT: "3000"
-  PAYLOAD_SECRET: ${PAYLOAD_SECRET:-local-compose-payload-secret-change-me-32-chars}
+  PAYLOAD_SECRET: "${PAYLOAD_SECRET:?set PAYLOAD_SECRET in .env (32+ random characters)}"
   # Real values come from .env (or the shell); `:?` fails fast when missing.
   DATABASE_URL: "${DATABASE_URL:?set DATABASE_URL in .env to your Payload Postgres URL}"
   BUSINESS_DATABASE_URL: "${BUSINESS_DATABASE_URL:?set BUSINESS_DATABASE_URL in .env to your business Postgres URL}"
   # Production must use a public HTTPS origin (loopback is rejected).
   PAYLOAD_PUBLIC_SERVER_URL: ${PAYLOAD_PUBLIC_SERVER_URL:-http://localhost:3000}
   BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-compose-better-auth-secret-change-me-32-chars}
+  BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env (32+ random characters)}"
   TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
   TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-1x0000000000000000000000000000000AA}
   LOG_PRETTY: ${LOG_PRETTY:-true}
@@ -47,7 +52,8 @@ services:
     build:
       context: .
       args:
-        BUN_VERSION: ${BUN_VERSION:-1.4.3}
+        # Keep in sync with .bun-version and the Dockerfile ARG.
+        BUN_VERSION: ${BUN_VERSION:-1.4.4}
     ports:
       # Loopback only: the ingress (cloudflared tunnel, or a reverse proxy on
       # the host) reaches the app over the Compose network or 127.0.0.1.
@@ -74,7 +80,8 @@ services:
   # CLOUDFLARE_TUNNEL_TOKEN set. Needs a Cloudflare tunnel whose public
   # hostname points at http://app:3000 (or http://localhost:3000).
   tunnel:
-    image: cloudflare/cloudflared:latest
+    # Pinned to the latest release (github.com/cloudflare/cloudflared/releases); bump deliberately.
+    image: cloudflare/cloudflared:2026.10.4
     profiles: ["tunnel"]
     command: ["tunnel", "--no-autoupdate", "run"]
     environment:

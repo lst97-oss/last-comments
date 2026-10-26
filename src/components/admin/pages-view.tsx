@@ -1,8 +1,8 @@
 'use client'
 
 import { Link } from '@tanstack/react-router'
-import { Copy, Link2 } from 'lucide-react'
-import { useState } from 'react'
+import { Copy, EllipsisVertical, Link2, Lock, LockOpen, Trash } from 'lucide-react'
+import { useState, useTransition } from 'react'
 
 import { ConfirmDeleteDialog } from '@/components/admin/confirm-delete-dialog'
 import { Hint } from '@/components/admin/hint'
@@ -10,6 +10,13 @@ import { PageCreateDialog } from '@/components/admin/page-create-dialog'
 import { ThreadKeyBadge, ThreadStatusBadge } from '@/components/admin/thread-status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import {
@@ -21,10 +28,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { type Site } from '@/lib/admin-sites'
 import { copyText } from '@/lib/clipboard'
 import { embedSnippet, PAGE_LIST_LIMIT, type PageSummary } from '@/lib/page-thread'
-import { type Site } from '@/lib/site-keys'
 
 const PAGE_LIST_SIZE = 10
 
@@ -32,14 +38,14 @@ export function PagesView({
   sites,
   site,
   pages,
-  onAct,
+  onLockPage,
   onRefreshPages,
   onDeletePage,
 }: {
   sites: Site[]
   site: string
   pages: PageSummary[]
-  onAct: (action: Record<string, string | boolean>) => void
+  onLockPage: (page: PageSummary, locked: boolean) => void
   onRefreshPages: () => void
   onDeletePage: (page: PageSummary) => Promise<boolean>
 }) {
@@ -48,16 +54,14 @@ export function PagesView({
   const [query, setQuery] = useState('')
   const [listPage, setListPage] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<PageSummary | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [deleting, startDelete] = useTransition()
 
-  async function confirmDelete() {
+  function confirmDelete() {
     if (!deleteTarget) return
-    setDeleting(true)
-    try {
+    // The transition keeps `deleting` true until the delete settles; the handler resolves to a boolean and never rejects.
+    startDelete(async () => {
       if (await onDeletePage(deleteTarget)) setDeleteTarget(null)
-    } finally {
-      setDeleting(false)
-    }
+    })
   }
 
   // The list is client-paged over the rows the server already caps at
@@ -88,7 +92,7 @@ export function PagesView({
               : `${pages.length} ${pages.length === 1 ? 'page' : 'pages'} · newest activity first`}
           </CardDescription>
           <CardAction>
-            <Button type="button" onClick={() => setCreateOpen(true)}>
+            <Button type="button" data-tour="pages-create" onClick={() => setCreateOpen(true)}>
               New page
             </Button>
           </CardAction>
@@ -117,97 +121,117 @@ export function PagesView({
                 aria-label="Search pages"
                 className="max-w-sm"
               />
+              {/* Cards below a 64rem container, and a five-column table from there up. Rows use display: contents
+                  so every row shares the same column widths. */}
               {visible.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No pages match “{query.trim()}”.</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Page</TableHead>
-                      <TableHead>Thread</TableHead>
-                      <TableHead>Comments</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visible.map((page) => (
-                      <TableRow key={page.id}>
-                        <TableCell className="max-w-80">
-                          <div className="flex flex-col gap-1">
-                            <span className="truncate font-medium">{page.title ?? page.canonicalUrl}</span>
+                <div className="@container/pages">
+                  <div className="flex flex-col @5xl/pages:grid @5xl/pages:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto] @5xl/pages:gap-x-6">
+                    <span className="hidden pb-2 text-xs font-medium text-muted-foreground @5xl/pages:block">Page</span>
+                    <span className="hidden pb-2 text-xs font-medium text-muted-foreground @5xl/pages:block">
+                      Thread
+                    </span>
+                    <span className="hidden pb-2 text-right text-xs font-medium text-muted-foreground @5xl/pages:block">
+                      Comments
+                    </span>
+                    <span className="hidden pb-2 text-xs font-medium text-muted-foreground @5xl/pages:block">
+                      Status
+                    </span>
+                    <span className="hidden pb-2 text-right text-xs font-medium text-muted-foreground @5xl/pages:block">
+                      Actions
+                    </span>
+                    {visible.map((page) => {
+                      const name = page.title ?? page.canonicalUrl
+                      return (
+                        <div key={page.id} className="flex flex-col gap-3 border-t py-4 @5xl/pages:contents">
+                          <div className="flex min-w-0 flex-col gap-0.5 @5xl/pages:border-t @5xl/pages:py-3">
+                            <span className="font-medium break-words @5xl/pages:truncate" title={name}>
+                              {name}
+                            </span>
                             <a
-                              className="truncate text-xs text-muted-foreground underline"
+                              className="text-xs break-all text-muted-foreground underline underline-offset-4 @5xl/pages:truncate"
                               href={page.canonicalUrl}
                               target="_blank"
                               rel="noreferrer"
+                              title={page.canonicalUrl}
                             >
                               {page.canonicalUrl}
                             </a>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {page.pageKey ? (
-                              <Hint label="Page keys name the thread — the URL can change and comments stay together.">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 @5xl/pages:contents">
+                            <div className="flex items-center gap-1 @5xl/pages:border-t @5xl/pages:py-3">
+                              <Hint
+                                label={
+                                  page.pageKey
+                                    ? 'Page keys name the thread — the URL can change and comments stay together.'
+                                    : 'URL-only threads are bound to this exact URL — a new URL starts a new thread.'
+                                }
+                              >
                                 <ThreadKeyBadge pageKey={page.pageKey} />
                               </Hint>
-                            ) : (
-                              <Hint label="URL-only threads are bound to this exact URL — a new URL starts a new thread.">
-                                <ThreadKeyBadge pageKey={page.pageKey} />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                data-tour="pages-embed"
+                                aria-label={`Copy embed config for ${page.pageKey ?? page.canonicalUrl}`}
+                                onClick={() => void copyText(embedSnippet(site, page), 'Embed config copied')}
+                              >
+                                <Copy />
+                              </Button>
+                            </div>
+                            <div className="text-sm tabular-nums @5xl/pages:border-t @5xl/pages:py-3 @5xl/pages:text-right">
+                              <span>{page.visible} visible</span>
+                              {page.hidden > 0 && <span className="text-destructive"> · {page.hidden} hidden</span>}
+                            </div>
+                            <div className="@5xl/pages:border-t @5xl/pages:py-3">
+                              <Hint label="Locked pages reject new comments and replies until unlocked.">
+                                <ThreadStatusBadge isLocked={page.isLocked} />
                               </Hint>
-                            )}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Copy embed config for ${page.pageKey ?? page.canonicalUrl}`}
-                              onClick={() => void copyText(embedSnippet(site, page), 'Embed config copied')}
-                            >
-                              <Copy />
-                            </Button>
+                            </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                            <span>
-                              {page.total} total · {page.visible} visible
-                            </span>
-                            {page.hidden > 0 && <span className="text-destructive">{page.hidden} hidden</span>}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <ThreadStatusBadge isLocked={page.isLocked} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex items-center gap-2 @5xl/pages:justify-end @5xl/pages:border-t @5xl/pages:py-3">
                             <Button
                               type="button"
                               size="sm"
                               variant="outline"
+                              className="flex-1 @5xl/pages:flex-none"
                               render={<Link to="/moderation/$pageId" params={{ pageId: page.id }} search={{ site }} />}
                             >
                               View comments
                             </Button>
-                            <Hint label="Locked pages reject new comments and replies until unlocked.">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => void onAct({ target: 'page', pageId: page.id, locked: !page.isLocked })}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`More actions for ${name}`}
+                                  />
+                                }
                               >
-                                {page.isLocked ? 'Unlock' : 'Lock'}
-                              </Button>
-                            </Hint>
-                            <Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(page)}>
-                              Delete
-                            </Button>
+                                <EllipsisVertical />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => onLockPage(page, !page.isLocked)}>
+                                  {page.isLocked ? <LockOpen /> : <Lock />}
+                                  {page.isLocked ? 'Unlock page' : 'Lock page'}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(page)}>
+                                  <Trash />
+                                  Delete page
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
               <Pager total={matches.length} page={listCurrent} size={PAGE_LIST_SIZE} onPage={setListPage} />
               {pages.length >= PAGE_LIST_LIMIT && (
@@ -235,7 +259,7 @@ export function PagesView({
         pendingLabel="Deleting…"
         pending={deleting}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        onConfirm={() => void confirmDelete()}
+        onConfirm={confirmDelete}
       />
     </>
   )

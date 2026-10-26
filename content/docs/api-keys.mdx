@@ -1,0 +1,215 @@
+---
+title: API keys and permissions
+description: Create a site-bound API key, grant only the permissions your server needs for each site setting, and keep the key out of the browser.
+icon: KeyRound
+---
+
+An API key lets your server act for its visitors. It can load a page's comments, post for a visitor who is signed in to your app, or manage pages. Keys are for server code only. Browser code must never hold one, because anyone who can load the page can read the key.
+
+## Site keys and API keys
+
+The two credentials do different jobs:
+
+| | Site key | API key |
+| --- | --- | --- |
+| What it is | A public identifier for a site. It goes into the page embed. | A secret for your server. |
+| Who sees it | Everyone who loads the page | Only your server |
+| What it allows | Reading and posting as a visitor, within the site's settings | Only the permissions it was given |
+| Bound to | One site | One site, or no site (an instance key) |
+
+An instance key has no site. It carries the `sites:*` permissions, which create and manage sites. Keep it off any server that serves a single site.
+
+The dashboard creates site keys only. An instance key is issued through `POST /api/admin/api-keys` without a `siteKey`, by the instance admin.
+
+| Permission | What the key can do |
+| --- | --- |
+| `sites:create` | Create a site with `POST /api/admin/sites` |
+| `sites:read` | List the sites on the instance with `GET /api/admin/sites` |
+| `sites:update` | Rename a site, and change its limits and settings, with `PATCH /api/admin/sites/{siteKey}` |
+| `sites:delete` | Delete a site and everything in it, with `DELETE /api/admin/sites/{siteKey}` |
+
+## Create a key
+
+1. Open **Moderation**, then **Sites**. Check the site's **Who can comment** setting. The ? icon next to it explains each option.
+2. Open **API keys** and choose **Create API key**. Pick the site. The comment permissions its settings need are already ticked.
+3. Tick any page permission your server needs. The [permissions table](#permissions) lists what each one allows. Adding more than the site requires widens what a leaked key can do, so add only what you use.
+4. Name the key after the server that uses it, for example "Production comment proxy".
+5. Keep the expiry at one year unless you can rotate the key on a schedule. "Never expires" removes the reminder to rotate.
+6. Copy the secret when it appears. It is shown once. Choose **Confirm** to close the dialog. To create another key, open **Create API key** again. If you lose the secret, create a new key.
+7. Store the secret in your server's environment, for example `COMMENTS_API_KEY`. Do not put it in client code, a public environment variable, or a repository.
+
+## Permissions
+
+Each permission is granted by one feature in the dialog. The feature name is shown here as well.
+
+| Permission | Feature name | What the key can do | Use it when |
+| --- | --- | --- | --- |
+| `comments:read` | Show comments on pages | Load a page's visible thread with `GET /api/comments` | Your server loads comments for its visitors |
+| `comments:write` | Post comments for visitors | Post with `POST /api/comments`, and edit or delete a guest comment with `PATCH` or `DELETE /api/comments/{id}` | Your server posts for a visitor who is signed in to your app |
+| `pages:read` | Read pages and comment counts | List pages and counts with `GET /api/admin/pages`, `GET /api/admin/pages/{pageId}`, and `GET /api/admin/stats` | A dashboard or sync job reads counts |
+| `pages:write` | Register new pages | Create a page's thread with `POST /api/admin/pages` | You want the thread to exist before its first comment |
+| `pages:delete` | Delete pages | Delete a page with `DELETE /api/admin/pages/{pageId}` or `DELETE /api/admin/pages?pageKey=` | Your server removes content. This is permanent and removes every comment, reply and vote on the page |
+
+A key never acts as a user. A comment it posts is a guest comment, and its name is whatever `authorName` your server sends. Send the signed-in user's display name there.
+
+## Permissions by site setting
+
+The site setting decides what a visitor can do without a key. A key skips that check, so the table below lists what your server needs to serve visitors the site does not admit on its own.
+
+| Site setting | Visitors without a key | The key needs | Your server must |
+| --- | --- | --- | --- |
+| Open | Read. Post from a registered origin, with a verification challenge. | Nothing for comments. Add `comments:read` only if your server loads the thread itself. | Nothing for comments |
+| Sign in to post | Read. Posting needs a signed-in session. | `comments:write` | Confirm the visitor is signed in to your app before posting |
+| Private | Nothing without a signed-in session. | `comments:read` and `comments:write` | Confirm sign-in on every request |
+| Accept requests only through my host | Nothing. A call without a key is refused with `403 FORBIDDEN`. | Both, whatever the setting | Send the key on every request |
+
+The comments service trusts your server to decide who may post when a key is used. The check belongs in your server code, where your application already knows who is signed in.
+
+## Does your setup need comment permissions?
+
+Often not. The built-in sign-in covers a widget that calls the comments service directly. Check your setup in this table:
+
+| Your setup | Comment permissions needed? |
+| --- | --- |
+| The widget calls the comments service directly, the site is Open, and the page is on any domain | No. Visitors read and post with the site key and a registered origin. |
+| The widget calls the comments service directly from a sibling subdomain of the page, and the site is Sign in to post or Private | No. The built-in session cookie covers sign-in and voting. |
+| The page is on another domain, and the site is Sign in to post or Private | Yes. The browser cannot send the session cookie to the API. |
+| The site accepts requests only through its host | Yes, on every call. The service refuses calls without a key. |
+| Your server proxies comments for visitors | Yes: `comments:read` and `comments:write`. |
+
+Page and site management (`pages:*` and `sites:*`) is separate. Server jobs that register pages, delete pages, or read stats still need keys for those permissions.
+
+## Call the API from your server
+
+Send the key in one of two headers:
+
+- `x-api-key: lck_…`
+- `Authorization: Bearer lck_…`
+
+Also send `x-lc-client` with a stable value for each visitor: 16 to 128 letters, digits, `-` or `_`. The service rate-limits each visitor by this value. Without it, every visitor shares the key's budget.
+
+This server route loads a page's thread for one visitor:
+
+```ts
+// Server only. The key never reaches the browser.
+export async function loadThread(visitorId: string, pageKey: string) {
+  const url = new URL('/api/comments', process.env.COMMENTS_BASE_URL)
+  url.searchParams.set('site', process.env.COMMENTS_SITE_KEY!)
+  url.searchParams.set('pageKey', pageKey)
+
+  const response = await fetch(url, {
+    headers: {
+      'x-api-key': process.env.COMMENTS_API_KEY!,
+      'x-lc-client': visitorId,
+    },
+  })
+  return response.json()
+}
+```
+
+This one posts for a signed-in visitor. `url` is required, and `pageKey` is optional:
+
+```ts
+// Server only, after your app has confirmed the visitor is signed in.
+await fetch(new URL('/api/comments', process.env.COMMENTS_BASE_URL), {
+  method: 'POST',
+  headers: {
+    'content-type': 'application/json',
+    'x-api-key': process.env.COMMENTS_API_KEY!,
+    'x-lc-client': visitorId,
+  },
+  body: JSON.stringify({
+    site: process.env.COMMENTS_SITE_KEY,
+    url: pageUrl,
+    pageKey,
+    authorName: user.displayName,
+    bodyMarkdown: text,
+  }),
+})
+```
+
+The response to a create includes an edit key for the comment. Store it with your own record of who posted the comment. When that user edits or deletes the comment, send the key back:
+
+- `PATCH /api/comments/{id}` takes it in the JSON body as `editKey`.
+- `DELETE /api/comments/{id}?site=…` takes it in the `x-lc-edit-key` header.
+
+## Rotate, disable and delete
+
+- **Rotate:** create a new key with the same permissions, deploy it, then delete the old key.
+- **Disable** stops a key at once and keeps it for later. **Delete** removes it permanently. Either one stops anything that still uses the old key.
+- **Expiry:** a key stops working on its expiry date. Create a replacement before then.
+- **Permissions:** change a key's permissions on the API keys page, then choose **Save permissions**.
+
+## Errors
+
+| Status and code | What it means | What to do |
+| --- | --- | --- |
+| `401 UNAUTHENTICATED` | No key was sent, and the site needs a sign-in for this request | Send the key, or sign the visitor in |
+| `403 FORBIDDEN` | The site accepts requests only through its host, and this request has no key | Send the key on every request |
+| `403 INSUFFICIENT_SCOPE` | The key lacks the permission, is not bound to this site, or belongs to another site | Grant the permission on the API keys page, or use the key for its own site |
+| `403 ORIGIN_NOT_ALLOWED` | A browser sent an origin the site does not allow | Register the origin on the site |
+| `400 PAGE_ORIGIN_NOT_ALLOWED` | A key registered a page URL that is not on one of the site's allowed origins | Register the origin, or use a page URL on it |
+
+## Questions and answers
+
+<Accordions type="multiple">
+<Accordion id="why-do-i-need-a-key-if-visitors-can-already-sign-in" title="Why do I need a key if visitors can already sign in?">
+
+The sign-in you see on the comments service belongs to the comments service. Its session cookie is sent only to the API's own domain, so it reaches the API only from a sibling subdomain of your page. Visitors who sign in to your app are unknown to the comments service, and your server has no way to get the comments session for them. A key lets your server act for the visitors it has already checked. See [Who can comment](/docs/auth#who-can-comment-access-and-the-gateway).
+
+</Accordion>
+
+<Accordion id="can-my-server-use-the-visitors-session-instead" title="Can my server use the visitor's session instead?">
+
+Not on a site that accepts requests only through its host. A call without a key is refused before any session is checked. On other sites, the session cookie belongs to the comments service's domain, so your server cannot obtain it for a visitor.
+
+</Accordion>
+
+<Accordion id="does-a-key-let-my-server-act-as-a-user" title="Does a key let my server act as a user?">
+
+No. A key acts for an anonymous visitor. A comment it posts is a guest comment, and its name is the `authorName` you send. A key cannot vote, because votes need a signed-in session. Moderation is also session-only, and it needs the instance admin.
+
+</Accordion>
+
+<Accordion id="who-decides-whether-a-visitor-may-post" title="Who decides whether a visitor may post?">
+
+Your server does, whenever it uses a key. On sign-in and private sites the key skips the site's sign-in check, so your server must confirm the visitor is signed in before each read or post. The comments service trusts that check.
+
+</Accordion>
+
+<Accordion id="can-i-put-the-key-in-the-browser" title="Can I put the key in the browser?">
+
+No. Anyone who can load the page can read the key, and a leaked key lets anyone act for the site within its permissions. Let the browser call a route on your own server, and add the key there. The `Origin` header is not a substitute: a script or `curl` can send any value in it.
+
+</Accordion>
+
+<Accordion id="what-happens-if-i-change-the-sites-setting-after-creating-the-key" title="What happens if I change the site's setting after creating the key?">
+
+The key keeps the permissions it was created with. The form selected them when you created the key, and changing **Who can comment** does not change them. After you change the setting, check the key's permissions on the API keys page and adjust them. The key also skips the site's setting, so it keeps reading and posting after you make the site private.
+
+</Accordion>
+
+<Accordion id="what-is-the-risk-if-a-key-leaks" title="What is the risk if a key leaks?">
+
+Its permissions limit the damage. A leaked `comments:write` key can post guest comments on its site until it is disabled. On a private site, a leaked `comments:read` key lets someone read that site's threads. Disable the key and create a replacement straight away.
+
+</Accordion>
+
+<Accordion id="do-i-need-comment-permissions-if-i-use-the-built-in-sign-in" title="Do I need comment permissions if I use the built-in sign-in?">
+
+Often not. A widget that calls the comments service directly needs no key for an Open site, and the built-in session covers sign-in and voting when the API is on a sibling subdomain of your page. You need comment permissions in three cases: the page is on another domain and the site needs a sign-in, the site accepts requests only through its host, or your server proxies comments. The [setup table](#does-your-setup-need-comment-permissions) lists each case.
+
+</Accordion>
+
+<Accordion id="do-i-need-a-key-for-the-embed-on-my-own-page" title="Do I need a key for the embed on my own page?">
+
+No. The embed uses the public site key. An API key is only for your server.
+
+</Accordion>
+</Accordions>
+
+## Related
+
+- [Who can comment: access and the gateway](/docs/auth#who-can-comment-access-and-the-gateway)
+- [Service keys](/docs/auth#service-keys)
+- [Does your setup need comment permissions?](#does-your-setup-need-comment-permissions)

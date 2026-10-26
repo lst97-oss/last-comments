@@ -45,6 +45,8 @@ export function ThreadComments({
         pageUrl={pageUrl}
         site={siteKey}
         turnstileSiteKey={config.turnstileSiteKey ?? undefined}
+        math
+        mermaid
       />
     </section>
   )
