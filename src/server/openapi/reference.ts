@@ -1,4 +1,4 @@
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { openApiDocsEnabled } from '@/server/openapi/config'
 import { buildOpenApiDocument } from '@/server/openapi/registry'
 
@@ -38,12 +38,14 @@ function referenceHtml(document: unknown): string {
 }
 
 export function openApiJsonResponse(request: Request, enabled: boolean = openApiDocsEnabled): Response {
-  if (!enabled) throw new HttpError(404, 'OPENAPI_DISABLED', 'OpenAPI docs are disabled')
+  if (!enabled)
+    throw new HttpError(ErrorCode.OPENAPI_DISABLED.status, ErrorCode.OPENAPI_DISABLED.code, 'OpenAPI docs are disabled')
   return Response.json(buildOpenApiDocument(new URL(request.url).origin))
 }
 
 export function apiReferenceResponse(request: Request, enabled: boolean = openApiDocsEnabled): Response {
-  if (!enabled) throw new HttpError(404, 'OPENAPI_DISABLED', 'OpenAPI docs are disabled')
+  if (!enabled)
+    throw new HttpError(ErrorCode.OPENAPI_DISABLED.status, ErrorCode.OPENAPI_DISABLED.code, 'OpenAPI docs are disabled')
   const document = buildOpenApiDocument(new URL(request.url).origin)
   return htmlResponse(referenceHtml(document))
 }

@@ -1,3 +1,5 @@
+import { HttpStatus } from '@lst97-oss/last-httprism'
+
 import { getBusinessSql } from '@/server/db/business-sql'
 import { ok } from '@/server/http/response'
 import type { DbProbe } from '@/server/modules/health/application/get-health'
@@ -24,5 +26,5 @@ export async function getReadyData(deps?: { dbProbe?: DbProbe }): Promise<Health
 
 export async function handleReadyGet(deps?: { dbProbe?: DbProbe }): Promise<Response> {
   const report = await getReadyData(deps)
-  return ok(report, { status: report.status === 'ok' ? 200 : 503 })
+  return ok(report, { status: report.status === 'ok' ? HttpStatus.OK.code : HttpStatus.SERVICE_UNAVAILABLE.code })
 }

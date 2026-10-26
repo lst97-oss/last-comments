@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { initialAdminSchema } from '@/lib/site-schema'
 import { getBusinessSetupAuth } from '@/server/auth/business-auth'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { ok } from '@/server/http/response'
 import { assertSameOrigin } from '@/server/http/route-guards'
 import { parseJsonBody } from '@/server/http/validation'
@@ -23,7 +23,11 @@ export const Route = createFileRoute('/api/initial-admin')({
           const result = await createInitialAdmin(async () => {
             const signup = await auth.api.signUpEmail({ body, returnHeaders: true })
             if (!('user' in signup.response)) {
-              throw new HttpError(400, 'ADMIN_SIGNUP_FAILED', 'Could not create the initial admin account')
+              throw new HttpError(
+                ErrorCode.ADMIN_SIGNUP_FAILED.status,
+                ErrorCode.ADMIN_SIGNUP_FAILED.code,
+                'Could not create the initial admin account',
+              )
             }
             return { ...signup, userId: signup.response.user.id }
           })

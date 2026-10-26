@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 
 import { getBusinessDb } from '@/server/db/business-sql'
 import { siteOrigins } from '@/server/db/schema'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { getRequestLogger, type Logger } from '@/server/observability/logger'
 import type { CommentPlugin } from '@/server/plugins/comment-plugins'
 import { getTurnstilePluginSettings } from '@/server/plugins/turnstile/turnstile.config'
@@ -39,13 +39,22 @@ function isTestSecret(secret: string): boolean {
 
 function unavailable(logger: Logger, reason: string): HttpError {
   logger.warn('turnstile.unavailable', { reason })
-  return new HttpError(503, 'COMMENT_VERIFICATION_UNAVAILABLE', 'Comment verification is temporarily unavailable', {
-    expose: true,
-  })
+  return new HttpError(
+    ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.status,
+    ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.code,
+    'Comment verification is temporarily unavailable',
+    {
+      expose: true,
+    },
+  )
 }
 
 function invalid(): HttpError {
-  return new HttpError(403, 'COMMENT_VERIFICATION_FAILED', 'Comment verification failed')
+  return new HttpError(
+    ErrorCode.COMMENT_VERIFICATION_FAILED.status,
+    ErrorCode.COMMENT_VERIFICATION_FAILED.code,
+    'Comment verification failed',
+  )
 }
 
 export function createTurnstilePlugin({
