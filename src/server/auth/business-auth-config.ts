@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { productionSecretProblem } from '@/server/security/secret-placeholders'
+
 const optionalOAuthCredential = z.preprocess(
   (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
   z.string().min(1).optional(),
@@ -7,6 +9,7 @@ const optionalOAuthCredential = z.preprocess(
 
 const businessAuthEnvSchema = z
   .object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
     BETTER_AUTH_URL: z.string().url(),
     BETTER_AUTH_SECRET: z.string().min(32),
     GOOGLE_CLIENT_ID: optionalOAuthCredential,
@@ -16,6 +19,10 @@ const businessAuthEnvSchema = z
     message: 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together',
     path: ['GOOGLE_CLIENT_ID'],
   })
+  .refine(
+    ({ NODE_ENV, BETTER_AUTH_SECRET }) => NODE_ENV !== 'production' || !productionSecretProblem(BETTER_AUTH_SECRET),
+    { message: 'BETTER_AUTH_SECRET is a placeholder or too short for production', path: ['BETTER_AUTH_SECRET'] },
+  )
 
 export function getBusinessAuthSettings(
   source: Record<string, string | undefined> = typeof Bun !== 'undefined' ? Bun.env : process.env,

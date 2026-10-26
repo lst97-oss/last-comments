@@ -40,3 +40,11 @@ export function isProxySourceAllowed(remoteAddr: string | null | undefined, cidr
   }
   return addr === cidr
 }
+
+// The socket peer, when the runtime exposes one. srvx (Bun and Node adapters) exposes it as `request.ip`,
+// h3 as `request.context.clientAddress`. Never read a forwarded header for this: a client can write those.
+export function peerAddress(request: Request): string | null {
+  const candidate = request as { ip?: unknown; context?: { clientAddress?: unknown } }
+  const address = candidate.context?.clientAddress ?? candidate.ip
+  return typeof address === 'string' && address.trim() ? address.trim() : null
+}

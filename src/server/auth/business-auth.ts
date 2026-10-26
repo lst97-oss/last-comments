@@ -30,7 +30,7 @@ export function isRegisteredAuthOrigin(origin: string): Promise<boolean> {
 }
 
 // API keys: user-owned, scoped per key. Site tenancy travels in the key's
-// metadata ({ siteKey }); permissions use { sites: ['create'], … }.
+// metadata ({ site }); permissions use { sites: ['create'], … }.
 // Server routes set both via auth.api; clients can never set permissions.
 function businessApiKeyPlugin() {
   return apiKey({

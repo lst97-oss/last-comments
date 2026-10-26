@@ -32,6 +32,7 @@ const trustSettings = {
   AUTH_HEADER_USER: 'x-forwarded-user',
   AUTH_HEADER_EMAIL: 'x-forwarded-email',
   AUTH_HEADER_NAME: 'x-forwarded-name',
+  AUTH_LINK_BY_EMAIL: false,
 }
 
 describe('isProxySourceAllowed', () => {
@@ -45,16 +46,14 @@ describe('isProxySourceAllowed', () => {
 })
 
 describe('resolveHeaderSession', () => {
-  test('returns null when proxy trust is off, source is untrusted, or subject is missing', async () => {
+  test('returns null when proxy trust is off, the peer is outside the proxy CIDR, or subject is missing', async () => {
     const off = await resolveHeaderSession(
       new Request('https://app.example/', { headers: { 'x-forwarded-user': 'sso-user' } }),
-      { settings: { ...trustSettings, AUTH_TRUST_PROXY: false } },
+      { settings: { ...trustSettings, AUTH_TRUST_PROXY: false }, remoteAddr: '10.4.5.6' },
     )
     expect(off).toBeNull()
     const untrusted = await resolveHeaderSession(
-      new Request('https://app.example/', {
-        headers: { 'x-forwarded-user': 'sso-user', 'x-forwarded-for': '203.0.113.9' },
-      }),
+      new Request('https://app.example/', { headers: { 'x-forwarded-user': 'sso-user' } }),
       { settings: trustSettings, remoteAddr: '203.0.113.9' },
     )
     expect(untrusted).toBeNull()
@@ -65,7 +64,51 @@ describe('resolveHeaderSession', () => {
     expect(noSubject).toBeNull()
   })
 
-  test('maps a trusted proxy subject to a principal', async () => {
+  test('a forwarded address never makes an outside peer trusted', async () => {
+    const spoofed = await resolveHeaderSession(
+      new Request('https://app.example/', {
+        headers: { 'x-forwarded-user': 'admin', 'x-forwarded-for': '10.4.5.6', 'x-forwarded-email': 'a@example.com' },
+      }),
+      { settings: trustSettings, remoteAddr: '203.0.113.9', db: stubDb() as never },
+    )
+    expect(spoofed).toBeNull()
+  })
+
+  test('without a socket peer nothing is trusted, even with the wildcard CIDR', async () => {
+    const noPeer = await resolveHeaderSession(
+      new Request('https://app.example/', { headers: { 'x-forwarded-user': 'sso-user' } }),
+      { settings: { ...trustSettings, AUTH_PROXY_CIDR: '*' }, remoteAddr: null },
+    )
+    expect(noPeer).toBeNull()
+  })
+
+  test('reads the socket peer from the runtime context when no override is given', async () => {
+    const request = Object.assign(
+      new Request('https://app.example/', { headers: { 'x-forwarded-user': 'sso-user' } }),
+      {
+        context: { clientAddress: '10.4.5.6' },
+      },
+    )
+    const principal = await resolveHeaderSession(request, { settings: trustSettings, db: stubDb([[], []]) as never })
+    expect(principal).toMatchObject({ credential: { kind: 'external', provider: 'header', subject: 'sso-user' } })
+  })
+
+  test('creates a separate account for a trusted proxy login by default, even when the email exists', async () => {
+    const db = stubDb([[], [{ id: 'admin-1', email: 'proxy@example.com', name: 'Admin' }]])
+    const principal = await resolveHeaderSession(
+      new Request('https://app.example/', {
+        headers: { 'x-forwarded-user': 'sso-user', 'x-forwarded-email': 'proxy@example.com' },
+      }),
+      { settings: trustSettings, remoteAddr: '10.4.5.6', db: db as never, authFile: { providers: ['header'] } },
+    )
+    expect(principal).toMatchObject({
+      userId: 'new-user-id',
+      credential: { kind: 'external', provider: 'header', subject: 'sso-user' },
+    })
+    expect(principal?.userId).not.toBe('admin-1')
+  })
+
+  test('links to the existing account only when header.linkByEmail is on', async () => {
     const db = stubDb([
       [],
       [{ id: 'user-7', email: 'proxy@example.com', name: 'Proxy User' }],
@@ -76,7 +119,12 @@ describe('resolveHeaderSession', () => {
       new Request('https://app.example/', {
         headers: { 'x-forwarded-user': 'sso-user', 'x-forwarded-email': 'proxy@example.com' },
       }),
-      { settings: trustSettings, remoteAddr: '10.4.5.6', db: db as never, authFile: { providers: ['header'] } },
+      {
+        settings: { ...trustSettings, AUTH_LINK_BY_EMAIL: true },
+        remoteAddr: '10.4.5.6',
+        db: db as never,
+        authFile: { providers: ['header'] },
+      },
     )
     expect(principal).toMatchObject({
       userId: 'user-7',
@@ -134,20 +182,40 @@ describe('linkOrProvisionExternalUser', () => {
       [{ id: 'user-2', email: 'b@example.com', name: 'B' }],
     ])
     const result = await linkOrProvisionExternalUser(
-      { provider: 'oidc-jwt', subject: 'sub-2', email: 'B@Example.com', emailVerified: true },
+      { provider: 'oidc-jwt', subject: 'sub-2', email: 'B@Example.com', emailVerified: true, mergeByEmail: true },
       { db: db as never },
     )
     expect(result.userId).toBe('user-2')
     expect(db.inserted.length).toBe(1)
   })
 
-  test('never merges on unverified email and refuses when auto-provision is off', async () => {
-    const createDb = () => stubDb([[], []])
+  test('never merges without mergeByEmail, even for a verified email', async () => {
+    const db = stubDb([[], []])
+    const result = await linkOrProvisionExternalUser(
+      { provider: 'oidc-jwt', subject: 'sub-3', email: 'c@example.com', emailVerified: true },
+      { db: db as never },
+    )
+    expect(result.userId).toBe('new-user-id')
+    expect(db.inserted.length).toBe(2)
+  })
+
+  test('keeps an unverified email on the new account when no one else holds it', async () => {
     const created = await linkOrProvisionExternalUser(
       { provider: 'header', subject: 'mallory', email: 'victim@example.com', emailVerified: false },
-      { db: createDb() as never },
+      { db: stubDb([[], []]) as never },
     )
     expect(created.email).toBe('victim@example.com')
+  })
+
+  test('gives a new account a stub address when another account already holds the email', async () => {
+    const created = await linkOrProvisionExternalUser(
+      { provider: 'header', subject: 'mallory', email: 'victim@example.com' },
+      { db: stubDb([[], [{ id: 'victim-1' }]]) as never },
+    )
+    expect(created.email).toBe('header+mallory@invalid.local')
+  })
+
+  test('refuses to provision when auto-provision is off', async () => {
     await expect(
       linkOrProvisionExternalUser(
         { provider: 'header', subject: 'stranger' },

@@ -82,3 +82,26 @@ describe('getBusinessAuthSettings', () => {
     ).toEqual({ enabled: true, disableSignUp: false })
   })
 })
+
+describe('getBusinessAuthSettings production secrets', () => {
+  test('refuses a placeholder or short secret when NODE_ENV is production', () => {
+    const base = { BETTER_AUTH_URL: 'https://comments.example', NODE_ENV: 'production' }
+    expect(() =>
+      getBusinessAuthSettings({ ...base, BETTER_AUTH_SECRET: 'local-compose-better-auth-secret-change-me-32-chars' }),
+    ).toThrow()
+    expect(() => getBusinessAuthSettings({ ...base, BETTER_AUTH_SECRET: 'x'.repeat(31) })).toThrow()
+    expect(getBusinessAuthSettings({ ...base, BETTER_AUTH_SECRET: 'k7Qp2mZ9xR4vT8wL1nB6cY3hJ5sD0fGq8' }).secret).toBe(
+      'k7Qp2mZ9xR4vT8wL1nB6cY3hJ5sD0fGq8',
+    )
+  })
+
+  test('still accepts the test fixture secret outside production', () => {
+    expect(
+      getBusinessAuthSettings({
+        BETTER_AUTH_URL: 'http://localhost:3000',
+        BETTER_AUTH_SECRET: 'local-compose-better-auth-secret-change-me-32-chars',
+        NODE_ENV: 'development',
+      }).secret,
+    ).toBe('local-compose-better-auth-secret-change-me-32-chars')
+  })
+})
