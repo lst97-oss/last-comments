@@ -6,7 +6,7 @@ import { Route as AdminSiteDetailRoute } from '@/routes/api.admin.sites.$siteKey
 import { Route as ApiKeysRoute } from '@/routes/api.admin.api-keys'
 import { getBusinessAuth } from '@/server/auth/business-auth'
 import { getBusinessDb } from '@/server/db/business-sql'
-import { apikey, siteMemberships, sites } from '@/server/db/schema'
+import { apiKeySites, apikey, siteMemberships, sites } from '@/server/db/schema'
 
 import { assertValidScopeSet, issueServiceKey } from '@/server/modules/api-keys/infrastructure/api-key-repository'
 import {
@@ -89,8 +89,7 @@ describe('sites and site keys', () => {
     expect(denied.status).toBe(403)
     await expect(denied.json()).resolves.toMatchObject({ error: { code: 'INSUFFICIENT_SCOPE' } })
 
-    // Site keys carry only page scopes, and the plugin's permission check sees
-    // the binding in metadata.
+    // Site-bound API keys carry only page scopes, and the binding is read from api_key_sites.
     const publisherKey = await issueServiceKey({
       userId: ownerId,
       name: 'publisher',
@@ -107,7 +106,13 @@ describe('sites and site keys', () => {
       body: { key: publisherKey.key, permissions: { pages: ['write'] } },
     })
     expect(crossCheck.valid).toBe(true)
-    expect((crossCheck.key?.metadata as { siteKey?: string } | null)?.siteKey).toBe(siteKey)
+    // The plugin verifies the permission; the site binding is read from api_key_sites.
+    const [binding] = await db
+      .select({ siteKey: sites.key })
+      .from(apiKeySites)
+      .innerJoin(sites, eq(apiKeySites.siteId, sites.id))
+      .where(eq(apiKeySites.apiKeyId, publisherKey.id))
+    expect(binding?.siteKey).toBe(siteKey)
 
     // Rename + delete via detail route with admin key.
     const patchSite = handlerOfParams(AdminSiteDetailRoute, 'PATCH')
@@ -216,7 +221,7 @@ describe('sites and site keys', () => {
       id: key.id,
       name: 'managed',
       permissions: { pages: ['read', 'write'] },
-      metadata: { siteKey },
+      metadata: { site: siteKey },
     })
     // The full secret never leaves the server on list — only the
     // non-secret start fragment and prefix (same as the plugin's list).

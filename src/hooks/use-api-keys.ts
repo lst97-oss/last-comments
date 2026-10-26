@@ -4,12 +4,12 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import type { ApiKeyScope } from '@/lib/api-key-scopes'
+import { type ApiKeyRecord, scopesOfKey } from '@/lib/api-keys'
 import { readApiData } from '@/lib/api-response'
-import { type PluginKey, scopesOfKey } from '@/lib/site-keys'
 
-export function useSiteKeys() {
+export function useApiKeys() {
   const [drafts, setDrafts] = useState<Record<string, ApiKeyScope[]>>({})
-  const [deleteTarget, setDeleteTarget] = useState<PluginKey | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ApiKeyRecord | null>(null)
 
   // Key reads/writes go through the provider-neutral /api/admin/api-keys
   // wrapper (the plugin's own /api-key/* endpoints need a better-auth
@@ -18,7 +18,7 @@ export function useSiteKeys() {
     queryKey: ['admin-api-keys'],
     queryFn: async () => {
       const response = await fetch('/api/admin/api-keys', { headers: { accept: 'application/json' } })
-      const { keys: listed } = await readApiData<{ keys: PluginKey[] }>(response)
+      const { keys: listed } = await readApiData<{ keys: ApiKeyRecord[] }>(response)
       return listed
     },
     retry: false,
@@ -27,8 +27,8 @@ export function useSiteKeys() {
   const keys = keysQuery.data ?? []
 
   const patchMutation = useMutation({
-    mutationFn: async ({ key, body }: { key: PluginKey; body: { scopes?: ApiKeyScope[]; enabled?: boolean } }) => {
-      const siteKey = key.metadata?.siteKey ?? ''
+    mutationFn: async ({ key, body }: { key: ApiKeyRecord; body: { scopes?: ApiKeyScope[]; enabled?: boolean } }) => {
+      const siteKey = key.metadata?.site ?? ''
       const response = await fetch('/api/admin/api-keys', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
@@ -40,10 +40,10 @@ export function useSiteKeys() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (key: PluginKey) => {
+    mutationFn: async (key: ApiKeyRecord) => {
       // Mirror patchKey's scope binding so the server can confirm the key
       // belongs to this scope before deleting.
-      const siteKey = key.metadata?.siteKey ?? ''
+      const siteKey = key.metadata?.site ?? ''
       const params = new URLSearchParams({ keyId: key.id, ...(siteKey ? { siteKey } : {}) })
       const response = await fetch(`/api/admin/api-keys?${params}`, { method: 'DELETE' })
       await readApiData<{ deleted: boolean }>(response)
@@ -62,21 +62,16 @@ export function useSiteKeys() {
   const failure = patchMutation.error ?? deleteMutation.error ?? keysQuery.error
   const error = failure instanceof Error ? failure.message : ''
 
-  function toggleScope(key: PluginKey, scope: ApiKeyScope) {
-    setDrafts((prev) => {
-      const draft = prev[key.id] ?? scopesOfKey(key)
-      return {
-        ...prev,
-        [key.id]: draft.includes(scope) ? draft.filter((item) => item !== scope) : [...draft, scope],
-      }
-    })
+  // The picker edits the whole scope list at once, since a feature grants several scopes.
+  function setDraftScopes(key: ApiKeyRecord, scopes: ApiKeyScope[]) {
+    setDrafts((prev) => ({ ...prev, [key.id]: scopes }))
   }
 
-  function saveScopes(key: PluginKey) {
+  function saveScopes(key: ApiKeyRecord) {
     patchMutation.mutate({ key, body: { scopes: drafts[key.id] ?? scopesOfKey(key) } })
   }
 
-  function toggleEnabled(key: PluginKey) {
+  function toggleEnabled(key: ApiKeyRecord) {
     patchMutation.mutate({ key, body: { enabled: !key.enabled } })
   }
 
@@ -94,7 +89,7 @@ export function useSiteKeys() {
       deleteMutation.reset()
     },
     drafts,
-    toggleScope,
+    setDraftScopes,
     saveScopes,
     toggleEnabled,
     deleting: deleteMutation.isPending,

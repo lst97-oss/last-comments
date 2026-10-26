@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { assertSameOrigin, getMembershipRole, requireSessionUserId } from '@/server/http/route-guards'
 import { parseJsonBody, parseWith } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
@@ -32,7 +32,7 @@ async function requireSiteWriter(
   // Unknown sites stay 403 here: a non-admin must not learn whether a key exists.
   const siteId = await findSiteIdByKey(siteKey)
   if (!siteId || (await getMembershipRole(siteId, userId)) !== 'admin') {
-    throw new HttpError(403, 'FORBIDDEN', 'Only site admins can edit this site')
+    throw new HttpError(ErrorCode.FORBIDDEN.status, ErrorCode.FORBIDDEN.code, 'Only site admins can edit this site')
   }
 }
 

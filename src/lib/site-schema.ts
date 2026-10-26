@@ -36,6 +36,7 @@ export const editSiteSchema = z.object({
   bodyLimit: bodyLimitFieldSchema,
   access: z.enum(SITE_ACCESS_LEVELS),
   gatewayOnly: z.boolean(),
+  votesEnabled: z.boolean(),
 })
 
 // Operator-facing copy for the visitor policy. Each one says who may do what.

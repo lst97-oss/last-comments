@@ -13,6 +13,7 @@ export const siteUpdateSchema = z.strictObject({
   bodyLimit: siteBodyLimitSchema.nullable().optional(),
   access: z.enum(SITE_ACCESS_LEVELS).optional(),
   gatewayOnly: z.boolean().optional(),
+  votesEnabled: z.boolean().optional(),
 })
 
 export const adminSiteSchema = z.strictObject({
