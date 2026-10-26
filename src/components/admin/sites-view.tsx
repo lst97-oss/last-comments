@@ -2,21 +2,24 @@
 
 import { useForm } from '@tanstack/react-form'
 import { Copy, KeyRound, Pencil, Trash } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { AccountTextField } from '@/components/admin/account-field'
+import { FILL_SITE_EXAMPLE_EVENT, siteExample } from '@/components/admin/admin-tours'
 import { ConfirmDeleteDialog } from '@/components/admin/confirm-delete-dialog'
 import { FormDialog } from '@/components/admin/form-dialog'
+import { SiteAccessHelp } from '@/components/admin/site-access-help'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useWindowEvent } from '@/hooks/use-window-event'
+import { type Site, type SiteRole } from '@/lib/admin-sites'
 import { copyText } from '@/lib/clipboard'
 import { SITE_ACCESS_LEVELS, type SiteAccess } from '@/lib/site-access'
-import { type Site, type SiteRole } from '@/lib/site-keys'
 import {
   bodyLimitFromField,
   type EditSiteForm,
@@ -30,6 +33,7 @@ import {
 export function SitesView({
   sites,
   allSites,
+  publicOrigin,
   createOpen,
   onCreateOpen,
   onCreateSite,
@@ -38,6 +42,7 @@ export function SitesView({
 }: {
   sites: Site[]
   allSites: Site[]
+  publicOrigin: string
   createOpen: boolean
   onCreateOpen: (open: boolean) => void
   onCreateSite: (values: SiteForm) => Promise<boolean>
@@ -53,16 +58,30 @@ export function SitesView({
       await onCreateSite(value)
     },
   })
+  // The tour's example button opens this form with this deployment's origin filled in. It never submits.
+  useWindowEvent(FILL_SITE_EXAMPLE_EVENT, () => {
+    const example = siteExample(publicOrigin)
+    form.reset()
+    form.setFieldValue('name', example.name)
+    form.setFieldValue('origin', example.origin)
+    onCreateOpen(true)
+  })
   const [renameTarget, setRenameTarget] = useState<Site | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Site | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [deleting, startDelete] = useTransition()
   const renameForm = useForm({
-    defaultValues: { name: '', bodyLimit: '', access: 'open', gatewayOnly: false } as EditSiteForm,
+    defaultValues: { name: '', bodyLimit: '', access: 'open', gatewayOnly: false, votesEnabled: true } as EditSiteForm,
     validators: { onChange: editSiteSchema },
     onSubmit: async ({ value }) => {
       if (!renameTarget) return
       const bodyLimit = bodyLimitFromField(value.bodyLimit)
-      const next = { name: value.name, bodyLimit, access: value.access, gatewayOnly: value.gatewayOnly }
+      const next = {
+        name: value.name,
+        bodyLimit,
+        access: value.access,
+        gatewayOnly: value.gatewayOnly,
+        votesEnabled: value.votesEnabled,
+      }
       if (await onEditSite(renameTarget.key, next)) setRenameTarget(null)
     },
   })
@@ -74,32 +93,32 @@ export function SitesView({
     renameForm.setFieldValue('bodyLimit', target.bodyLimit == null ? '' : String(target.bodyLimit))
     renameForm.setFieldValue('access', target.access ?? 'open')
     renameForm.setFieldValue('gatewayOnly', target.gatewayOnly ?? false)
+    renameForm.setFieldValue('votesEnabled', target.votesEnabled ?? true)
     setRenameTarget(target)
   }
 
-  async function confirmDelete() {
+  function confirmDelete() {
     if (!deleteTarget) return
-    setDeleting(true)
-    try {
+    // The transition keeps `deleting` true until the delete settles; the handler resolves to a boolean and never rejects.
+    startDelete(async () => {
       if (await onDeleteSite(deleteTarget.key)) setDeleteTarget(null)
-    } finally {
-      setDeleting(false)
-    }
+    })
   }
 
   return (
     <>
-      <Card>
+      <Card data-tour="sites-card">
         <CardHeader>
           <CardTitle>Sites</CardTitle>
           <CardDescription>
             {allSites.length === 0
               ? 'No sites yet. Creating a site generates its key and registers its first allowed origin.'
-              : `${allSites.length} ${allSites.length === 1 ? 'site' : 'sites'}. Site keys are minted on the API keys page.`}
+              : `${allSites.length} ${allSites.length === 1 ? 'site' : 'sites'}. Each site's key is set when it is created. Server API keys are minted on the API keys page.`}
           </CardDescription>
           <CardAction>
             <Button
               type="button"
+              data-tour="sites-create"
               onClick={() => {
                 form.reset()
                 onCreateOpen(true)
@@ -111,7 +130,7 @@ export function SitesView({
         </CardHeader>
         <CardContent>
           {allSites.length === 0 ? (
-            <Empty>
+            <Empty data-tour="sites-empty">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <KeyRound />
@@ -123,7 +142,7 @@ export function SitesView({
               </EmptyHeader>
             </Empty>
           ) : (
-            <Table>
+            <Table data-tour="sites-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -160,18 +179,30 @@ export function SitesView({
                       </TableCell>
                       <TableCell>
                         {role ? (
-                          <Badge variant="secondary">{role === 'admin' ? 'Site admin' : 'Moderator'}</Badge>
+                          <Badge variant="secondary">{role === 'admin' ? 'Site admin' : 'Member'}</Badge>
                         ) : (
                           <Badge variant="outline">Not a member</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button type="button" variant="outline" size="sm" onClick={() => openRename(item)}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            data-tour="sites-edit"
+                            onClick={() => openRename(item)}
+                          >
                             <Pencil data-icon="inline-start" />
                             Edit
                           </Button>
-                          <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteTarget(item)}>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            data-tour="sites-delete"
+                            onClick={() => setDeleteTarget(item)}
+                          >
                             <Trash data-icon="inline-start" />
                             Delete
                           </Button>
@@ -189,21 +220,22 @@ export function SitesView({
         open={createOpen}
         onOpenChange={onCreateOpen}
         title="Create site"
-        description="The site key is generated automatically and this origin becomes the site's first allowed origin. Comments are only accepted from allowed origins."
+        description="A site key is generated for embeds, and this origin becomes the first allowed origin. Comments are accepted only from allowed origins."
         submitLabel="Create site"
         pendingLabel="Creating…"
         form={form}
       >
         <FieldGroup>
-          <AccountTextField form={form} name="name" id="site-name" label="Name" maxLength={120} />
+          <AccountTextField form={form} name="name" id="site-name" label="Name" placeholder="My blog" maxLength={120} />
           <AccountTextField
             form={form}
             name="origin"
             id="site-origin"
             label="Allowed origin"
             type="url"
+            placeholder="https://www.example.com"
             maxLength={2048}
-            description="Scheme and host only — no path, query, or fragment."
+            description="Scheme and host only, such as https://www.example.com. No path, query, or fragment."
           />
         </FieldGroup>
       </FormDialog>
@@ -230,15 +262,25 @@ export function SitesView({
             name="bodyLimit"
             id="rename-site-body-limit"
             label="Maximum comment length"
+            placeholder="10000 (default)"
+            inputMode="numeric"
             maxLength={5}
-            description="Characters per comment, from 1 to 10,000. Leave blank for the default of 10,000. Longer comments are refused."
+            required={false}
+            description="Characters per comment, 1 to 10,000. Blank uses the default. Longer comments are refused."
           />
           <renameForm.Field
             name="access"
             children={(field) => (
               <Field>
-                <FieldLabel htmlFor="rename-site-access">Who can comment</FieldLabel>
-                <Select value={field.state.value} onValueChange={(value) => field.handleChange(value as SiteAccess)}>
+                <div className="flex items-center gap-1">
+                  <FieldLabel htmlFor="rename-site-access">Who can comment</FieldLabel>
+                  <SiteAccessHelp />
+                </div>
+                <Select
+                  items={SITE_ACCESS_LEVELS.map((level) => ({ value: level, label: SITE_ACCESS_LABELS[level].label }))}
+                  value={field.state.value}
+                  onValueChange={(value) => field.handleChange(value as SiteAccess)}
+                >
                   <SelectTrigger id="rename-site-access" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -265,10 +307,31 @@ export function SitesView({
                   checked={field.state.value}
                   onCheckedChange={(checked) => field.handleChange(checked === true)}
                 />
-                <FieldLabel htmlFor="rename-site-gateway-only">Accept requests only through my host</FieldLabel>
-                <FieldDescription>
-                  Refuses direct browser and curl calls that carry no site key. Your host&apos;s proxy keeps working.
-                </FieldDescription>
+                <FieldContent>
+                  <FieldLabel htmlFor="rename-site-gateway-only">Accept requests only through my host</FieldLabel>
+                  <FieldDescription>
+                    Refuses direct browser and curl calls that carry no site key. Your host&apos;s proxy keeps working.
+                  </FieldDescription>
+                </FieldContent>
+              </Field>
+            )}
+          />
+          <renameForm.Field
+            name="votesEnabled"
+            children={(field) => (
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="rename-site-votes"
+                  checked={field.state.value}
+                  onCheckedChange={(checked) => field.handleChange(checked === true)}
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor="rename-site-votes">Allow votes</FieldLabel>
+                  <FieldDescription>
+                    Visitors who are signed in can vote on comments. Turning this off hides the arrows and refuses
+                    votes.
+                  </FieldDescription>
+                </FieldContent>
               </Field>
             )}
           />
@@ -282,7 +345,7 @@ export function SitesView({
         pendingLabel="Deleting…"
         pending={deleting}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        onConfirm={() => void confirmDelete()}
+        onConfirm={confirmDelete}
       />
     </>
   )

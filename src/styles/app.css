@@ -507,3 +507,51 @@
     }
   }
 }
+
+/* Admin tours (driver.js) paint in fixed white and grey. Unlayered, so they beat driver's own stylesheet. */
+.driver-popover.admin-tour {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.admin-tour .driver-popover-title,
+.admin-tour .driver-popover-description {
+  color: inherit;
+}
+.admin-tour .driver-popover-progress-text,
+.admin-tour .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+.admin-tour .driver-popover-arrow-side-top {
+  border-top-color: var(--popover);
+}
+.admin-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--popover);
+}
+.admin-tour .driver-popover-arrow-side-left {
+  border-left-color: var(--popover);
+}
+.admin-tour .driver-popover-arrow-side-right {
+  border-right-color: var(--popover);
+}
+.admin-tour .driver-popover-footer-btn {
+  background-color: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.admin-tour .driver-popover-footer-btn:hover,
+.admin-tour .driver-popover-footer-btn:focus {
+  background-color: var(--accent);
+}
+.admin-tour .driver-popover-next-btn,
+.admin-tour .driver-popover-done-btn {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+.admin-tour .driver-popover-next-btn:hover,
+.admin-tour .driver-popover-done-btn:hover {
+  background-color: var(--primary);
+  opacity: 0.9;
+}

@@ -102,11 +102,7 @@ function HistoryBody({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 pt-2">
-          {user.role ? (
-            <Badge variant="secondary">{user.role === 'admin' ? 'Site admin' : 'Moderator'}</Badge>
-          ) : (
-            <Badge variant="outline">Commenter</Badge>
-          )}
+          <Badge variant="secondary">{user.role === 'admin' ? 'Site admin' : 'Member'}</Badge>
           {user.blocked ? (
             <Badge variant="destructive" title={user.blockedReason ?? 'No reason given'}>
               Blocked

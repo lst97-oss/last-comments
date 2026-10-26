@@ -9,9 +9,12 @@ import {
   LayoutDashboard,
   LogOut,
   type LucideIcon,
+  Moon,
   Settings,
   ShieldCheck,
+  Sun,
 } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -72,7 +75,6 @@ const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { to: '/moderation', label: 'Moderation', icon: ShieldCheck },
       { to: '/api-keys', label: 'API keys', icon: KeyRound },
-      { to: '/settings', label: 'Settings', icon: Settings },
     ],
   },
 ]
@@ -91,9 +93,7 @@ function SiteSwitcher() {
               />
             }
           >
-            <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <House className="size-4" />
-            </span>
+            <img src="/favicon/favicon.ico" alt="" aria-hidden className="size-8 shrink-0" />
             <span className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">Last Comments</span>
               <span className="truncate text-xs text-muted-foreground">Admin</span>
@@ -109,6 +109,23 @@ function SiteSwitcher() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  )
+}
+
+// Icons and labels swap on the `dark` class, as the site's own toggles do, so nothing depends on client-only state.
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton tooltip="Switch theme" onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}>
+          <Sun className="hidden dark:block" />
+          <Moon className="block dark:hidden" />
+          <span className="dark:hidden">Switch to dark mode</span>
+          <span className="hidden dark:inline">Switch to light mode</span>
+        </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
   )
@@ -216,6 +233,7 @@ export function AdminSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter>
+        <ThemeToggle />
         <UserMenu />
       </SidebarFooter>
     </Sidebar>

@@ -1,8 +1,8 @@
 import '@lst97-oss/last-comments-widgets/react/styles.css'
 
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
-import { Copy, ExternalLink, Lock, TriangleAlert } from 'lucide-react'
+import { Copy, ExternalLink, Lock } from 'lucide-react'
 import { useState } from 'react'
 
 import { AdminQueryError } from '@/components/admin/admin-query-error'
@@ -20,7 +20,7 @@ import {
 } from '@/components/admin/stats-panels'
 import { ThreadKeyBadge, ThreadStatusBadge } from '@/components/admin/thread-status-badge'
 import { ThreadCommentsSection, ThreadMetaCard } from '@/components/admin/thread-widgets'
-import { Alert, AlertTitle } from '@/components/ui/alert'
+import { usePageLock } from '@/components/admin/use-page-lock'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -88,7 +88,6 @@ function PageThreadPage() {
   const { site } = Route.useSearch()
   const { pageId } = Route.useParams()
   const [days, setDays] = useState<Range>('30')
-  const [actionError, setActionError] = useState('')
   const { principal } = useSessionPrincipal()
   // Same-origin dashboard: the widget calls /api/moderation and needs no
   // absolute origin on the server, so an empty baseUrl keeps SSR inert.
@@ -112,22 +111,8 @@ function PageThreadPage() {
   const error = missingSite ? 'This thread link is missing its site.' : failure.message
   const hasError = missingSite || Boolean(threadQuery.error)
 
-  // Locking is a page-level moderation action; the thread stays open.
-  const lockMutation = useMutation({
-    mutationFn: async (locked: boolean) => {
-      const response = await fetch('/api/moderation', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ site, target: 'page', pageId, locked }),
-      })
-      await readApiData<Record<string, unknown>>(response)
-    },
-    onSuccess: async () => {
-      setActionError('')
-      await threadQuery.refetch()
-    },
-    onError: (cause) => setActionError(cause instanceof Error ? cause.message : 'Could not update the thread'),
-  })
+  // Locking is a page-level moderation action; the thread stays open. Its result is a toast, not an inline alert.
+  const lockMutation = usePageLock(site, () => threadQuery.refetch())
 
   const page = thread?.page
   const title = page ? (page.title ?? page.canonicalUrl) : 'Thread'
@@ -169,7 +154,7 @@ function PageThreadPage() {
                   type="button"
                   variant="outline"
                   disabled={lockMutation.isPending}
-                  onClick={() => void lockMutation.mutateAsync(!page.isLocked).catch(() => undefined)}
+                  onClick={() => lockMutation.mutate({ page, locked: !page.isLocked })}
                 >
                   {lockMutation.isPending ? <Spinner data-icon="inline-start" /> : <Lock data-icon="inline-start" />}
                   {page.isLocked ? 'Unlock' : 'Lock'}
@@ -202,13 +187,6 @@ function PageThreadPage() {
             )}
           </div>
         </header>
-
-        {actionError ? (
-          <Alert variant="destructive">
-            <TriangleAlert />
-            <AlertTitle>{actionError}</AlertTitle>
-          </Alert>
-        ) : null}
 
         {hasError ? (
           <AdminQueryError

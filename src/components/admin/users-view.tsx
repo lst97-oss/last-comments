@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Search, Users } from 'lucide-react'
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useReducer, useState } from 'react'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
 import { Pager } from '@/components/admin/pages-view'
 import { UserHistoryDrawer } from '@/components/admin/user-history-drawer'
@@ -17,7 +17,7 @@ import { toast } from '@/components/ui/toast'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { authorInitials, timeAgo } from '@/lib/admin-format'
 import { describeApiError, readApiData } from '@/lib/api-response'
-import { type SiteUser, type UserDirectoryFilter } from '@/lib/site-users'
+import { INITIAL_USER_DIRECTORY, type SiteUser, userDirectoryReducer } from '@/lib/site-users'
 
 const USER_LIST_SIZE = 10
 
@@ -27,10 +27,10 @@ function formatDateTime(value: string | null): string {
 }
 
 export function UsersView({ site }: { site: string }) {
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<UserDirectoryFilter>('all')
-  const [directoryPage, setDirectoryPage] = useState(0)
-  const [blockedPage, setBlockedPage] = useState(0)
+  const [{ search, filter, directoryPage, blockedPage }, dispatch] = useReducer(
+    userDirectoryReducer,
+    INITIAL_USER_DIRECTORY,
+  )
   const [historyUser, setHistoryUser] = useState<SiteUser | null>(null)
   // The list query is keyed on the deferred needle so typing does not fire a
   // request per keystroke; the input itself stays immediate.
@@ -109,17 +109,6 @@ export function UsersView({ site }: { site: string }) {
       }),
   })
 
-  function searchUsers(value: string) {
-    setSearch(value)
-    setDirectoryPage(0)
-    setBlockedPage(0)
-  }
-
-  function changeFilter(next: UserDirectoryFilter) {
-    setFilter(next)
-    setDirectoryPage(0)
-  }
-
   if (queryError) {
     return (
       <AdminQueryError
@@ -155,7 +144,7 @@ export function UsersView({ site }: { site: string }) {
               <Input
                 type="search"
                 value={search}
-                onChange={(event) => searchUsers(event.target.value)}
+                onChange={(event) => dispatch({ type: 'search', search: event.target.value })}
                 placeholder="Search name or email"
                 aria-label="Search users"
                 className="pl-9"
@@ -166,7 +155,7 @@ export function UsersView({ site }: { site: string }) {
               value={[filter]}
               onValueChange={(next) => {
                 const picked = next[0]
-                if (picked === 'all' || picked === 'blocked') changeFilter(picked)
+                if (picked === 'all' || picked === 'blocked') dispatch({ type: 'filter', filter: picked })
               }}
             >
               <ToggleGroupItem value="all" variant="outline" size="sm">
@@ -203,7 +192,12 @@ export function UsersView({ site }: { site: string }) {
                 onHistory={setHistoryUser}
                 onToggleBlock={(userId, blocked) => blockMutation.mutate({ userId, blocked })}
               />
-              <Pager total={directoryTotal} page={directoryPage} size={USER_LIST_SIZE} onPage={setDirectoryPage} />
+              <Pager
+                total={directoryTotal}
+                page={directoryPage}
+                size={USER_LIST_SIZE}
+                onPage={(page) => dispatch({ type: 'directoryPage', page })}
+              />
             </>
           )}
         </CardContent>
@@ -241,7 +235,12 @@ export function UsersView({ site }: { site: string }) {
                 onHistory={setHistoryUser}
                 onToggleBlock={(userId, blocked) => blockMutation.mutate({ userId, blocked })}
               />
-              <Pager total={blockedTotal} page={blockedPage} size={USER_LIST_SIZE} onPage={setBlockedPage} />
+              <Pager
+                total={blockedTotal}
+                page={blockedPage}
+                size={USER_LIST_SIZE}
+                onPage={(page) => dispatch({ type: 'blockedPage', page })}
+              />
             </>
           )}
         </CardContent>
@@ -307,11 +306,7 @@ function UserTable({
               </div>
             </TableCell>
             <TableCell>
-              {user.role ? (
-                <Badge variant="secondary">{user.role === 'admin' ? 'Site admin' : 'Moderator'}</Badge>
-              ) : (
-                <Badge variant="outline">Commenter</Badge>
-              )}
+              <Badge variant="secondary">{user.role === 'admin' ? 'Site admin' : 'Member'}</Badge>
             </TableCell>
             <TableCell className="text-xs text-muted-foreground">
               <time dateTime={user.createdAt} title={formatDateTime(user.createdAt)}>

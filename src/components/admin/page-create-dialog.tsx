@@ -5,10 +5,17 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import {
+  BLOG_EXAMPLE_PATH,
+  BLOG_EXAMPLE_SLUG,
+  BLOG_EXAMPLE_TITLE,
+  FILL_PAGE_EXAMPLE_EVENT,
+} from '@/components/admin/admin-tours'
 import { FormDialog } from '@/components/admin/form-dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group'
+import { useWindowEvent } from '@/hooks/use-window-event'
 import { readApiData } from '@/lib/api-response'
 
 // A bare path is joined to the site's origin; a pasted full URL must already
@@ -131,6 +138,15 @@ export function PageCreateDialog({
         })
         .catch(() => undefined)
     },
+  })
+
+  // The tour's example button opens the form with the seeded blog post filled in. It never submits.
+  useWindowEvent(FILL_PAGE_EXAMPLE_EVENT, () => {
+    form.reset()
+    form.setFieldValue('path', BLOG_EXAMPLE_PATH)
+    form.setFieldValue('pageKey', BLOG_EXAMPLE_SLUG)
+    form.setFieldValue('title', BLOG_EXAMPLE_TITLE)
+    onOpenChange(true)
   })
 
   return (

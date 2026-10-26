@@ -1,38 +1,40 @@
 'use client'
 
+import { PermissionPicker } from '@/components/admin/permission-picker'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSet } from '@/components/ui/field'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemFooter, ItemTitle } from '@/components/ui/item'
+import type { Site } from '@/lib/admin-sites'
 import type { ApiKeyScope } from '@/lib/api-key-scopes'
-import { type PluginKey, SCOPE_DESCRIPTIONS, SCOPE_LABELS, SITE_KEY_SCOPES, scopesOfKey } from '@/lib/site-keys'
+import { type ApiKeyRecord, SITE_BOUND_SCOPES, scopesOfKey } from '@/lib/api-keys'
 
-export function SiteKeyRow({
+export function ApiKeyRow({
   apiKey,
+  site,
   draft,
   canSave,
   showScopes = true,
   idPrefix,
   pending = false,
-  onToggleScope,
+  onChangeScopes,
   onSave,
   onToggleEnabled,
   onRequestDelete,
 }: {
-  apiKey: PluginKey
+  apiKey: ApiKeyRecord
+  site?: Pick<Site, 'access' | 'gatewayOnly'>
   draft: ApiKeyScope[]
   canSave: boolean
   showScopes?: boolean
   idPrefix: string
   pending?: boolean
-  onToggleScope?: (scope: ApiKeyScope) => void
+  onChangeScopes?: (scopes: ApiKeyScope[]) => void
   onSave?: () => void
   onToggleEnabled: () => void
   onRequestDelete: () => void
 }) {
-  const boundSite = apiKey.metadata?.siteKey ?? null
+  const boundSite = apiKey.metadata?.site ?? null
   const grantedScopes = scopesOfKey(apiKey)
   const details = [`created ${new Date(apiKey.createdAt).toLocaleDateString()}`]
   if (apiKey.expiresAt) details.push(`expires ${new Date(apiKey.expiresAt).toLocaleDateString()}`)
@@ -62,7 +64,7 @@ export function SiteKeyRow({
           Delete
         </Button>
       </ItemActions>
-      {showScopes && onToggleScope && onSave && (
+      {showScopes && onChangeScopes && onSave && (
         <ItemFooter className="flex-col items-stretch border-border border-t pt-0">
           <Accordion>
             <AccordionItem value="permissions">
@@ -70,31 +72,12 @@ export function SiteKeyRow({
                 <span>
                   Permissions{' '}
                   <span className="font-normal text-muted-foreground">
-                    ({grantedScopes.length}/{SITE_KEY_SCOPES.length})
+                    ({grantedScopes.length}/{SITE_BOUND_SCOPES.length})
                   </span>
                 </span>
               </AccordionTrigger>
               <AccordionContent className="[&_p:not(:last-child)]:mb-0">
-                <FieldSet>
-                  <FieldGroup data-slot="checkbox-group">
-                    {SITE_KEY_SCOPES.map((scope) => {
-                      const id = `${idPrefix}-scope-${scope}`
-                      return (
-                        <Field key={scope} orientation="horizontal">
-                          <Checkbox
-                            id={id}
-                            checked={draft.includes(scope)}
-                            onCheckedChange={() => onToggleScope(scope)}
-                          />
-                          <FieldContent>
-                            <FieldLabel htmlFor={id}>{SCOPE_LABELS[scope]}</FieldLabel>
-                            <FieldDescription>{SCOPE_DESCRIPTIONS[scope]}</FieldDescription>
-                          </FieldContent>
-                        </Field>
-                      )
-                    })}
-                  </FieldGroup>
-                </FieldSet>
+                <PermissionPicker idPrefix={idPrefix} scopes={draft} site={site} onChange={onChangeScopes} />
                 <div className="flex justify-end pt-4">
                   <Button type="button" size="sm" variant="secondary" disabled={!canSave || pending} onClick={onSave}>
                     Save permissions

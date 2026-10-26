@@ -68,6 +68,7 @@ test('a page thread reports its own totals, trend, authors and activity', async 
     .insert(comments)
     .values([
       {
+        siteId: site!.id,
         pageId: page!.id,
         userId,
         authorName: 'Signed in',
@@ -76,6 +77,7 @@ test('a page thread reports its own totals, trend, authors and activity', async 
         createdAt: now,
       },
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Guest',
         bodyMarkdown: 'Yesterday',
@@ -83,6 +85,7 @@ test('a page thread reports its own totals, trend, authors and activity', async 
         createdAt: yesterday,
       },
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Guest',
         bodyMarkdown: 'A reply',
@@ -90,6 +93,7 @@ test('a page thread reports its own totals, trend, authors and activity', async 
         createdAt: yesterday,
       },
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Hidden',
         bodyMarkdown: 'Hidden',
@@ -97,13 +101,16 @@ test('a page thread reports its own totals, trend, authors and activity', async 
         createdAt: yesterday,
       },
       {
+        siteId: site!.id,
         pageId: page!.id,
         authorName: 'Deleted',
         bodyMarkdown: 'Deleted',
         status: 'deleted',
+        deletedAt: twoDaysAgo,
         createdAt: twoDaysAgo,
       },
       {
+        siteId: site!.id,
         pageId: otherPage!.id,
         authorName: 'Elsewhere',
         bodyMarkdown: 'Other thread',

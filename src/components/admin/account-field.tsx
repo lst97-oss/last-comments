@@ -15,6 +15,9 @@ export function AccountTextField<TData extends Record<string, unknown>, TName ex
   autoComplete,
   maxLength,
   minLength,
+  placeholder,
+  inputMode,
+  required = true,
   description,
   validators,
 }: {
@@ -26,6 +29,10 @@ export function AccountTextField<TData extends Record<string, unknown>, TName ex
   autoComplete?: string
   maxLength?: number
   minLength?: number
+  placeholder?: string
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
+  // Optional fields must not carry the native `required`, or the browser blocks Save.
+  required?: boolean
   description?: string
   validators?: Record<string, unknown>
 }) {
@@ -47,8 +54,10 @@ export function AccountTextField<TData extends Record<string, unknown>, TName ex
               autoComplete={autoComplete}
               maxLength={maxLength}
               minLength={minLength}
+              placeholder={placeholder}
+              inputMode={inputMode}
               aria-invalid={invalid}
-              required
+              required={required}
             />
             {description ? <FieldDescription>{description}</FieldDescription> : null}
             <FieldError errors={field.state.meta.errors} />

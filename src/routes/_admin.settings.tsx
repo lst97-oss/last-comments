@@ -2,12 +2,32 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Blocks, KeyRound, Settings as SettingsIcon, ShieldCheck, Users } from 'lucide-react'
+import {
+  Blocks,
+  CircleCheck,
+  CircleDashed,
+  CircleSlash,
+  KeyRound,
+  Network,
+  Settings as SettingsIcon,
+  ShieldAlert,
+  ShieldCheck,
+  Timer,
+  TriangleAlert,
+  Infinity as UnlimitedIcon,
+  UserPlus,
+  Users,
+  UserX,
+} from 'lucide-react'
 import { AdminQueryError } from '@/components/admin/admin-query-error'
+import { SettingRow, SettingState, type SettingView } from '@/components/admin/setting-state'
+import { setTourHidden, useTourHidden } from '@/components/admin/tour-preference'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Field, FieldContent, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Separator } from '@/components/ui/separator'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -20,7 +40,95 @@ export const Route = createFileRoute('/_admin/settings')({
   errorComponent: BusinessRouteError,
 })
 
+// What each instance setting shows: the state word and icon say what is set, the meaning says what it does.
+const VIEWS = {
+  autoProvisionOn: {
+    tone: 'info',
+    icon: UserPlus,
+    state: 'On',
+    meaning: 'A first external sign-in creates an account.',
+  },
+  autoProvisionOff: {
+    tone: 'neutral',
+    icon: UserX,
+    state: 'Off',
+    meaning: 'Only existing accounts can sign in. Unknown external sign-ins are refused.',
+  },
+  bootstrapSet: {
+    tone: 'success',
+    icon: ShieldCheck,
+    state: 'Set',
+    meaning: 'Only AUTH_BOOTSTRAP_EMAIL can claim the first admin slot.',
+  },
+  bootstrapUnset: {
+    tone: 'neutral',
+    icon: CircleDashed,
+    state: 'Not set',
+    meaning: 'On a new instance, the first external sign-in claims the admin slot.',
+  },
+  oidcConfigured: {
+    tone: 'success',
+    icon: KeyRound,
+    state: 'Configured',
+    meaning: 'Tokens from the configured issuer are accepted.',
+  },
+  oidcMissing: {
+    tone: 'neutral',
+    icon: CircleDashed,
+    state: 'Not configured',
+    meaning: 'OIDC tokens are refused until the JWKS URL, issuer and audience are all set.',
+  },
+  proxyTrusted: {
+    tone: 'info',
+    icon: Network,
+    state: 'Trusted',
+    meaning: 'Identity headers are read only from the proxy CIDR below.',
+  },
+  proxyOff: {
+    tone: 'neutral',
+    icon: CircleSlash,
+    state: 'Off',
+    meaning: 'Proxy identity headers are ignored.',
+  },
+  verificationRequired: {
+    tone: 'success',
+    icon: ShieldCheck,
+    state: 'Required',
+    meaning: 'Every commenter passes Turnstile, signed in or not.',
+  },
+  verificationBypassed: {
+    tone: 'warning',
+    icon: ShieldAlert,
+    state: 'Bypassed',
+    meaning: 'Posts go through without a token. Local development only.',
+  },
+} satisfies Record<string, SettingView>
+
+// A key or secret is a problem only while the check it feeds is required: then a missing value fails closed.
+function secretView(
+  set: boolean,
+  required: boolean,
+  copy: { set: string; missing: string; notRequired?: string },
+): SettingView {
+  if (set) return { tone: 'success', icon: CircleCheck, state: 'Set', meaning: copy.set }
+  if (required) return { tone: 'warning', icon: TriangleAlert, state: 'Missing', meaning: copy.missing }
+  return { tone: 'neutral', icon: CircleDashed, state: 'Missing', meaning: copy.notRequired ?? copy.missing }
+}
+
+function editWindowView(minutes: number): SettingView {
+  if (minutes === 0) {
+    return { tone: 'warning', icon: UnlimitedIcon, state: 'Unlimited', meaning: 'Guest edit keys never expire.' }
+  }
+  return {
+    tone: 'success',
+    icon: Timer,
+    state: `${minutes} min`,
+    meaning: `Guest edit keys work for ${minutes} minutes after posting.`,
+  }
+}
+
 function SettingsPage() {
+  const hideTour = useTourHidden()
   const settingsQuery = useQuery({
     queryKey: ['admin-settings'],
     queryFn: async () => {
@@ -96,9 +204,13 @@ function SettingsPage() {
                             </TableCell>
                             <TableCell>
                               {plugin.enabled ? (
-                                <Badge variant="secondary">Enabled</Badge>
+                                <SettingState tone="success" icon={CircleCheck}>
+                                  Enabled
+                                </SettingState>
                               ) : (
-                                <Badge variant="outline">Disabled</Badge>
+                                <SettingState tone="neutral" icon={CircleSlash}>
+                                  Disabled
+                                </SettingState>
                               )}
                             </TableCell>
                             <TableCell className="max-w-md text-xs text-muted-foreground">{plugin.detail}</TableCell>
@@ -126,27 +238,15 @@ function SettingsPage() {
                     ))}
                   </div>
                   <Separator />
-                  <dl className="flex flex-col gap-2 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Auto-provision external users</dt>
-                      <dd>
-                        {settings.auth.autoProvision ? (
-                          <Badge variant="secondary">On</Badge>
-                        ) : (
-                          <Badge variant="outline">Off</Badge>
-                        )}
-                      </dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Bootstrap email pinned</dt>
-                      <dd>
-                        {settings.auth.bootstrapEmailSet ? (
-                          <Badge variant="secondary">Set</Badge>
-                        ) : (
-                          <Badge variant="outline">Not set</Badge>
-                        )}
-                      </dd>
-                    </div>
+                  <dl className="flex flex-col gap-3 text-sm">
+                    <SettingRow
+                      label="Auto-provision external users"
+                      view={settings.auth.autoProvision ? VIEWS.autoProvisionOn : VIEWS.autoProvisionOff}
+                    />
+                    <SettingRow
+                      label="Bootstrap email pinned"
+                      view={settings.auth.bootstrapEmailSet ? VIEWS.bootstrapSet : VIEWS.bootstrapUnset}
+                    />
                   </dl>
                 </CardContent>
               </Card>
@@ -157,28 +257,24 @@ function SettingsPage() {
                   <CardDescription>Enterprise login wiring. Secrets are never shown here.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">OIDC JWT</span>
-                    {settings.auth.oidc.configured ? (
-                      <Badge variant="secondary">Configured</Badge>
-                    ) : (
-                      <Badge variant="outline">Not configured</Badge>
-                    )}
-                  </div>
+                  <dl>
+                    <SettingRow
+                      label="OIDC JWT"
+                      view={settings.auth.oidc.configured ? VIEWS.oidcConfigured : VIEWS.oidcMissing}
+                    />
+                  </dl>
                   <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
                     <li>JWKS URL: {settings.auth.oidc.jwksUrlSet ? 'set' : 'missing'}</li>
                     <li>Issuer: {settings.auth.oidc.issuerSet ? 'set' : 'missing'}</li>
                     <li>Audience: {settings.auth.oidc.audienceSet ? 'set' : 'missing'}</li>
                   </ul>
                   <Separator />
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">Reverse-proxy SSO</span>
-                    {settings.auth.header.trustProxy ? (
-                      <Badge variant="secondary">Trusted</Badge>
-                    ) : (
-                      <Badge variant="outline">Off</Badge>
-                    )}
-                  </div>
+                  <dl>
+                    <SettingRow
+                      label="Reverse-proxy SSO"
+                      view={settings.auth.header.trustProxy ? VIEWS.proxyTrusted : VIEWS.proxyOff}
+                    />
+                  </dl>
                   {settings.auth.header.trustProxy && (
                     <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <li>
@@ -200,36 +296,39 @@ function SettingsPage() {
                   <CardTitle>Comment verification</CardTitle>
                   <CardDescription>Turnstile checks every commenter.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Verification required</span>
-                    {settings.comments.verificationRequired ? (
-                      <Badge variant="secondary">Required</Badge>
-                    ) : (
-                      <Badge variant="outline">Bypassed</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Turnstile secret</span>
-                    {settings.comments.turnstileSecretConfigured ? (
-                      <Badge variant="secondary">Set</Badge>
-                    ) : (
-                      <Badge variant="outline">Missing</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Turnstile site key</span>
-                    {settings.comments.turnstileSiteKeyConfigured ? (
-                      <Badge variant="secondary">Set</Badge>
-                    ) : (
-                      <Badge variant="outline">Missing</Badge>
-                    )}
-                  </div>
-                  {!settings.comments.verificationRequired && (
-                    <p className="text-xs text-muted-foreground">
-                      The bypass is for local development only — everyone posts without a token while it is off.
-                    </p>
-                  )}
+                <CardContent>
+                  <dl className="flex flex-col gap-3 text-sm">
+                    <SettingRow
+                      label="Verification required"
+                      view={
+                        settings.comments.verificationRequired ? VIEWS.verificationRequired : VIEWS.verificationBypassed
+                      }
+                    />
+                    <SettingRow
+                      label="Turnstile secret"
+                      view={secretView(
+                        settings.comments.turnstileSecretConfigured,
+                        settings.comments.verificationRequired,
+                        {
+                          set: 'Tokens are checked with Cloudflare Siteverify.',
+                          missing: 'Posts fail closed until TURNSTILE_SECRET_KEY is set.',
+                          notRequired: 'Not needed while verification is bypassed.',
+                        },
+                      )}
+                    />
+                    <SettingRow
+                      label="Turnstile site key"
+                      view={secretView(
+                        settings.comments.turnstileSiteKeyConfigured,
+                        settings.comments.verificationRequired,
+                        {
+                          set: 'The widget can show the challenge.',
+                          missing: 'Widgets cannot show the challenge until TURNSTILE_SITE_KEY is set.',
+                          notRequired: 'Not needed while verification is bypassed.',
+                        },
+                      )}
+                    />
+                  </dl>
                 </CardContent>
               </Card>
 
@@ -239,14 +338,15 @@ function SettingsPage() {
                   <CardDescription>Per-operation quotas, keyed by user or IP.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-muted-foreground">Quota store (HMAC secret)</span>
-                    {settings.rateLimit.secretConfigured ? (
-                      <Badge variant="secondary">Set</Badge>
-                    ) : (
-                      <Badge variant="outline">Missing</Badge>
-                    )}
-                  </div>
+                  <dl className="text-sm">
+                    <SettingRow
+                      label="Quota store (HMAC secret)"
+                      view={secretView(settings.rateLimit.secretConfigured, true, {
+                        set: 'Quotas are enforced per operation and identity.',
+                        missing: 'Comment operations fail closed until BETTER_AUTH_SECRET is set.',
+                      })}
+                    />
+                  </dl>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -267,13 +367,12 @@ function SettingsPage() {
                       ))}
                     </TableBody>
                   </Table>
-                  <p className="text-xs text-muted-foreground">
-                    Guest edit window:{' '}
-                    {settings.comments.anonEditWindowMinutes === 0
-                      ? 'unlimited'
-                      : `${settings.comments.anonEditWindowMinutes} minutes`}
-                    .
-                  </p>
+                  <dl className="text-sm">
+                    <SettingRow
+                      label="Guest edit window"
+                      view={editWindowView(settings.comments.anonEditWindowMinutes)}
+                    />
+                  </dl>
                 </CardContent>
               </Card>
             </section>
@@ -316,6 +415,31 @@ function SettingsPage() {
                     <SettingsIcon data-icon="inline-start" />
                     Manage sites
                   </Button>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section aria-label="This browser">
+              <Card>
+                <CardHeader>
+                  <CardTitle>This browser</CardTitle>
+                  <CardDescription>Stored in this browser only. Other browsers keep their own choice.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id="hide-tour-button"
+                      checked={hideTour}
+                      onCheckedChange={(checked) => setTourHidden(checked === true)}
+                    />
+                    <FieldContent>
+                      <FieldLabel htmlFor="hide-tour-button">Hide the Take a tour button</FieldLabel>
+                      <FieldDescription>
+                        Removes the guided tour button from Moderation and API keys in this browser. Clear this box to
+                        bring it back.
+                      </FieldDescription>
+                    </FieldContent>
+                  </Field>
                 </CardContent>
               </Card>
             </section>

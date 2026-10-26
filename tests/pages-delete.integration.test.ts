@@ -61,7 +61,7 @@ test('deleting a page removes its comments, replies and votes, and nothing else'
 
   const gone = await db.select({ id: comments.id }).from(comments).where(eq(comments.pageId, doomed!.id))
   expect(gone).toHaveLength(0)
-  const orphanVotes = await db.select({ id: votes.id }).from(votes).where(eq(votes.commentId, parent.id))
+  const orphanVotes = await db.select({ userId: votes.userId }).from(votes).where(eq(votes.commentId, parent.id))
   expect(orphanVotes).toHaveLength(0)
   const [replyRow] = await db.select({ id: comments.id }).from(comments).where(eq(comments.id, reply.id))
   expect(replyRow).toBeUndefined()

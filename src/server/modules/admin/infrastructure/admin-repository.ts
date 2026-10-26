@@ -1,8 +1,18 @@
-import { asc, count, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, sql } from 'drizzle-orm'
 import type { SiteAccess } from '@/lib/site-access'
 import { getBusinessDb, getBusinessSql } from '@/server/db/business-sql'
-import { apikey, comments, instanceAdmins, pages, siteMemberships, siteOrigins, sites, user } from '@/server/db/schema'
-import { HttpError } from '@/server/http/errors'
+import {
+  apiKeySites,
+  apikey,
+  comments,
+  instanceAdmins,
+  pages,
+  siteMemberships,
+  siteOrigins,
+  sites,
+  user,
+} from '@/server/db/schema'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { canCreateInitialAdmin } from '@/server/modules/admin/domain/initial-setup'
 import { attachOrigins } from '@/server/modules/comments/infrastructure/comment-repository'
 import { getRequestLogger } from '@/server/observability/logger'
@@ -29,7 +39,11 @@ export async function createInitialAdmin<T extends { userId: string }>(createUse
   return sql.begin(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(736942185)`
     if (!(await isInitialAdminSetupAvailable())) {
-      throw new HttpError(409, 'SETUP_UNAVAILABLE', 'Initial admin setup has already been used')
+      throw new HttpError(
+        ErrorCode.SETUP_UNAVAILABLE.status,
+        ErrorCode.SETUP_UNAVAILABLE.code,
+        'Initial admin setup has already been used',
+      )
     }
 
     const result = await createUser()
@@ -48,14 +62,16 @@ export async function listAdminSites() {
       bodyLimit: sites.bodyLimit,
       access: sites.access,
       gatewayOnly: sites.gatewayOnly,
+      votesEnabled: sites.votesEnabled,
     })
     .from(sites)
     .orderBy(asc(sites.name))
   return attachOrigins(db, rows)
 }
 
-// The sites one user is a member of. Instance admins use listAdminSites()
-// instead — they see every site, members only their own.
+// The sites one user administers. Instance admins use listAdminSites()
+// instead — they see every site. A member is not an admin of its site, so
+// its sites are not listed: the dashboard is for admins only.
 export async function listAdminSitesForUser(userId: string) {
   const db = getBusinessDb()
   const rows = await db
@@ -66,10 +82,11 @@ export async function listAdminSitesForUser(userId: string) {
       bodyLimit: sites.bodyLimit,
       access: sites.access,
       gatewayOnly: sites.gatewayOnly,
+      votesEnabled: sites.votesEnabled,
     })
     .from(siteMemberships)
     .innerJoin(sites, eq(siteMemberships.siteId, sites.id))
-    .where(eq(siteMemberships.userId, userId))
+    .where(and(eq(siteMemberships.userId, userId), eq(siteMemberships.role, 'admin')))
     .orderBy(asc(sites.name))
   return attachOrigins(db, rows)
 }
@@ -109,6 +126,7 @@ export async function createAdminSite(userId: string | null, input: { name: stri
       bodyLimit: site.bodyLimit,
       access: site.access,
       gatewayOnly: site.gatewayOnly,
+      votesEnabled: site.votesEnabled,
     }
   })
 }
@@ -116,16 +134,27 @@ export async function createAdminSite(userId: string | null, input: { name: stri
 // Only the fields provided change, so a name edit never resets the comment limit.
 export async function updateAdminSite(
   siteKey: string,
-  input: { name?: string; bodyLimit?: number | null; access?: SiteAccess; gatewayOnly?: boolean },
+  input: {
+    name?: string
+    bodyLimit?: number | null
+    access?: SiteAccess
+    gatewayOnly?: boolean
+    votesEnabled?: boolean
+  },
 ) {
   const changes = {
     ...(input.name === undefined ? {} : { name: input.name }),
     ...(input.bodyLimit === undefined ? {} : { bodyLimit: input.bodyLimit }),
     ...(input.access === undefined ? {} : { access: input.access }),
     ...(input.gatewayOnly === undefined ? {} : { gatewayOnly: input.gatewayOnly }),
+    ...(input.votesEnabled === undefined ? {} : { votesEnabled: input.votesEnabled }),
   }
   if (Object.keys(changes).length === 0) {
-    throw new HttpError(400, 'VALIDATION_ERROR', 'Provide a name, a bodyLimit, an access level or gatewayOnly')
+    throw new HttpError(
+      ErrorCode.VALIDATION_ERROR.status,
+      ErrorCode.VALIDATION_ERROR.code,
+      'Provide a name, a bodyLimit, an access level, gatewayOnly or votesEnabled',
+    )
   }
   const db = getBusinessDb()
   const [site] = await db.update(sites).set(changes).where(eq(sites.key, siteKey)).returning({
@@ -135,48 +164,30 @@ export async function updateAdminSite(
     bodyLimit: sites.bodyLimit,
     access: sites.access,
     gatewayOnly: sites.gatewayOnly,
+    votesEnabled: sites.votesEnabled,
   })
-  if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
+  if (!site) throw new HttpError(ErrorCode.SITE_NOT_FOUND.status, ErrorCode.SITE_NOT_FOUND.code, 'Site was not found')
   return site
-}
-
-// better-auth's jsonb adapter round-trips metadata through JSON strings, so
-// `metadata->>'siteKey'` matches nothing — unwrap in JS instead.
-function siteKeyFromMetadata(metadata: unknown): string | null {
-  let value = metadata
-  while (typeof value === 'string') {
-    try {
-      value = JSON.parse(value)
-    } catch {
-      return null
-    }
-  }
-  if (typeof value !== 'object' || value === null || !('siteKey' in value)) return null
-  return typeof value.siteKey === 'string' ? value.siteKey : null
 }
 
 // One transaction, so a failure leaves nothing half-deleted. The site row cascades
 // to its origins, memberships, pages, comments, votes, blocks, verifications,
 // moderation events and plugin events. The site's API keys are removed too, because
-// their binding lives in JSON metadata the database cannot cascade on. The rate-limit
+// api_key_sites names them, so they are deleted by id. The rate-limit
 // windows are keyed by the site key, so they go as well. The counts are taken first,
 // since the cascade removes the rows they describe, and the summary is logged.
 export async function deleteAdminSite(siteKey: string): Promise<void> {
   const db = getBusinessDb()
   const summary = await db.transaction(async (tx) => {
     const [site] = await tx.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey)).limit(1)
-    if (!site) throw new HttpError(404, 'SITE_NOT_FOUND', 'Site was not found')
+    if (!site) throw new HttpError(ErrorCode.SITE_NOT_FOUND.status, ErrorCode.SITE_NOT_FOUND.code, 'Site was not found')
 
-    const [[pageTotal], [commentTotal], keys] = await Promise.all([
+    const [[pageTotal], [commentTotal], bound] = await Promise.all([
       tx.select({ value: count() }).from(pages).where(eq(pages.siteId, site.id)),
-      tx
-        .select({ value: count() })
-        .from(comments)
-        .innerJoin(pages, eq(comments.pageId, pages.id))
-        .where(eq(pages.siteId, site.id)),
-      tx.select({ id: apikey.id, metadata: apikey.metadata }).from(apikey),
+      tx.select({ value: count() }).from(comments).where(eq(comments.siteId, site.id)),
+      tx.select({ id: apiKeySites.apiKeyId }).from(apiKeySites).where(eq(apiKeySites.siteId, site.id)),
     ])
-    const orphaned = keys.filter((key) => siteKeyFromMetadata(key.metadata) === siteKey).map((key) => key.id)
+    const orphaned = bound.map((row) => row.id)
     await Promise.all([
       orphaned.length > 0 ? tx.delete(apikey).where(inArray(apikey.id, orphaned)) : null,
       tx.execute(sql`delete from comment_rate_limit.rate_limit_windows where site_key = ${siteKey}`),

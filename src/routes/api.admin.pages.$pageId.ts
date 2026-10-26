@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { HttpError } from '@/server/http/errors'
-import { getMembershipRole, requireSessionUserId } from '@/server/http/route-guards'
+import { ErrorCode, HttpError } from '@/server/http/errors'
+import { isSiteAdmin, requireSessionUserId } from '@/server/http/route-guards'
 import { parseSearchParams, parseWith } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-repository'
@@ -10,7 +10,7 @@ import { commentIdSchema, siteQuerySchema, statsQuerySchema } from '@/server/mod
 import { requirePageDeleteAccess } from '@/server/modules/comments/http/page-delete-access'
 import { deletePage, getPageThread, getSiteId } from '@/server/modules/comments/infrastructure/comment-repository'
 
-// Session callers are instance admins or members of the target site; service
+// Session callers are instance admins or admins of the target site; service
 // keys need pages:read bound to that exact site. Reads take no same-origin
 // check (browsers omit Origin on same-origin GET).
 async function requirePageDetailAccess(request: Request, siteKey: string): Promise<void> {
@@ -20,8 +20,8 @@ async function requirePageDetailAccess(request: Request, siteKey: string): Promi
   }
   const userId = await requireSessionUserId(request, 'Sign in to view threads')
   if (await hasInstanceAdmin(userId)) return
-  if ((await getMembershipRole(await getSiteId(siteKey), userId)) === null) {
-    throw new HttpError(403, 'FORBIDDEN', 'You cannot view this site')
+  if (!(await isSiteAdmin(await getSiteId(siteKey), userId))) {
+    throw new HttpError(ErrorCode.FORBIDDEN.status, ErrorCode.FORBIDDEN.code, 'Only site admins can view this site')
   }
 }
 
