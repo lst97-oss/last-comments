@@ -1,8 +1,8 @@
+import { HttpStatus } from '@lst97-oss/last-httprism'
 import { createFileRoute } from '@tanstack/react-router'
-
 import { resolveSessionPrincipal } from '@/server/auth/resolve'
 import { applyCors } from '@/server/http/cors'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { voteBodySchema, voteSearchSchema } from '@/server/modules/comments/http/comment-schemas'
@@ -10,9 +10,29 @@ import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight
 import {
   castCommentVote,
   clearCommentVote,
+  getSiteAccess,
   requireAllowedOrigin,
 } from '@/server/modules/comments/infrastructure/comment-repository'
 import { publishCommentOperation } from '@/server/plugins/comment-plugins'
+
+// Checked before the session, so a visitor on a site with voting off is told that rather than asked to sign in.
+// A gateway-only site takes no browser traffic, and its keys cannot vote, so a session vote there would be the
+// one path around the gateway.
+async function assertVotingOpen(siteKey: string) {
+  const site = await getSiteAccess(siteKey)
+  if (site?.gatewayOnly)
+    throw new HttpError(
+      ErrorCode.FORBIDDEN.status,
+      ErrorCode.FORBIDDEN.code,
+      'This site does not accept votes from browsers',
+    )
+  if (site && !site.votesEnabled)
+    throw new HttpError(
+      ErrorCode.FEATURE_DISABLED.status,
+      ErrorCode.FEATURE_DISABLED.code,
+      'Voting is turned off for this site',
+    )
+}
 
 export const Route = createFileRoute('/api/comments/vote')({
   server: {
@@ -23,8 +43,10 @@ export const Route = createFileRoute('/api/comments/vote')({
         const response = await withContext(async () => {
           const body = await parseJsonBody(ctx.request, voteBodySchema)
           responseOrigin = await requireAllowedOrigin(body.site, ctx.request.headers.get('origin'))
+          await assertVotingOpen(body.site)
           const session = await resolveSessionPrincipal(ctx.request)
-          if (!session) throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in to vote')
+          if (!session)
+            throw new HttpError(ErrorCode.UNAUTHENTICATED.status, ErrorCode.UNAUTHENTICATED.code, 'Sign in to vote')
           await publishCommentOperation({
             operation: 'comment.vote',
             siteKey: body.site,
@@ -41,8 +63,10 @@ export const Route = createFileRoute('/api/comments/vote')({
         const response = await withContext(async () => {
           const params = parseSearchParams(ctx.request.url, voteSearchSchema)
           responseOrigin = await requireAllowedOrigin(params.site, ctx.request.headers.get('origin'))
+          await assertVotingOpen(params.site)
           const session = await resolveSessionPrincipal(ctx.request)
-          if (!session) throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in to vote')
+          if (!session)
+            throw new HttpError(ErrorCode.UNAUTHENTICATED.status, ErrorCode.UNAUTHENTICATED.code, 'Sign in to vote')
           await publishCommentOperation({
             operation: 'comment.vote',
             siteKey: params.site,
@@ -58,7 +82,7 @@ export const Route = createFileRoute('/api/comments/vote')({
         let responseOrigin: string | null = null
         const response = await withContext(async () => {
           responseOrigin = await resolvePreflightOrigin(ctx.request)
-          return new Response(null, { status: 204 })
+          return new Response(null, { status: HttpStatus.NO_CONTENT.code })
         })(ctx)
         return applyCors(response, responseOrigin, 'PUT, DELETE, OPTIONS')
       },

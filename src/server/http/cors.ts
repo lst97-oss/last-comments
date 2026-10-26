@@ -10,7 +10,15 @@ export function applyCors(response: Response, origin: string | null, methods: st
   response.headers.set('access-control-allow-origin', origin)
   response.headers.set('access-control-allow-credentials', 'true')
   response.headers.set('access-control-allow-methods', methods)
-  response.headers.set('access-control-allow-headers', 'content-type')
+  response.headers.set('access-control-allow-headers', 'content-type, x-lc-edit-key')
   response.headers.set('vary', 'Origin')
+  return response
+}
+
+// For documents with no secrets and no per-viewer state (the public site
+// settings). Any origin may read them, but never with credentials: a wildcard
+// origin must not ride on a session cookie.
+export function applyPublicCors(response: Response): Response {
+  response.headers.set('access-control-allow-origin', '*')
   return response
 }

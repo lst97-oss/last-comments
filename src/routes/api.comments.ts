@@ -1,11 +1,13 @@
+import { HttpStatus } from '@lst97-oss/last-httprism'
 import { createFileRoute } from '@tanstack/react-router'
 import { applyCors } from '@/server/http/cors'
-import { HttpError } from '@/server/http/errors'
+import { ErrorCode, HttpError } from '@/server/http/errors'
 import { parseJsonBody, parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { operationIdentity, resolveCommentCaller } from '@/server/modules/comments/http/comment-caller'
 import { createCommentData } from '@/server/modules/comments/http/comment-handler'
 import { commentBodySchema, searchSchema } from '@/server/modules/comments/http/comment-schemas'
+import { assertPageOriginAllowed } from '@/server/modules/comments/http/page-origin'
 import { resolvePreflightOrigin } from '@/server/modules/comments/http/preflight'
 import { listPageComments } from '@/server/modules/comments/infrastructure/comment-repository'
 import { publishCommentOperation } from '@/server/plugins/comment-plugins'
@@ -35,9 +37,14 @@ export const Route = createFileRoute('/api/comments')({
           const body = await parseJsonBody(ctx.request, commentBodySchema)
           const caller = await resolveCommentCaller(ctx.request, body.site, 'write')
           responseOrigin = caller.responseOrigin
+          await assertPageOriginAllowed(caller, body.site, body.url)
           const user = caller.principal
           if (!user && !body.authorName) {
-            throw new HttpError(400, 'AUTHOR_NAME_REQUIRED', 'A display name is required for guest comments')
+            throw new HttpError(
+              ErrorCode.AUTHOR_NAME_REQUIRED.status,
+              ErrorCode.AUTHOR_NAME_REQUIRED.code,
+              'A display name is required for guest comments',
+            )
           }
           await publishCommentOperation({
             operation: 'comment.create',
@@ -65,7 +72,7 @@ export const Route = createFileRoute('/api/comments')({
         let origin: string | null = null
         const response = await withContext(async () => {
           origin = await resolvePreflightOrigin(request)
-          return new Response(null, { status: 204 })
+          return new Response(null, { status: HttpStatus.NO_CONTENT.code })
         })({ request })
         return applyCors(response, origin, 'GET, POST, OPTIONS')
       },

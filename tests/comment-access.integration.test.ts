@@ -133,6 +133,45 @@ describe('site access and the gateway switch, end to end', () => {
     expect(['ok', 'COMMENT_VERIFICATION_FAILED', 'COMMENT_VERIFICATION_UNAVAILABLE']).toContain(code ?? 'ok')
   })
 
+  test('a thread opens only on the caller origin for a browser, and only on a registered origin for a key', async () => {
+    const owner = await createOwner('Thread origin')
+    const site = await createSite('Access thread origin')
+    const writer = await issueServiceKey({
+      userId: owner,
+      name: 'thread-writer',
+      siteKey: site.key,
+      scopes: ['comments:write'],
+    })
+    keyIds.push(writer.id)
+    // An anonymous browser needs a client identity for the rate limit; loopback is a trusted ingress in tests.
+    const post = (headers: Record<string, string>, url: string) =>
+      handlerOf(
+        CommentsRoute,
+        'POST',
+      )(
+        new Request('http://localhost:3000/api/comments', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-real-ip': '127.0.0.1', ...headers },
+          body: JSON.stringify({ site: site.key, url, authorName: 'Visitor', bodyMarkdown: 'hello' }),
+        }),
+      )
+    // Past the origin gates, the write pipeline may still answer with verification; that is not a refusal here.
+    const passesOriginGate = async (response: Response) => {
+      const code = response.status === 200 ? 'ok' : await errorCode(response)
+      expect(['ok', 'COMMENT_VERIFICATION_FAILED', 'COMMENT_VERIFICATION_UNAVAILABLE']).toContain(code ?? 'ok')
+    }
+
+    await passesOriginGate(await post({ origin }, pageUrl))
+    const foreignPage = await post({ origin }, 'https://elsewhere.example.test/post')
+    expect(foreignPage.status).toBe(403)
+    expect(await errorCode(foreignPage)).toBe('ORIGIN_NOT_ALLOWED')
+
+    await passesOriginGate(await post({ 'x-api-key': writer.key }, pageUrl))
+    const unclaimedPage = await post({ 'x-api-key': writer.key }, 'https://elsewhere.example.test/post')
+    expect(unclaimedPage.status).toBe(400)
+    expect(await errorCode(unclaimedPage)).toBe('PAGE_ORIGIN_NOT_ALLOWED')
+  })
+
   test('a private site refuses an anonymous reader and admits a comments:read key', async () => {
     const owner = await createOwner('Private host')
     const site = await createSite('Access private')

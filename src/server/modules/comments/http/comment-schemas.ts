@@ -77,6 +77,9 @@ export const editBodySchema = z.strictObject({
 
 export const commentIdSchema = z.string().uuid()
 
+// The guest edit key, sent in a header on delete so it never sits in a URL or a log line.
+export const editKeyHeaderSchema = z.string().min(1).max(128)
+
 export const voteBodySchema = z.strictObject({
   site: z.string().min(1).max(100),
   commentId: z.string().uuid(),
