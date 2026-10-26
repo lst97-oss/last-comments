@@ -1,62 +1,12 @@
 {
-  "entries": [
-    {
-      "breakpoints": true,
-      "idx": 0,
-      "tag": "0000_business_core",
-      "version": "7",
-      "when": 1791957678225
-    },
-    {
-      "breakpoints": true,
-      "idx": 1,
-      "tag": "0001_instance_admin_setup",
-      "version": "7",
-      "when": 1792061557377
-    },
-    {
-      "breakpoints": true,
-      "idx": 2,
-      "tag": "0002_better_auth_apikey",
-      "version": "7",
-      "when": 1792142080913
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1792154808511,
-      "tag": "0003_pages_page_key",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1792377739461,
-      "tag": "0004_comments_edit_key",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1792559945050,
-      "tag": "0006_smooth_lucky_pierre",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1792755317648,
-      "tag": "0006_sites_body_limit",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1792840252418,
-      "tag": "0007_sites_access",
-      "breakpoints": true
-    }
-  ],
+  "version": "7",
   "dialect": "postgresql",
-  "version": "7"
+  "entries": [
+    { "idx": 0, "version": "7", "when": 1792999193682, "tag": "0000_identity_and_instance_admins", "breakpoints": true },
+    { "idx": 1, "version": "7", "when": 1792999193683, "tag": "0001_sites_and_api_keys", "breakpoints": true },
+    { "idx": 2, "version": "7", "when": 1792999193684, "tag": "0002_threads_and_comments", "breakpoints": true },
+    { "idx": 3, "version": "7", "when": 1792999193685, "tag": "0003_moderation", "breakpoints": true },
+    { "idx": 4, "version": "7", "when": 1792999193686, "tag": "0004_plugin_outbox", "breakpoints": true },
+    { "idx": 5, "version": "7", "when": 1792999193687, "tag": "0005_site_member_role", "breakpoints": true }
+  ]
 }

@@ -1,6 +1,6 @@
 {
-  "id": "e95249b3-b09a-42d0-9b76-2f7aede2efaa",
-  "prevId": "afefedc0-c816-475a-864f-3e025e83d5ba",
+  "id": "a0e27969-1a87-472e-99b7-49a249bc04d2",
+  "prevId": "da0ff416-93ca-48a6-b0f5-6cb4267cb150",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -134,6 +134,81 @@
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.api_key_sites": {
+      "name": "api_key_sites",
+      "schema": "",
+      "columns": {
+        "api_key_id": {
+          "name": "api_key_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "api_key_sites_site_id_idx": {
+          "name": "api_key_sites_site_id_idx",
+          "columns": [
+            {
+              "expression": "site_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "api_key_sites_api_key_id_apikey_id_fk": {
+          "name": "api_key_sites_api_key_id_apikey_id_fk",
+          "tableFrom": "api_key_sites",
+          "tableTo": "apikey",
+          "columnsFrom": [
+            "api_key_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "api_key_sites_site_id_sites_id_fk": {
+          "name": "api_key_sites_site_id_sites_id_fk",
+          "tableFrom": "api_key_sites",
+          "tableTo": "sites",
+          "columnsFrom": [
+            "site_id"
           ],
           "columnsTo": [
             "id"
@@ -363,6 +438,12 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "page_id": {
           "name": "page_id",
           "type": "uuid",
@@ -409,6 +490,12 @@
         },
         "pinned_by_user_id": {
           "name": "pinned_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "edit_key_hash": {
+          "name": "edit_key_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -495,11 +582,11 @@
           "method": "btree",
           "with": {}
         },
-        "comments_status_created_idx": {
-          "name": "comments_status_created_idx",
+        "comments_site_created_idx": {
+          "name": "comments_site_created_idx",
           "columns": [
             {
-              "expression": "status",
+              "expression": "site_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -507,7 +594,62 @@
             {
               "expression": "created_at",
               "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "comments_site_takedown_idx": {
+          "name": "comments_site_takedown_idx",
+          "columns": [
+            {
+              "expression": "site_id",
+              "isExpression": false,
               "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"comments\".\"status\" <> 'visible'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "comments_user_created_idx": {
+          "name": "comments_user_created_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
               "nulls": "last"
             }
           ],
@@ -518,19 +660,6 @@
         }
       },
       "foreignKeys": {
-        "comments_page_id_pages_id_fk": {
-          "name": "comments_page_id_pages_id_fk",
-          "tableFrom": "comments",
-          "tableTo": "pages",
-          "columnsFrom": [
-            "page_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "comments_user_id_user_id_fk": {
           "name": "comments_user_id_user_id_fk",
           "tableFrom": "comments",
@@ -571,6 +700,21 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
+        },
+        "comments_page_same_site_fk": {
+          "name": "comments_page_same_site_fk",
+          "tableFrom": "comments",
+          "tableTo": "pages",
+          "columnsFrom": [
+            "page_id",
+            "site_id"
+          ],
+          "columnsTo": [
+            "id",
+            "site_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -584,6 +728,113 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {
+        "comments_deleted_state_check": {
+          "name": "comments_deleted_state_check",
+          "value": "(\"comments\".\"status\" = 'deleted') = (\"comments\".\"deleted_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.external_identities": {
+      "name": "external_identities",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "external_identities_provider_subject_uq": {
+          "name": "external_identities_provider_subject_uq",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "external_identities_user_id_idx": {
+          "name": "external_identities_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "external_identities_user_id_user_id_fk": {
+          "name": "external_identities_user_id_user_id_fk",
+          "tableFrom": "external_identities",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -757,7 +1008,16 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "moderation_events_action_check": {
+          "name": "moderation_events_action_check",
+          "value": "\"moderation_events\".\"action\" in ('hide', 'restore', 'delete', 'pin', 'unpin', 'page.lock', 'page.unlock', 'page.delete', 'user.block', 'user.unblock')"
+        },
+        "moderation_events_target_check": {
+          "name": "moderation_events_target_check",
+          "value": "\"moderation_events\".\"target_type\" in ('comment', 'page', 'user')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.pages": {
@@ -1016,15 +1276,9 @@
           "method": "btree",
           "with": {}
         },
-        "plugin_deliveries_pending_idx": {
-          "name": "plugin_deliveries_pending_idx",
+        "plugin_deliveries_due_idx": {
+          "name": "plugin_deliveries_due_idx",
           "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "next_attempt_at",
               "isExpression": false,
@@ -1033,6 +1287,7 @@
             }
           ],
           "isUnique": false,
+          "where": "\"plugin_deliveries\".\"status\" in ('pending', 'processing')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1150,7 +1405,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "plugin_events_type_check": {
+          "name": "plugin_events_type_check",
+          "value": "\"plugin_events\".\"event_type\" in ('comment.created', 'comment.edited', 'comment.hidden', 'comment.deleted', 'comment.restored', 'comment.pinned', 'comment.voted', 'page.locked', 'page.unlocked', 'page.deleted', 'user.blocked', 'user.unblocked', 'user.verified', 'user.unverified')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.session": {
@@ -1461,6 +1721,33 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "body_limit": {
+          "name": "body_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access": {
+          "name": "access",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "gateway_only": {
+          "name": "gateway_only",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "votes_enabled": {
+          "name": "votes_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         }
       },
       "indexes": {},
@@ -1476,7 +1763,16 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "sites_body_limit_check": {
+          "name": "sites_body_limit_check",
+          "value": "\"sites\".\"body_limit\" is null or \"sites\".\"body_limit\" between 1 and 10000"
+        },
+        "sites_access_check": {
+          "name": "sites_access_check",
+          "value": "\"sites\".\"access\" in ('open', 'login', 'private')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.user": {
@@ -1857,13 +2153,6 @@
       "name": "votes",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
         "comment_id": {
           "name": "comment_id",
           "type": "uuid",
@@ -1891,15 +2180,9 @@
         }
       },
       "indexes": {
-        "votes_comment_user_uq": {
-          "name": "votes_comment_user_uq",
+        "votes_user_id_idx": {
+          "name": "votes_user_id_idx",
           "columns": [
-            {
-              "expression": "comment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "user_id",
               "isExpression": false,
@@ -1907,7 +2190,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1941,7 +2224,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "votes_comment_id_user_id_pk": {
+          "name": "votes_comment_id_user_id_pk",
+          "columns": [
+            "comment_id",
+            "user_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
@@ -1978,7 +2269,7 @@
       "schema": "public",
       "values": [
         "admin",
-        "moderator"
+        "member"
       ]
     }
   },

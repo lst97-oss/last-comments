@@ -32,3 +32,7 @@ The seeder is idempotent: re-running updates the same row instead of creating du
 - This folder holds demo blog content for local development and screenshots; it is not part of the production bootstrap.
 - Cover images are not seeded (nullable `cover` relation). Set one from `/admin` if needed.
 - The post body exercises the blog renderer: fenced `mermaid` diagrams render via `MermaidDiagram`, other fenced blocks highlight via Shiki (https://shiki.style/).
+
+## Load fixture and query benchmark
+
+`seed-load.ts` builds a local-only `bench-site` (about 275k comments, 137k votes, 500 users) and runs `ANALYZE` on the tables afterwards, so the planner sees realistic statistics. `bench-comments.ts` times the repository read paths against it. Both refuse any database that is not on loopback, through `scripts/business-target.ts`. Remove the fixture with `bun run db:seed:load -- --reset`.
