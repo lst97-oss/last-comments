@@ -2,7 +2,7 @@
 
 import { Link, useRouterState } from '@tanstack/react-router'
 import { cn } from 'cn'
-import { ChevronDown, Menu, MessageSquareText, Moon, Sun, X } from 'lucide-react'
+import { ChevronDown, Menu, Moon, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useState } from 'react'
 
@@ -33,7 +33,7 @@ export function MobileNav() {
       >
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
           <Link to="/" onClick={close} className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight">
-            <MessageSquareText aria-hidden className="size-4 text-muted-foreground" />
+            <img src="/favicon/favicon.ico" alt="" className="size-5" />
             LAST-COMMENTS
           </Link>
           <span className="ml-auto flex items-center gap-1">
