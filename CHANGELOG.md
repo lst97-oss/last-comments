@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.3.0
 
 Site access levels and a gateway switch, so a host server can proxy comments and the browser never holds a credential.
 
