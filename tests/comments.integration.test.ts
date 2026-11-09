@@ -469,6 +469,36 @@ describe('moderation pages and paging', () => {
     expect(busyDay.recent.preview).toHaveLength(2)
   })
 
+  test('every thread gets its own preview slots, newest first', async () => {
+    const siteKey = `recent-fair-${crypto.randomUUID()}`
+    siteKeys.push(siteKey)
+    await db.insert(sites).values({ key: siteKey, name: 'Fair previews' })
+    const siteId = await getSiteId(siteKey)
+    const [first] = await db
+      .insert(pages)
+      .values({ siteId, canonicalUrl: 'https://example.test/fair-a' })
+      .returning({ id: pages.id })
+    const [second] = await db
+      .insert(pages)
+      .values({ siteId, canonicalUrl: 'https://example.test/fair-b' })
+      .returning({ id: pages.id })
+    const now = Date.now()
+    const ago = (minutes: number) => new Date(now - minutes * 60_000)
+    await db.insert(comments).values([
+      { siteId, pageId: first!.id, authorName: 'A1', bodyMarkdown: 'a', createdAt: ago(40) },
+      { siteId, pageId: first!.id, authorName: 'A2', bodyMarkdown: 'b', createdAt: ago(30) },
+      { siteId, pageId: first!.id, authorName: 'A3', bodyMarkdown: 'c', createdAt: ago(20) },
+      { siteId, pageId: second!.id, authorName: 'B1', bodyMarkdown: 'd', createdAt: ago(35) },
+      { siteId, pageId: second!.id, authorName: 'B2', bodyMarkdown: 'e', createdAt: ago(10) },
+    ])
+
+    const summaries = await listModerationPages(siteId, { recentDays: 7, previewLimit: 2 })
+    const firstSummary = summaries.find((summary) => summary.id === first!.id)!
+    const secondSummary = summaries.find((summary) => summary.id === second!.id)!
+    expect(firstSummary.recent.preview.map((comment) => comment.authorName)).toEqual(['A3', 'A2'])
+    expect(secondSummary.recent.preview.map((comment) => comment.authorName)).toEqual(['B2', 'B1'])
+  })
+
   test('carries vote state for the requesting moderator', async () => {
     const siteKey = `mod-votes-${crypto.randomUUID()}`
     siteKeys.push(siteKey)

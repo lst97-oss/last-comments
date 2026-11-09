@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import { getBusinessDb } from '@/server/db/business-sql'
 import { comments, pages, siteMemberships, siteOrigins, sites, user, userBlocks, votes } from '@/server/db/schema'
 import type { MembershipRole } from '@/server/http/route-guards'
@@ -131,13 +131,12 @@ export async function listModerationPages(
       bodyMarkdown: comments.bodyMarkdown,
       status: comments.status,
       createdAt: comments.createdAt,
-      rank: sql<number>`row_number() over (partition by ${comments.pageId} order by ${comments.createdAt} desc, ${comments.id} desc)`.as(
-        'rank',
-      ),
     })
     .from(comments)
-    .where(and(inArray(comments.pageId, pageIds), windowStart ? gte(comments.createdAt, windowStart) : undefined))
-    .as('ranked')
+    .where(and(eq(comments.pageId, pages.id), windowStart ? gte(comments.createdAt, windowStart) : undefined))
+    .orderBy(desc(comments.createdAt), desc(comments.id))
+    .limit(previewCap)
+    .as('preview')
   const [windowCounts, authorGroups, windowRows] = pageIds.length
     ? await Promise.all([
         db
@@ -152,16 +151,17 @@ export async function listModerationPages(
           .groupBy(comments.pageId, comments.authorName),
         db
           .select({
-            pageId: ranked.pageId,
-            id: ranked.id,
-            authorName: ranked.authorName,
-            bodyMarkdown: ranked.bodyMarkdown,
-            status: ranked.status,
-            createdAt: ranked.createdAt,
+            pageId: pages.id,
+            id: preview.id,
+            authorName: preview.authorName,
+            bodyMarkdown: preview.bodyMarkdown,
+            status: preview.status,
+            createdAt: preview.createdAt,
           })
-          .from(ranked)
-          .where(lte(ranked.rank, previewCap))
-          .orderBy(desc(ranked.createdAt), desc(ranked.id)),
+          .from(pages)
+          .innerJoinLateral(preview, sql`true`)
+          .where(inArray(pages.id, pageIds))
+          .orderBy(desc(preview.createdAt), desc(preview.id)),
       ])
     : [[], [], [] as never[]]
   const countByPage = new Map(windowCounts.map((row) => [row.pageId, Number(row.count)]))
@@ -177,9 +177,8 @@ export async function listModerationPages(
   const previewByPage = new Map<string, RecentPreviewComment[]>()
   for (const row of windowRows as RecentPreviewComment[] & { pageId: string }[]) {
     const list = previewByPage.get(row.pageId) ?? []
-    if (list.length >= previewCap) continue
-    const { pageId: _pageId, ...preview } = row
-    list.push(preview)
+    const { pageId: _pageId, ...comment } = row
+    list.push(comment)
     previewByPage.set(row.pageId, list)
   }
   return rows.map(({ latestId, ...row }) => ({
@@ -298,6 +297,9 @@ export async function listModerationComments(
       .where(filter)
       .orderBy(
         ...(newestFirst ? [desc(comments.createdAt), desc(comments.id)] : [asc(comments.createdAt), asc(comments.id)]),
+      .offset(options.offset),
+    db.select({ total: count() }).from(comments).where(filter),
+  ])
       )
       .limit(options.limit)
   const reactionsByComment = await listCommentReactions(
@@ -305,9 +307,6 @@ export async function listModerationComments(
     options.viewerUserId ?? null,
     db,
   )
-      .offset(options.offset),
-    db.select({ total: count() }).from(comments).where(filter),
-  ])
   return {
     comments: commentRows.map((row) => ({
       ...row,
