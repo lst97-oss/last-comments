@@ -21,6 +21,7 @@ import { optimizeDepsExcludeDefaults, optimizeDepsIncludeDefaults } from '#vendo
 import { reactDomServerInRsc } from '#vendor/payload-tanstack-vite/reactDomServerInRsc.js'
 import { ssrStripDistStyleImports } from '#vendor/payload-tanstack-vite/stripDistStyleImports.js'
 import { wrapCjsForClient } from '#vendor/payload-tanstack-vite/wrapCjsForClient.js'
+import { routeDevToolLogs, viteLogger } from './scripts/vite-logger.ts'
 
 // Vite bundles this config to node_modules/.vite-temp and imports the bundle,
 // so import.meta.dir/dirname point at the temp dir — not the project root.
@@ -55,7 +56,14 @@ const PRIVATE_SECURITY_HEADERS =
         'x-content-type-options': 'nosniff',
       }
 
+// Nitro's lines go through the same writer as Vite's and the server's (see scripts/vite-logger.ts).
+routeDevToolLogs()
+
 export default defineConfig({
+  // Same format and settings as the server's logs (see scripts/vite-logger.ts).
+  customLogger: viteLogger(),
+  // graphify rewrites graphify-out on every update; Vite would reload the page for each one. Vite appends this to its defaults.
+  server: { watch: { ignored: ['**/graphify-out/**'] } },
   resolve: {
     alias: [
       {

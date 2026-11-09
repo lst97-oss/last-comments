@@ -75,7 +75,7 @@ jobs:
           env_file="$RUNNER_TEMP/production.env"
           {
             printf 'NODE_ENV=production\n'
-            printf 'LOG_PRETTY=false\n'
+            printf 'LOG_FORMAT=json\n'
             printf 'APP_PORT=%s\n' "$APP_PORT"
             printf 'PAYLOAD_PUBLIC_SERVER_URL=%s\n' "$PUBLIC_URL"
             printf 'BETTER_AUTH_URL=%s\n' "$PUBLIC_URL"

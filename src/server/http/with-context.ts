@@ -56,14 +56,15 @@ export function withContext<T>(
     }
 
     try {
-      const logger = (options?.logger ?? getRequestLogger()).child({ requestId })
+      const logger = (options?.logger ?? getRequestLogger()).child({ component: 'http', requestId })
       const startedAt = Date.now()
 
       let path = '/'
       try {
         path = new URL(request.url).pathname
       } catch {}
-      safeLog(() => logger.info('request.start', { requestId, method: request.method, path }))
+      // debug: request.complete already carries the outcome, so the default log is one line per request.
+      safeLog(() => logger.debug('request.start', { requestId, method: request.method, path }))
 
       try {
         const result = await handler({ requestId, logger, startedAt })

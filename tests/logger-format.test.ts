@@ -1,108 +1,121 @@
 import { describe, expect, test } from 'bun:test'
 
-import { HttpError } from '@/server/http/errors'
-import {
-  createPrettySink,
-  formatLogLine,
-  getLoggerSettings,
-  serializeError,
-  shouldUseColors,
-} from '@/server/observability/logger-format'
+import { formatJson, formatPretty, type LogEntry } from '@/server/observability/logger-format'
 
-const TIME = '2026-10-16T12:34:56.789Z'
-const ESC = ''
-const RED_ERROR = '[31mERROR[0m'
+const plain = { color: false }
+const entry: LogEntry = {
+  level: 'info',
+  message: 'channel.worker.status',
+  fields: { component: 'channel-worker', uptimeMs: 19, queue: [], note: 'two words' },
+  time: new Date(2026, 10, 3, 14, 32, 45, 657),
+}
 
-describe('formatLogLine', () => {
-  test('pretty line has level tag, message, and key=value with no escapes when colors off', () => {
-    const line = formatLogLine('info', 'hello', { requestId: 'r1' }, { colors: false, time: TIME })
-    expect(line).toContain('INFO')
-    expect(line).toContain('hello')
-    expect(line).toContain('requestId=r1')
-    expect(line).not.toContain(ESC)
+describe('formatPretty', () => {
+  test('reads as time, level, component, message, then key=value', () => {
+    expect(formatPretty(entry, plain)).toBe(
+      '14:32:45.657 INFO  [channel-worker] channel.worker.status uptimeMs=19 queue=[] note="two words"',
+    )
   })
 
-  test('colors wrap the error level tag', () => {
-    const line = formatLogLine('error', 'boom', {}, { colors: true, time: TIME })
-    expect(line).toContain(RED_ERROR)
+  test('adds colour only when asked', () => {
+    expect(formatPretty(entry, { color: true })).toContain('\x1b[1m')
+    expect(formatPretty(entry, plain)).not.toContain('\x1b')
   })
 
-  test('child fields merge with child winning', () => {
-    const lines: string[] = []
-    const sink = createPrettySink({
-      colors: false,
-      writer: (line) => lines.push(line),
-      now: () => new Date(TIME),
-    })
-    sink.child({ requestId: 'r1' }).child({ requestId: 'r2', extra: 1 }).warn('slow', { latencyMs: 9 })
-    expect(lines.length).toBe(1)
-    const line: string = lines[0] ?? ''
-    expect(line).toContain('WARN')
-    expect(line).toContain('requestId=r2')
-    expect(line).toContain('extra=1')
-    expect(line).toContain('latencyMs=9')
-  })
-})
-
-describe('serializeError', () => {
-  test('HttpError keeps code, status, and message with nested cause', () => {
-    const serialized: unknown = serializeError(new HttpError(503, 'RATE_LIMIT_UNAVAILABLE', 'x'))
-    expect(serialized).toMatchObject({ code: 'RATE_LIMIT_UNAVAILABLE', status: 503, message: 'x' })
-    const nested: unknown = serializeError(new Error('outer', { cause: new Error('inner') }))
-    expect(nested).toMatchObject({ cause: { message: 'inner' } })
+  test('a list of records gets one indented row per record', () => {
+    const withRows: LogEntry = {
+      ...entry,
+      fields: { component: 'channel-worker', facts: [{ label: 'VAPID keys', value: 'configured' }] },
+    }
+    expect(formatPretty(withRows, plain).split('\n')).toEqual([
+      expect.stringContaining('channel.worker.status'),
+      '  facts',
+      '    label="VAPID keys" value=configured',
+    ])
   })
 
-  test('error trace renders as a second-line block', () => {
-    const line = formatLogLine('error', 'boom', { error: new Error('trace-me') }, { colors: false, time: TIME })
-    const [first, second] = line.split('\n')
-    expect(first ?? '').toContain('ERROR')
-    expect(first ?? '').toContain('boom')
-    expect(second ?? '').toContain('trace-me')
+  test('a plain record gets one indented name: value line per entry', () => {
+    const withRecord: LogEntry = {
+      ...entry,
+      fields: {
+        component: 'channel-worker',
+        facts: { 'VAPID keys': 'configured', Subject: 'mailto:owner@example.com' },
+      },
+    }
+    expect(formatPretty(withRecord, plain).split('\n')).toEqual([
+      expect.stringContaining('channel.worker.status'),
+      '  facts',
+      '    VAPID keys: configured',
+      '    Subject: mailto:owner@example.com',
+    ])
   })
 
-  test('circular cause does not throw', () => {
-    const loop = new Error('loop')
-    loop.cause = loop
-    const serialized: unknown = serializeError(loop)
-    expect(serialized).toMatchObject({ cause: '[circular]' })
-  })
-})
-
-describe('getLoggerSettings', () => {
-  test('pretty on, verbose off, and color auto by default', () => {
-    expect(getLoggerSettings({})).toEqual({ pretty: true, verbose: false, color: 'auto' })
-    expect(getLoggerSettings({ LOG_PRETTY: 'false', LOG_VERBOSE: 'true', LOG_COLOR: 'always' })).toEqual({
-      pretty: false,
-      verbose: true,
-      color: 'always',
-    })
+  test('an empty object stays inline', () => {
+    const empty: LogEntry = { ...entry, fields: { component: 'channel-worker', facts: {} } }
+    expect(formatPretty(empty, plain)).toBe('14:32:45.657 INFO  [channel-worker] channel.worker.status facts={}')
   })
 
-  test('unknown values fall back to defaults', () => {
-    expect(getLoggerSettings({ LOG_PRETTY: 'maybe', LOG_VERBOSE: 'maybe', LOG_COLOR: 'rainbow' })).toEqual({
-      pretty: true,
-      verbose: false,
-      color: 'auto',
-    })
+  test('an error gets its fields as a block, with the trace below', () => {
+    const error = { name: 'Error', message: 'trace-me', stack: 'Error: trace-me\n    at run (x.ts:1:1)' }
+    const lines = formatPretty({ ...entry, level: 'error', fields: { error } }, plain).split('\n')
+    expect(lines).toContain('  error')
+    expect(lines).toContain('    message: trace-me')
+    expect(lines.some((line) => line.startsWith('    stack:'))).toBe(false)
+    expect(lines.join('\n')).toContain('Error: trace-me')
   })
 
-  test('debug lines are dropped unless verbose', () => {
-    const lines: string[] = []
-    createPrettySink({ colors: false, writer: (line) => lines.push(line), now: () => new Date(TIME) }).debug('quiet')
-    expect(lines).toEqual([])
-    createPrettySink({
-      colors: false,
-      verbose: true,
-      writer: (line) => lines.push(line),
-      now: () => new Date(TIME),
-    }).debug('loud')
-    expect(lines.length).toBe(1)
+  test('an error keeps its code and status in the block', () => {
+    const error = { name: 'Error', message: 'limited', code: 'RATE_LIMITED', status: 429 }
+    const lines = formatPretty({ ...entry, fields: { error } }, plain).split('\n')
+    expect(lines).toContain('    code: RATE_LIMITED')
+    expect(lines).toContain('    status: 429')
+  })
+
+  test('a redacted error, which keeps only its name, prints no trace line', () => {
+    const lines = formatPretty({ ...entry, level: 'error', fields: { error: { name: 'Error' } } }, plain).split('\n')
+    expect(lines).toEqual([expect.stringContaining('ERROR'), '  error', '    name: Error'])
+  })
+
+  test('a top-level stack string prints as the trace block, not inline', () => {
+    const lines = formatPretty({ ...entry, level: 'error', fields: { stack: 'first\nsecond' } }, plain).split('\n')
+    expect(lines).toEqual([expect.stringContaining('ERROR'), 'first', 'second'])
+  })
+
+  test('a long cell is cut so the block stays readable', () => {
+    const lines = formatPretty({ ...entry, fields: { detail: { note: 'a'.repeat(400) } } }, plain).split('\n')
+    expect(lines[2]?.endsWith('…')).toBe(true)
+    expect((lines[2] ?? '').length).toBeLessThan(200)
+  })
+
+  test('a line break inside a block cell is escaped onto one line', () => {
+    const lines = formatPretty({ ...entry, fields: { detail: { note: 'a\nb' } } }, plain).split('\n')
+    expect(lines[2]).toBe('    note: "a\\nb"')
   })
 })
 
-describe('shouldUseColors', () => {
-  test('NO_COLOR and dumb TERM disable colors', () => {
-    expect(shouldUseColors({ NO_COLOR: '1' })).toBe(false)
-    expect(shouldUseColors({ TERM: 'dumb' })).toBe(false)
+describe('formatJson', () => {
+  test('keeps the JSON line shape and writes the error fields as given', () => {
+    const line = JSON.parse(
+      formatJson({
+        level: 'error',
+        message: 'boom',
+        fields: { component: 'x', error: { name: 'Error', message: 'inner' } },
+        time: new Date(0),
+      }),
+    )
+    expect(line).toMatchObject({ level: 'error', msg: 'boom', component: 'x', error: { message: 'inner' } })
+    expect(line.time).toBe('1970-01-01T00:00:00.000Z')
+  })
+
+  test('a field named level, msg or time cannot replace the fixed keys', () => {
+    const line = JSON.parse(
+      formatJson({
+        level: 'info',
+        message: 'real',
+        fields: { level: 'gold', msg: 'user text', time: 'x' },
+        time: new Date(0),
+      }),
+    )
+    expect(line).toMatchObject({ level: 'info', msg: 'real', time: '1970-01-01T00:00:00.000Z' })
   })
 })

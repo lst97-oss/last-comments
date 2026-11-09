@@ -8,7 +8,7 @@
     "#vendor/*": "./vendor/*"
   },
   "scripts": {
-    "dev": "bun run generate:scalar && bunx --bun vite dev --port 3000",
+    "dev": "bun run generate:scalar && LOG_FORMAT=pretty LOG_COLOR=always bunx --bun vite dev --port 3000",
     "build": "bun run generate-routes && bun run generate:scalar && bun run generate:payload-admin-css && bun run generate:types && bun run generate:importmap && bunx --bun vite build",
     "start": "bun scripts/start.ts",
     "payload": "bunx --bun payload --disable-transpile",
