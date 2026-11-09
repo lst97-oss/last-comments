@@ -111,7 +111,10 @@ export const listQuerySchema = z.strictObject({
 
 export const statsQuerySchema = z.strictObject({
   site: z.string().min(1).max(100),
-  days: z.enum(['7', '30', '90']).default('30'),
+  days: z
+    .enum(['7', '30', '90', 'all'])
+    .default('30')
+    .transform((days) => STATS_RANGE[days]),
 })
 
 export const usersQuerySchema = z.strictObject({
@@ -130,6 +133,8 @@ export const userCommentsQuerySchema = z.strictObject({
 
 export const actionSchema = z.discriminatedUnion('target', [
   z.strictObject({
+const STATS_RANGE = { '7': 7, '30': 30, '90': 90, all: 'all' } as const
+
     site: z.string().min(1).max(100),
     target: z.literal('comment'),
     commentId: z.string().uuid(),

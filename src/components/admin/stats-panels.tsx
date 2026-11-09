@@ -26,7 +26,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ACTION_LABELS, formatDay } from '@/lib/admin-format'
+import { ACTION_LABELS, formatDay, type Range, rangeCopy } from '@/lib/admin-format'
 
 export type StatsSeriesPoint = {
   day: string
@@ -92,28 +92,29 @@ export function StatCard({
 }
 
 export function CommentActivityPanel({
-  days,
+  range,
   windowComments,
   series,
   className,
 }: {
-  days: number
+  range: Range
   windowComments: number
   series: StatsSeriesPoint[]
   className?: string
 }) {
+  const copy = rangeCopy(range)
   return (
     <Card className={className}>
       <CardHeader>
         <CardTitle>Comment activity</CardTitle>
-        <CardDescription>Visible and hidden comments per day, last {days} days</CardDescription>
+        <CardDescription>Visible and hidden comments per day, {copy.period}</CardDescription>
       </CardHeader>
       <CardContent>
         {windowComments === 0 ? (
           <Empty>
             <EmptyHeader>
               <EmptyTitle>No comments in this period</EmptyTitle>
-              <EmptyDescription>Nothing was posted in the last {days} days.</EmptyDescription>
+              <EmptyDescription>Nothing was posted {copy.within}.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
@@ -206,28 +207,29 @@ export function CommentStatusPie({
 }
 
 export function VotesPanel({
-  days,
+  range,
   votesUp,
   votesDown,
   series,
 }: {
-  days: number
+  range: Range
   votesUp: number
   votesDown: number
   series: StatsSeriesPoint[]
 }) {
+  const copy = rangeCopy(range)
   return (
     <Card>
       <CardHeader>
         <CardTitle>Votes</CardTitle>
-        <CardDescription>Upvotes and downvotes per day, last {days} days</CardDescription>
+        <CardDescription>Upvotes and downvotes per day, {copy.period}</CardDescription>
       </CardHeader>
       <CardContent>
         {votesUp + votesDown === 0 ? (
           <Empty>
             <EmptyHeader>
               <EmptyTitle>No votes in this period</EmptyTitle>
-              <EmptyDescription>Nobody voted in the last {days} days.</EmptyDescription>
+              <EmptyDescription>Nobody voted {copy.within}.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
@@ -297,20 +299,21 @@ export function VisibleRatePanel({ totals }: { totals: StatusTotals }) {
 }
 
 export function ModerationActivityCard({
-  days,
+  range,
   moderationActions,
   scopeCopy,
 }: {
-  days: number
+  range: Range
   moderationActions: ModerationActionCount[]
   scopeCopy: 'site' | 'thread'
 }) {
+  const copy = rangeCopy(range)
   return (
     <Card>
       <CardHeader>
         <CardTitle>Moderation activity</CardTitle>
         <CardDescription>
-          {scopeCopy === 'thread' ? `Actions on this thread, last ${days} days` : `Actions in the last ${days} days`}
+          {scopeCopy === 'thread' ? `Actions on this thread, ${copy.period}` : `Actions ${copy.within}`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -318,7 +321,7 @@ export function ModerationActivityCard({
           <Empty>
             <EmptyHeader>
               <EmptyTitle>No moderation actions</EmptyTitle>
-              <EmptyDescription>Nothing was hidden, deleted or locked in the last {days} days.</EmptyDescription>
+              <EmptyDescription>Nothing was hidden, deleted or locked {copy.within}.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (

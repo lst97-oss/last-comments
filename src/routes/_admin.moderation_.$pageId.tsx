@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
-import { type Range } from '@/lib/admin-format'
+import { type Range, rangeCopy } from '@/lib/admin-format'
 import { describeApiError, readApiData } from '@/lib/api-response'
 import { useSessionPrincipal } from '@/lib/business-auth-client'
 import { BusinessRouteError } from '@/lib/business-route-error'
@@ -212,6 +212,7 @@ function PageThreadPage() {
         {thread ? (
           <ThreadContent
             thread={thread}
+            range={days}
             baseUrl={baseUrl}
             site={site}
             pageId={pageId}
@@ -228,6 +229,7 @@ function PageThreadPage() {
 
 type ThreadContentProps = {
   thread: PageThread
+  range: Range
   baseUrl: string
   site: string
   pageId: string
@@ -235,9 +237,10 @@ type ThreadContentProps = {
   onModerated: () => void
 }
 
-function ThreadContent({ thread, baseUrl, site, pageId, viewerUserId, onModerated }: ThreadContentProps) {
+function ThreadContent({ thread, range, baseUrl, site, pageId, viewerUserId, onModerated }: ThreadContentProps) {
   const { page, stats } = thread
   const { totals, window: windowStats, series, topAuthors, moderationActions } = stats
+  const copy = rangeCopy(range)
 
   return (
     <>
@@ -246,7 +249,7 @@ function ThreadContent({ thread, baseUrl, site, pageId, viewerUserId, onModerate
           title="Total comments"
           description="All comments on this thread"
           value={totals.comments.toLocaleString()}
-          footnote={`+${windowStats.comments.toLocaleString()} in the last ${windowStats.days} days`}
+          footnote={`+${windowStats.comments.toLocaleString()} ${copy.within}`}
         />
         <StatCard
           title="Participants"
@@ -271,7 +274,7 @@ function ThreadContent({ thread, baseUrl, site, pageId, viewerUserId, onModerate
       <section aria-label="Trends" className="grid gap-4 lg:grid-cols-3">
         <CommentActivityPanel
           className="lg:col-span-2"
-          days={windowStats.days}
+          range={range}
           windowComments={windowStats.comments}
           series={series}
         />
@@ -283,17 +286,12 @@ function ThreadContent({ thread, baseUrl, site, pageId, viewerUserId, onModerate
       </section>
 
       <section aria-label="Breakdown" className="grid gap-4 lg:grid-cols-3">
-        <VotesPanel
-          days={windowStats.days}
-          votesUp={windowStats.votesUp}
-          votesDown={windowStats.votesDown}
-          series={series}
-        />
+        <VotesPanel range={range} votesUp={windowStats.votesUp} votesDown={windowStats.votesDown} series={series} />
 
         <Card>
           <CardHeader>
             <CardTitle>Top authors</CardTitle>
-            <CardDescription>Most comments, last {windowStats.days} days</CardDescription>
+            <CardDescription>Most comments, {copy.period}</CardDescription>
           </CardHeader>
           <CardContent>
             <Leaderboard
@@ -309,7 +307,7 @@ function ThreadContent({ thread, baseUrl, site, pageId, viewerUserId, onModerate
                 <Empty>
                   <EmptyHeader>
                     <EmptyTitle>No active authors</EmptyTitle>
-                    <EmptyDescription>No one commented in the last {windowStats.days} days.</EmptyDescription>
+                    <EmptyDescription>No one commented {copy.within}.</EmptyDescription>
                   </EmptyHeader>
                 </Empty>
               }
@@ -322,7 +320,7 @@ function ThreadContent({ thread, baseUrl, site, pageId, viewerUserId, onModerate
 
       <section aria-label="Thread" className="grid gap-4 lg:grid-cols-2">
         <ThreadMetaCard page={page} firstAt={stats.firstAt} site={site} />
-        <ModerationActivityCard days={windowStats.days} moderationActions={moderationActions} scopeCopy="thread" />
+        <ModerationActivityCard range={range} moderationActions={moderationActions} scopeCopy="thread" />
       </section>
 
       <ThreadCommentsSection
