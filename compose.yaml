@@ -1,7 +1,8 @@
 # Migrations + app + plugin worker against your own Postgres. The stack bundles
 # no database: set DATABASE_URL and BUSINESS_DATABASE_URL in .env (copy
 # .env.example), appending `?sslmode=...` when that server needs TLS. Compose
-# v2.24+ required. Turnstile defaults are Cloudflare's public testing keys.
+# v2.24+ required. Turnstile defaults are Cloudflare's public testing keys,
+# which the app refuses while NODE_ENV is production (the default below).
 #
 # Secrets have no defaults: set PAYLOAD_SECRET and BETTER_AUTH_SECRET (32+
 # random characters each) in .env. NODE_ENV defaults to production, which

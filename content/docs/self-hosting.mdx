@@ -51,7 +51,7 @@ Create the two databases first (`template_demo` and `business_comments`, names a
 
 ## Turnstile
 
-Turnstile is a hosted Cloudflare service, not a container. The Compose defaults are Cloudflare's public testing keys:
+Turnstile is a hosted Cloudflare service, not a container. The Compose defaults are Cloudflare's public testing keys. They pass every check, so the app refuses them while `NODE_ENV=production`, which is the Compose default. Set real keys in `.env`, or `NODE_ENV=development` for a local run:
 
 ```bash
 TURNSTILE_SITE_KEY=1x00000000000000000000AA

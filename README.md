@@ -13,7 +13,7 @@ bun run stack:up       # migrations + app + plugin worker (bring your own Postgr
 
 Open <http://localhost:3000/create-admin-user> to create the first business admin, then sign in at `/moderation` to register a site and its allowed origins. Open `/admin` to create the first Payload admin user.
 
-`compose.yaml` bundles no database: point `DATABASE_URL` and `BUSINESS_DATABASE_URL` at your own Postgres (append `?sslmode=require` when it uses TLS), then create both databases. The stack runs a one-shot migration service, the app on `:3000`, and the plugin outbox worker. Turnstile defaults to Cloudflare's public testing keys, which work on any hostname including localhost; replace both keys in `.env` for production. See [Self-hosting](/docs/self-hosting) for production settings, backups and upgrades.
+`compose.yaml` bundles no database: point `DATABASE_URL` and `BUSINESS_DATABASE_URL` at your own Postgres (append `?sslmode=require` when it uses TLS), then create both databases. The stack runs a one-shot migration service, the app on `:3000`, and the plugin outbox worker. Turnstile defaults to Cloudflare's public testing keys, which work on any hostname including localhost, but the app refuses them while `NODE_ENV=production` (the Compose default). Replace both keys in `.env` for production, or set `NODE_ENV=development` for a local run. See [Self-hosting](/docs/self-hosting) for production settings, backups and upgrades.
 
 ## Local development
 
