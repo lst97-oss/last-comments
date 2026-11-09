@@ -81,6 +81,7 @@ The server also returns codes the widgets never show, because the widgets send r
 | `RATE_LIMIT_UNAVAILABLE` | 503 | The rate-limit store could not be read or written. Writes fail closed. |
 | `COMMENT_PLUGIN_UNAVAILABLE` | 503 | A comment plugin did not answer in time. Retry shortly. |
 | `DATABASE_UNAVAILABLE` | 503 | The database is temporarily unavailable. Retry shortly. |
+| `NOTIFICATIONS_UNAVAILABLE` | 503 | The notification server could not mint a token for the admin bell. The bell shows its error state and retries. |
 | `OG_RENDER_BUSY` | 503 | The social card renderer is at its concurrency limit. The response has `Retry-After`. |
 | `AUTHOR_NAME_REQUIRED` | 400 | A guest comment needs an `authorName`. A signed-in account does not. |
 | `INVALID_PAGE_URL` | 400 | `url` is not an absolute HTTP(S) URL. |

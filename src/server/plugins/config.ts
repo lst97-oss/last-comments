@@ -1,5 +1,6 @@
 import type { CommentPlugin } from '@/server/plugins/comment-plugins'
 import { filterPlugin } from '@/server/plugins/filter/filter.plugin'
+import { notificationsPlugin } from '@/server/plugins/notifications/notifications.plugin'
 import { resolveClientIp } from '@/server/plugins/rate-limit/client-ip'
 import { getRateLimitPluginSettings } from '@/server/plugins/rate-limit/rate-limit.config'
 import { createRateLimitPlugin } from '@/server/plugins/rate-limit/rate-limit.plugin'
@@ -16,4 +17,6 @@ export const installedCommentPlugins = [
     resolveClientIp(request, { trustedCidrs: getRateLimitPluginSettings().trustedProxyCidrs }),
   ),
   filterPlugin,
+  // Event subscribers never block a comment action; they run from the outbox after commit.
+  notificationsPlugin,
 ] satisfies readonly CommentPlugin[]

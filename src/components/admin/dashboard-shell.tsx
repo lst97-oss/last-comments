@@ -1,6 +1,7 @@
 'use client'
 
 import { AdminLogin } from '@/components/admin/admin-login'
+import { AdminNotificationBell } from '@/components/admin/admin-notification-bell'
 import { AdminSidebar } from '@/components/admin/admin-sidebar'
 import { DashboardAccessDenied } from '@/components/admin/dashboard-access-denied'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
@@ -37,6 +38,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger />
           <span className="text-sm font-medium">Admin dashboard</span>
+          <div className="ml-auto">
+            <AdminNotificationBell userId={principal.userId} />
+          </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>
       </SidebarInset>

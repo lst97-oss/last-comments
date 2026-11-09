@@ -104,6 +104,10 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 
 The `filter` plugin is installed and **on by default** (`enabled: true` in `filter.config.ts`). A hit holds the comment for review as `hidden` instead of rejecting the write. It combines a local `bad-words` engine with the OpenRouter LLM decider (`perplexity/pplx-decider-v1.2`, Decisions API); both engines are enabled by default, `OPENROUTER_API_KEY` is required for the LLM engine, and failures resolve through `failOpen`. Screening sends the author name, comment text, site host and image thumbnails to OpenRouter, so turn `engines.llm` off where that data must stay on your server.
 
+### Admin notifications
+
+The `notifications` plugin notifies the site's admins in their dashboard bell about new, held, hidden and deleted comments, and about page reactions (off by default). Events are switched on with `NOTIFICATIONS_EVENTS`. It needs `NOTIFICATIONS_URL`, `NOTIFICATIONS_APP_KEY` and a `lnk_…` key, and the plugin worker (`bun run plugins:work`) must run. See `src/server/plugins/notifications/README.md`.
+
 ## Scripts
 
 | Script                                  | Purpose                                                                     |
