@@ -1,6 +1,4 @@
 import { createComment } from '@/server/modules/comments/application/create-comment'
-import { deleteComment } from '@/server/modules/comments/application/delete-comment'
-import { editComment } from '@/server/modules/comments/application/edit-comment'
 import {
   assertCommentFitsSite,
   deleteOwnComment,
@@ -25,7 +23,7 @@ export function createCommentData(input: Parameters<typeof createComment>[0]) {
 // site/page lookup yet, and only the new body matters. The site's length limit
 // is checked first, so an oversized edit never reaches screening.
 export async function editCommentData(
-  input: Parameters<typeof editComment>[0],
+  input: Parameters<typeof editOwnComment>[0],
   options: { skipScreening?: boolean } = {},
 ) {
   if (!options.skipScreening) await assertCommentFitsSite(input.siteKey, input.bodyMarkdown)
@@ -38,7 +36,7 @@ export async function editCommentData(
         authorName: '',
         bodyMarkdown: input.bodyMarkdown,
       })
-  return editComment(input, { edit: (data) => editOwnComment(data, screening) })
+  return editOwnComment(input, screening)
 }
 
 // Dashboard posts, including anonymous ones: the instance-admin session is the
@@ -53,10 +51,10 @@ export function createModerationCommentData(input: Parameters<typeof createComme
   })
 }
 
-export function editModerationCommentData(input: Parameters<typeof editComment>[0]) {
+export function editModerationCommentData(input: Parameters<typeof editOwnComment>[0]) {
   return editCommentData(input, { skipScreening: true })
 }
 
-export function deleteCommentData(input: Parameters<typeof deleteComment>[0]) {
-  return deleteComment(input, { delete: deleteOwnComment })
+export function deleteCommentData(input: Parameters<typeof deleteOwnComment>[0]) {
+  return deleteOwnComment(input)
 }
