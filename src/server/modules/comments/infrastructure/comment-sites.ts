@@ -94,26 +94,33 @@ export async function getSiteId(siteKey: string, db: Db = getBusinessDb()): Prom
   return site.id
 }
 
-// Every site fact a comment request needs, from one read: the policy columns, and whether the
-// caller's origin is one the site registered. Null for an unknown site; the caller decides what that means.
+export type SiteContext = {
+  id: string
+  access: SiteAccess
+  gatewayOnly: boolean
+  bodyLimit: number | null
+  votesEnabled: boolean
+  pageReactionsEnabled: boolean
+  commentReactionsEnabled: boolean
+  originRegistered: boolean
+}
+
+// Every site fact a request reads, from one row: the policy and the on/off switches, and whether the caller's
+// origin is one the site registered (always false when no origin is given). Null for an unknown site; the caller
+// decides what that means.
 export async function getSiteContext(
   siteKey: string,
   origin: string | null,
   db: Db = getBusinessDb(),
-): Promise<{
-  id: string
-  access: SiteAccess
-  gatewayOnly: boolean
-  votesEnabled: boolean
-  bodyLimit: number | null
-  originRegistered: boolean
-} | null> {
+): Promise<SiteContext | null> {
   const [site] = await db
     .select({
       id: sites.id,
       access: sites.access,
       gatewayOnly: sites.gatewayOnly,
       votesEnabled: sites.votesEnabled,
+      pageReactionsEnabled: sites.pageReactionsEnabled,
+      commentReactionsEnabled: sites.commentReactionsEnabled,
       bodyLimit: sites.bodyLimit,
       // A join, not a correlated subquery: drizzle drops table qualifiers in a single-table select, which
       // would compare site_origins with itself. The unique (site_id, origin) index keeps this to one row.
@@ -124,33 +131,6 @@ export async function getSiteContext(
       siteOrigins,
       origin === null ? sql`false` : and(eq(siteOrigins.siteId, sites.id), eq(siteOrigins.origin, origin)),
     )
-    .where(eq(sites.key, siteKey))
-    .limit(1)
-  return site ?? null
-}
-
-// Null for an unknown site: the caller then keeps today's behaviour, and the
-// origin check still refuses unregistered writers.
-export async function getSiteAccess(
-  siteKey: string,
-  db: Db = getBusinessDb(),
-): Promise<{ access: SiteAccess; gatewayOnly: boolean; votesEnabled: boolean } | null> {
-  const [site] = await db
-    .select({ access: sites.access, gatewayOnly: sites.gatewayOnly, votesEnabled: sites.votesEnabled })
-    .from(sites)
-    .where(eq(sites.key, siteKey))
-    .limit(1)
-  return site ?? null
-}
-
-// The stored limit is null for the default; the caller resolves it to the ceiling.
-export async function getPublicSiteSettingsRow(
-  siteKey: string,
-  db: Db = getBusinessDb(),
-): Promise<{ access: SiteAccess; bodyLimit: number | null; votesEnabled: boolean } | null> {
-  const [site] = await db
-    .select({ access: sites.access, bodyLimit: sites.bodyLimit, votesEnabled: sites.votesEnabled })
-    .from(sites)
     .where(eq(sites.key, siteKey))
     .limit(1)
   return site ?? null

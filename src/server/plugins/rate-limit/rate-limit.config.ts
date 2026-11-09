@@ -10,6 +10,10 @@ export const rateLimits: Record<CommentOperation, { count: number; windowSeconds
   'comment.edit': { count: 20, windowSeconds: 600 },
   'comment.delete': { count: 20, windowSeconds: 600 },
   'comment.vote': { count: 60, windowSeconds: 60 },
+  // Page and comment reactions share one budget.
+  'comment.react': { count: 60, windowSeconds: 60 },
+  // A reaction that starts a page's thread: the same budget a comment gets for starting one.
+  'page.create': { count: 5, windowSeconds: 600 },
 }
 
 // A key's visitors each get their own bucket, so one key holder could otherwise

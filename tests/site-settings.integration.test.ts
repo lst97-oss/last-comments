@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 
 import { Route as SettingsRoute } from '@/routes/api.comments.settings'
 import { createAdminSite, updateAdminSite } from '@/server/modules/admin/infrastructure/admin-repository'
+import { REACTION_EMOJIS } from '@/server/modules/comments/domain/reactions'
 import { cleanupTestData, handlerOf, siteKeys } from './helpers/integration'
 
 afterAll(cleanupTestData)
@@ -49,9 +50,20 @@ describe('public site settings', () => {
     const features = async () =>
       ((await (await getSettings(settingsRequest(site.key))).json()) as { data: { settings: { features: unknown } } })
         .data.settings.features
-    expect(await features()).toEqual({ votes: true })
+    expect(await features()).toEqual({ votes: true, pageReactions: [], commentReactions: [] })
     await updateAdminSite(site.key, { votesEnabled: false })
-    expect(await features()).toEqual({ votes: false })
+    expect(await features()).toEqual({ votes: false, pageReactions: [], commentReactions: [] })
+  })
+
+  test('the page and comment reaction switches are published separately and follow the dashboard', async () => {
+    const site = await createSite('Settings reactions')
+    const features = async () =>
+      ((await (await getSettings(settingsRequest(site.key))).json()) as { data: { settings: { features: unknown } } })
+        .data.settings.features
+    await updateAdminSite(site.key, { commentReactionsEnabled: true })
+    expect(await features()).toEqual({ votes: true, pageReactions: [], commentReactions: [...REACTION_EMOJIS] })
+    await updateAdminSite(site.key, { pageReactionsEnabled: true, commentReactionsEnabled: false })
+    expect(await features()).toEqual({ votes: true, pageReactions: [...REACTION_EMOJIS], commentReactions: [] })
   })
 
   test('a successful read is cacheable for a minute and readable from any origin, without credentials', async () => {

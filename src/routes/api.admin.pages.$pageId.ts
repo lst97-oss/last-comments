@@ -33,7 +33,7 @@ export const Route = createFileRoute('/api/admin/pages/$pageId')({
           const pageId = parseWith(commentIdSchema, params.pageId)
           const { site, days } = parseSearchParams(request.url, statsQuerySchema)
           await requirePageDetailAccess(request, site)
-          return getPageThread(await getSiteId(site), pageId, Number(days) as 7 | 30 | 90)
+          return getPageThread(await getSiteId(site), pageId, days)
         })({ request }),
       DELETE: ({ request, params }) =>
         withContext(async () => {

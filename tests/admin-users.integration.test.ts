@@ -291,13 +291,15 @@ describe('admin users API', () => {
         }
       }
       const ids = body.data.plugins.map((plugin) => plugin.id).sort()
-      expect(ids).toEqual(['filter', 'rate-limit', 'turnstile'])
+      expect(ids).toEqual(['filter', 'notifications', 'rate-limit', 'turnstile'])
       expect(body.data.auth.providers).toEqual(['better-auth'])
       expect(body.data.rateLimit.limits.map((limit) => limit.operation).sort()).toEqual([
         'comment.create',
         'comment.delete',
         'comment.edit',
+        'comment.react',
         'comment.vote',
+        'page.create',
       ])
       // Presence flags only: the snapshot must never carry secret values.
       const serialized = JSON.stringify(body.data)

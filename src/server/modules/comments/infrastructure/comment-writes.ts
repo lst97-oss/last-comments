@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import { resolveBodyLimit } from '@/lib/comment-schema'
 import { getBusinessDb } from '@/server/db/business-sql'
-import { comments, pages, sites } from '@/server/db/schema'
+import { comments, pages, pluginEvents, sites } from '@/server/db/schema'
 import { ErrorCode, HttpError } from '@/server/http/errors'
 import { getSiteRole, type MembershipRole } from '@/server/http/route-guards'
 import type { CommentCreationContext, CreateCommentData } from '@/server/modules/comments/application/create-comment'
@@ -12,7 +12,7 @@ import {
   matchesEditKey,
   withoutEditKeyHash,
 } from '@/server/modules/comments/infrastructure/comment-keys'
-import { enqueuePluginEvent } from '@/server/modules/comments/infrastructure/comment-outbox'
+import { enqueuePluginEvent, scrubCommentEventText } from '@/server/modules/comments/infrastructure/comment-outbox'
 import { resolvePage } from '@/server/modules/comments/infrastructure/comment-pages'
 import {
   assertCommenterAllowed,
@@ -290,6 +290,7 @@ export async function deleteOwnComment(
     if (!comment)
       throw new HttpError(ErrorCode.COMMENT_NOT_FOUND.status, ErrorCode.COMMENT_NOT_FOUND.code, 'Comment was not found')
 
+    await scrubCommentEventText(tx, eq(pluginEvents.aggregateId, comment.id))
     await enqueuePluginEvent(tx, {
       siteId: target.siteId,
       type: 'comment.deleted',

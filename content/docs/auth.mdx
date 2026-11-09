@@ -19,6 +19,7 @@ providers: ['better-auth'], // default
 
 - `BETTER_AUTH_SECRET` (min 32 chars), `BETTER_AUTH_URL`, and optionally `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Register `http://localhost:3000/api/auth/callback/google` as the OAuth redirect URI.
 - Google sign-in links to an existing account with the same email, even when that account's local email is unverified (the first admin signs up with a password, which leaves it unverified). Google's own `email_verified` claim is the ownership proof. Without this, the callback fails with `account_not_linked` and the reader returns to the site without a session. Password sign-up is closed, so nobody can pre-register a victim's address. Better Auth marks `requireLocalEmailVerified` as deprecated; re-check this setting when upgrading.
+- Password sign-in is behind Cloudflare Turnstile: the dashboard renders the widget with `TURNSTILE_SITE_KEY` and sends its token as `x-captcha-response`. The server checks it with `TURNSTILE_SECRET_KEY` on `/api/auth/sign-in/email` before the password, and fails closed (500) when the secret is missing, so set both keys (the `.env.example` testing keys work locally; production refuses them).
 - Public password registration stays disabled; the login endpoints live under `/api/auth/*`, including the interactive reference at `/api/auth/reference`. That whole mount is only served while `better-auth` is in `providers` (chains like `['better-auth', 'oidc-jwt']` count) and answers 404 otherwise.
 - On a new database, open `/create-admin-user` to create the first admin. Until an instance admin exists, the server refuses all other account creation — except the single address in `bootstrapEmail`, which may register directly (for headless deploys without the setup form).
 </Tab>
@@ -79,7 +80,7 @@ An account can hold one role per site, and one account may also be the instance 
 | --- | --- | --- |
 | Instance admin | One account: the one created during setup, or granted with `bun run db:business:grant-admin` | Everything: moderation of every site, instance settings, creating sites, and every site's admin tasks |
 | Site admin (`admin`) | The account that created the site, on that site | Manage the site: its settings, pages, API keys, stats, user directory and comment history |
-| Member (`member`) | Every other signed-in account on a site, derived automatically: no row is stored | Comment, edit its own comments, and vote, as the site's access level allows. No dashboard, no management |
+| Member (`member`) | Every other signed-in account on a site, derived automatically: no row is stored | Comment, edit its own comments, vote and react, as the site's access level allows. No dashboard, no management |
 
 A guest (no account) has no role. The public `Member` badge marks a member; an admin's comments carry the `Admin` badge.
 

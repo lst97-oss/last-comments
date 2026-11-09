@@ -1,6 +1,7 @@
 import { apiKey } from '@better-auth/api-key'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { betterAuth } from 'better-auth'
+import { captcha } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { getBusinessAuthSettings } from '@/server/auth/business-auth-config'
 import type { SessionPrincipal } from '@/server/auth/principal'
@@ -12,6 +13,7 @@ import { hasInstanceAdmin } from '@/server/modules/admin/infrastructure/admin-re
 import { listRegisteredOrigins } from '@/server/modules/comments/infrastructure/site-origin-repository'
 import { getRequestLogger } from '@/server/observability/logger'
 import { installedOpenApiPlugins } from '@/server/openapi/config'
+import { getTurnstilePluginSettings } from '@/server/plugins/turnstile/turnstile.config'
 
 // Every origin a site has registered. Better Auth checks the Origin header and
 // the callbackURL / errorCallbackURL against this list, so a registered site
@@ -52,7 +54,15 @@ function createBusinessAuth(setup = false) {
       provider: 'pg',
       schema: { user, session, account, verification, apikey },
     }),
-    plugins: [businessApiKeyPlugin(), tanstackStartCookies(), ...installedOpenApiPlugins],
+    plugins: [
+      businessApiKeyPlugin(),
+      // Sign-in carries the password, so it is gated by default. A missing secret answers 500, never a skipped check.
+      // shortcut: the token's hostname is not pinned (the sitekey also serves comment widgets),
+      // add allowedHostnames for the admin host once it is fixed; the testing keys report example.com.
+      captcha({ provider: 'cloudflare-turnstile', secretKey: getTurnstilePluginSettings().secretKey ?? '' }),
+      tanstackStartCookies(),
+      ...installedOpenApiPlugins,
+    ],
     ...(setup
       ? {}
       : {

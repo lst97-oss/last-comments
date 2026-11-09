@@ -7,11 +7,14 @@ import {
   actionSchema,
   commentBodySchema,
   commentIdSchema,
+  commentReactionSchema,
   editBodySchema,
   editKeyHeaderSchema,
   listQuerySchema,
   pageBodySchema,
   pageDeleteQuerySchema,
+  pageReactionQuerySchema,
+  pageReactionSchema,
   pagesQuerySchema,
   searchSchema,
   siteQuerySchema,
@@ -44,6 +47,7 @@ import {
   pageDeletedSchema,
   pageThreadStatsSchema,
   publicSiteSettingsSchema,
+  reactionSummarySchema,
   sessionPrincipalSchema,
   siteDashboardStatsSchema,
   sitePageSchema,
@@ -239,6 +243,110 @@ registry.registerPath({
       'Voting is turned off for this site (FEATURE_DISABLED), the voter is blocked, or the site is gateway-only',
     ),
     404: errorResponse('The comment does not exist'),
+    409: errorResponse('The page is locked'),
+    503: errorResponse('The database is temporarily unavailable'),
+  },
+})
+
+const ReactionSummaries = z.array(reactionSummarySchema)
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/comments/reactions',
+  tags: ['reactions'],
+  summary: 'React to a comment or reply',
+  description:
+    'Adds one emoji from the site’s allowed set to the viewer’s reactions on a comment. A viewer may hold several different emoji on one comment; adding one already held changes nothing. Reacting needs a signed-in session: guests and keys cannot react. Returns the comment’s reaction counts.',
+  request: { body: { content: json(commentReactionSchema) } },
+  security: [sessionCookie],
+  responses: {
+    200: ok(z.strictObject({ reactions: ReactionSummaries })),
+    400: errorResponse('Invalid body, or an emoji outside the allowed set'),
+    401: errorResponse('No session'),
+    403: errorResponse(
+      'Reactions are turned off for this site (FEATURE_DISABLED), the viewer is blocked, or the site is gateway-only',
+    ),
+    404: errorResponse('The comment does not exist or is not visible'),
+    409: errorResponse('The page is locked'),
+    503: errorResponse('The database is temporarily unavailable'),
+  },
+})
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/comments/reactions',
+  tags: ['reactions'],
+  summary: 'Remove your reaction from a comment or reply',
+  description: 'Removes one emoji from the viewer’s reactions on a comment. Removing one not held is a no-op.',
+  request: { query: commentReactionSchema },
+  security: [sessionCookie],
+  responses: {
+    200: ok(z.strictObject({ reactions: ReactionSummaries })),
+    400: errorResponse('Invalid query parameters'),
+    401: errorResponse('No session'),
+    403: errorResponse(
+      'Reactions are turned off for this site (FEATURE_DISABLED), the viewer is blocked, or the site is gateway-only',
+    ),
+    404: errorResponse('The comment does not exist or is not visible'),
+    409: errorResponse('The page is locked'),
+    503: errorResponse('The database is temporarily unavailable'),
+  },
+})
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/comments/page-reactions',
+  tags: ['reactions'],
+  summary: 'Read the reactions on a page',
+  description:
+    'The page bar’s counts. Pass `url`, with an optional `pageKey`. A page with no thread has no reactions, and the viewer’s own reactions come back only with a session.',
+  request: { query: pageReactionQuerySchema },
+  responses: {
+    200: ok(z.strictObject({ reactions: ReactionSummaries })),
+    400: errorResponse('Invalid query parameters'),
+    401: errorResponse('The site requires a signed-in viewer to read'),
+    403: errorResponse('Page reactions are turned off for this site (FEATURE_DISABLED), or the site is gateway-only'),
+    503: errorResponse('The database is temporarily unavailable'),
+  },
+})
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/comments/page-reactions',
+  tags: ['reactions'],
+  summary: 'React to a page',
+  description:
+    'Adds one emoji from the site’s allowed set to the viewer’s reactions on the page. A reaction on a page with no thread starts the thread, as a first comment does. Starting threads share a budget of 5 per 10 minutes; other reactions share a budget of 60 per minute. Needs a signed-in session.',
+  request: { body: { content: json(pageReactionSchema) } },
+  security: [sessionCookie],
+  responses: {
+    200: ok(z.strictObject({ reactions: ReactionSummaries })),
+    400: errorResponse('Invalid body, or an emoji outside the allowed set'),
+    401: errorResponse('No session'),
+    403: errorResponse(
+      'Page reactions are turned off for this site (FEATURE_DISABLED), the viewer is blocked, or the site is gateway-only',
+    ),
+    409: errorResponse('The page is locked'),
+    503: errorResponse('The database is temporarily unavailable'),
+  },
+})
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/comments/page-reactions',
+  tags: ['reactions'],
+  summary: 'Remove your reaction from a page',
+  description: 'Removes one emoji from the viewer’s reactions on the page. Needs a signed-in session.',
+  request: { query: pageReactionSchema },
+  security: [sessionCookie],
+  responses: {
+    200: ok(z.strictObject({ reactions: ReactionSummaries })),
+    400: errorResponse('Invalid query parameters'),
+    401: errorResponse('No session'),
+    403: errorResponse(
+      'Page reactions are turned off for this site (FEATURE_DISABLED), the viewer is blocked, or the site is gateway-only',
+    ),
+    404: errorResponse('The page does not exist'),
     409: errorResponse('The page is locked'),
     503: errorResponse('The database is temporarily unavailable'),
   },

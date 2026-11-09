@@ -13,7 +13,7 @@ bun run stack:up       # migrations + app + plugin worker (bring your own Postgr
 
 Open <http://localhost:3000/create-admin-user> to create the first business admin, then sign in at `/moderation` to register a site and its allowed origins. Open `/admin` to create the first Payload admin user.
 
-`compose.yaml` bundles no database: point `DATABASE_URL` and `BUSINESS_DATABASE_URL` at your own Postgres (append `?sslmode=require` when it uses TLS), then create both databases. The stack runs a one-shot migration service, the app on `:3000`, and the plugin outbox worker. Turnstile defaults to Cloudflare's public testing keys, which work on any hostname including localhost; replace both keys in `.env` for production. See [Self-hosting](/docs/self-hosting) for production settings, backups and upgrades.
+`compose.yaml` bundles no database: point `DATABASE_URL` and `BUSINESS_DATABASE_URL` at your own Postgres (append `?sslmode=require` when it uses TLS), then create both databases. The stack runs a one-shot migration service, the app on `:3000`, and the plugin outbox worker. Turnstile defaults to Cloudflare's public testing keys, which work on any hostname including localhost, but the app refuses them while `NODE_ENV=production` (the Compose default). Replace both keys in `.env` for production, or set `NODE_ENV=development` for a local run. See [Self-hosting](/docs/self-hosting) for production settings, backups and upgrades.
 
 ## Local development
 
@@ -103,6 +103,10 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 ### Filter screening
 
 The `filter` plugin is installed and **on by default** (`enabled: true` in `filter.config.ts`). A hit holds the comment for review as `hidden` instead of rejecting the write. It combines a local `bad-words` engine with the OpenRouter LLM decider (`perplexity/pplx-decider-v1.2`, Decisions API); both engines are enabled by default, `OPENROUTER_API_KEY` is required for the LLM engine, and failures resolve through `failOpen`. Screening sends the author name, comment text, site host and image thumbnails to OpenRouter, so turn `engines.llm` off where that data must stay on your server.
+
+### Admin notifications
+
+The `notifications` plugin notifies the site's admins in their dashboard bell about new, held, hidden and deleted comments, and about page reactions (off by default). Events are switched on with `NOTIFICATIONS_EVENTS`. It needs `NOTIFICATIONS_URL`, `NOTIFICATIONS_APP_KEY` and a `lnk_…` key, and the plugin worker (`bun run plugins:work`) must run. See `src/server/plugins/notifications/README.md`.
 
 ## Scripts
 

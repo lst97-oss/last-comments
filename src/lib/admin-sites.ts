@@ -16,6 +16,8 @@ export type Site = {
   access?: SiteAccess
   gatewayOnly?: boolean
   votesEnabled?: boolean
+  pageReactionsEnabled?: boolean
+  commentReactionsEnabled?: boolean
 }
 
 // One query for the sites the viewer can moderate. The dashboard, the

@@ -1,6 +1,9 @@
 import type { NitroAppPlugin } from 'nitro/types'
 
 import { closeBusinessSql } from '@/server/db/business-sql'
+import { getRequestLogger } from '@/server/observability/logger'
+
+const logger = getRequestLogger().child({ component: 'shutdown', role: 'app' })
 
 type Destroyable = { destroy?: () => unknown }
 
@@ -26,26 +29,32 @@ export async function drainAll(
   return Promise.allSettled([destroyCachedPayloads(), closeBusinessPool()])
 }
 
-let shutdownArmed = false
-
-function armProcessHandlers(): void {
-  // Bun's serve() does not translate SIGTERM/SIGINT into Nitro's `close`,
-  // so trap the signals here, drain, then exit. Idempotent with the hook.
-  if (shutdownArmed || typeof process === 'undefined') return
-  shutdownArmed = true
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.once(signal, () => {
-      void drainAll().finally(() => process.exit(0))
-    })
-  }
+// Counts rejections, including the ones nested in destroyCachedPayloads()'s own result list.
+export function countFailures(results: PromiseSettledResult<unknown>[]): number {
+  return results.reduce((count, result) => {
+    if (result.status === 'rejected') return count + 1
+    return count + (Array.isArray(result.value) ? countFailures(result.value) : 0)
+  }, 0)
 }
 
-// Payload caches instances in global._payload with an open Postgres pool
-// each — without this drain, the pool holds the process open until the
-// platform force-kills it, dropping in-flight work.
+// Payload caches instances in global._payload with an open Postgres pool each, so the drain must run or
+// the pool holds the process open until the platform force-kills it. srvx handles SIGINT/SIGTERM (unless
+// CI or TEST is set): it stops accepting, lets in-flight requests finish, then runs Nitro's `close` hook.
+// Drain there and exit.
 const payloadShutdownPlugin: NitroAppPlugin = (nitroApp) => {
-  armProcessHandlers()
-  nitroApp.hooks.hook('close', () => drainAll())
+  nitroApp.hooks.hook('close', async () => {
+    const startedAt = performance.now()
+    // srvx's "Stopping server gracefully" progress line has no newline; end it so the JSON log starts clean.
+    process.stderr.write('\n')
+    logger.info('shutdown.started')
+    const results = await drainAll()
+    logger.info('shutdown.drained', {
+      durationMs: Math.round(performance.now() - startedAt),
+      failed: countFailures(results),
+    })
+    logger.info('shutdown.exit', { code: 0 })
+    process.exit(0)
+  })
 }
 
 export default payloadShutdownPlugin

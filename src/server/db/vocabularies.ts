@@ -27,6 +27,7 @@ export const COMMENT_EVENT_TYPES = [
   'comment.restored',
   'comment.pinned',
   'comment.voted',
+  'page.reacted',
   'page.locked',
   'page.unlocked',
   'page.deleted',

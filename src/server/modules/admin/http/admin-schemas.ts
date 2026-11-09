@@ -14,6 +14,8 @@ export const siteUpdateSchema = z.strictObject({
   access: z.enum(SITE_ACCESS_LEVELS).optional(),
   gatewayOnly: z.boolean().optional(),
   votesEnabled: z.boolean().optional(),
+  pageReactionsEnabled: z.boolean().optional(),
+  commentReactionsEnabled: z.boolean().optional(),
 })
 
 export const adminSiteSchema = z.strictObject({

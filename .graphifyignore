@@ -1,0 +1,18 @@
+# Vendored third-party code and docs (not this project's architecture)
+vendor/
+.agents/skills/shadcn/
+
+# Dependency manifest and tool config (low signal for architecture questions)
+/package.json
+/components.json
+/tsconfig.json
+/biome.json
+
+# Static assets: icons, OG artwork, ASCII art (no logic to extract)
+public/favicon/
+public/assets/
+*.png
+*.webp
+*.jpg
+*.svg
+*.ico

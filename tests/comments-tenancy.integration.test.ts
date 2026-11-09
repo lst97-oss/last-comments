@@ -18,7 +18,7 @@ import {
 } from '@/server/modules/comments/infrastructure/moderation-queries'
 import { deleteOwnComment, editOwnComment } from '@/server/modules/comments/infrastructure/comment-writes'
 import { castCommentVote, clearCommentVote } from '@/server/modules/comments/infrastructure/comment-votes'
-import { getPageThread } from '@/server/modules/comments/infrastructure/stats-queries'
+import { getPageThread, getSiteStats } from '@/server/modules/comments/infrastructure/stats-queries'
 import { cleanupTestData, createOwner, createTestComment, siteKeys } from './helpers/integration'
 
 // Tenancy matrix: a request that names site B must never reach site A's comment or page, through any
@@ -57,7 +57,7 @@ async function setup() {
     authorName: 'Author',
     bodyMarkdown: 'Author on A',
   })
-  const [page] = await db.select({ id: pages.id }).from(pages).where(eq(pages.canonicalUrl, pageUrl))
+  const [page] = await db.select({ id: pages.id }).from(pages).where(eq(pages.siteId, a.id))
   const actor = await createOwner('Tenancy actor')
   const voter = await createOwner('Tenancy voter')
   return { a, b, pageUrl, pageId: page!.id, guest, signedIn, author, actor, voter }
@@ -148,6 +148,14 @@ describe('tenancy: a request for site B never reaches site A', () => {
 
     // Site A still sees its own takedown, so the empty results above are tenancy, not a broken query.
     expect((await listModerationTakedowns(a.id, { recentDays: 0, limit: 20, offset: 0 })).total).toBe(1)
+  })
+
+  test('the all range spans from the site creation, so a fresh site is one day', async () => {
+    const { a, pageId } = await setup()
+    const site = await getSiteStats(a.id, 'all')
+    expect(site.window.days).toBe(1)
+    expect(site.series).toHaveLength(1)
+    expect((await getPageThread(a.id, pageId, 'all')).stats.window.days).toBe(1)
   })
 
   test('a page URL on site A’s origin cannot be opened through site B', async () => {

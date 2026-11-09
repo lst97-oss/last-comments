@@ -30,17 +30,22 @@ A **member** of a site may comment and nothing else: every admin path below refu
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/comments` | List the comments of one page by `site` plus `url` or `pageKey`, with `limit` and `offset` (threads page by row offset, no total). A deleted comment comes back with only its id, parent, time and status, so replies stay nested under it |
-| GET | `/api/comments/settings?site=` | The public policy of a site: access level, comment length limit, guest edit window, public Turnstile key and `features.votes`. No secrets; any origin, no credentials; cached for a minute |
+| GET | `/api/comments/settings?site=` | The public policy of a site: access level, comment length limit, guest edit window, public Turnstile key, `features.votes`, and `features.pageReactions` and `features.commentReactions` (the allowed emoji for each switch, empty while it is off). No secrets; any origin, no credentials; cached for a minute |
 | POST | `/api/comments` | Post a comment or a reply (Turnstile token + guest name, or a session) |
 | PATCH | `/api/comments/{commentId}` | Edit your own comment (session, or the guest edit key) |
 | DELETE | `/api/comments/{commentId}` | Delete your own comment: a session, or a guest's edit key in the `x-lc-edit-key` header. The comment stays in the thread, redacted |
 | PUT | `/api/comments/vote` | Cast an up/down vote on a comment (session required; `403 FEATURE_DISABLED` when voting is off for the site) |
 | DELETE | `/api/comments/vote` | Clear your vote on a comment (session required; same refusals) |
+| PUT | `/api/comments/reactions` | React to a comment or reply with one emoji from the allowed set. A viewer may hold several different emoji on one comment (session required; `403 FEATURE_DISABLED` when comment reactions are off; `400` for an emoji outside the set). Returns the comment's reaction counts |
+| DELETE | `/api/comments/reactions` | Remove one of your reactions from a comment (session required; same refusals) |
+| GET | `/api/comments/page-reactions` | The page bar's counts for `site` plus `url` (and an optional `pageKey`); `403 FEATURE_DISABLED` when page reactions are off |
+| PUT | `/api/comments/page-reactions` | React to the page (session required; a reaction on a page with no thread starts it, and starting threads share a budget of 5 per 10 minutes) |
+| DELETE | `/api/comments/page-reactions` | Remove your reaction from the page (session required; same refusals) |
 | GET | `/api/moderation` | List sites, threads and comments for the moderation dashboard (instance admin session; with `site`, that site's admin as well) |
 | POST | `/api/moderation` | Run a moderation action for one site (instance admin and that site's admin, session required): hide, restore, delete, pin or unpin a comment; lock a page; block a user; post a comment as an admin; edit; vote |
 | GET | `/api/admin/sites` | List the sites you administer with their allowed origins — instance admins see every site, a site admin only its own. A member gets 403 (session, or a service key with `sites:read`) |
 | POST | `/api/admin/sites` | Create a site with its first allowed origin (instance admin or a service key with `sites:create`) |
-| PATCH | `/api/admin/sites/{siteKey}` | Update a site's name, its comment length limit (`bodyLimit`, 1 to 10,000 characters; `null` resets to the default), who may read and post (`access`: `open`, `login` or `private`), `gatewayOnly` and `votesEnabled`. Site admins or a `sites:update` key |
+| PATCH | `/api/admin/sites/{siteKey}` | Update a site's name, its comment length limit (`bodyLimit`, 1 to 10,000 characters; `null` resets to the default), who may read and post (`access`: `open`, `login` or `private`), `gatewayOnly`, `votesEnabled`, `pageReactionsEnabled` and `commentReactionsEnabled`. Site admins or a `sites:update` key |
 | DELETE | `/api/admin/sites/{siteKey}` | Delete a site and everything in it, including its API keys and rate-limit windows, in one transaction. Site admins or a `sites:delete` key |
 | GET | `/api/admin/pages` | List the registered page threads of one site with recent-window activity (`?site=&recentDays=0..90&preview=1..5`, `0` = all time). Site admin session, or a `pages:read` key bound to the site |
 | POST | `/api/admin/pages` | Register a page thread up front, idempotent: `{ site, url, pageKey?, title? }`. Site admin session, or a `pages:write` key bound to the site. The URL must use one of the site's allowed origins |

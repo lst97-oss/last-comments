@@ -3,6 +3,16 @@
 
 export type { SitePage } from '@/server/modules/comments/infrastructure/comment-pages'
 export { upsertPage } from '@/server/modules/comments/infrastructure/comment-pages'
+export {
+  addCommentReaction,
+  addPageReaction,
+  hasPageThread,
+  listCommentReactions,
+  listPageReactions,
+  type PageRef,
+  removeCommentReaction,
+  removePageReaction,
+} from '@/server/modules/comments/infrastructure/comment-reactions'
 export { listPageComments } from '@/server/modules/comments/infrastructure/comment-reads'
 export {
   assertAnySiteOrigin,
@@ -10,8 +20,7 @@ export {
   assertSiteOrigin,
   assertWithinBodyLimit,
   getPageCanonicalUrl,
-  getPublicSiteSettingsRow,
-  getSiteAccess,
+  getSiteContext,
   getSiteId,
   requireAllowedOrigin,
 } from '@/server/modules/comments/infrastructure/comment-sites'

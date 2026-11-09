@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.4.0
+
+Emoji reactions on the page and on each comment, each switched on per site.
+
+- **Two reaction switches per site.** `sites.page_reactions_enabled` and `sites.comment_reactions_enabled`, both default `false`, so an existing site gains nothing until an admin turns one on. They are independent. Set with `PATCH /api/admin/sites/{siteKey}` or the dashboard's Edit site. While a switch is off, its routes return `403 FEATURE_DISABLED`, and the public settings send an empty list for it.
+- **A fixed emoji set.** 👍 ❤️ 😄 🎉 😮 👀, defined in `src/server/modules/comments/domain/reactions.ts`. Any other emoji is `400 VALIDATION_ERROR`. A viewer may hold several different emoji on one comment, and each emoji is held once.
+- **Routes.** `PUT` and `DELETE /api/comments/reactions` react to a comment or reply. `GET`, `PUT` and `DELETE /api/comments/page-reactions` react to the page, and a reaction on a page with no comments starts its thread. Sessions only: keys cannot react.
+- **Counts ride on the comment list.** `GET /api/comments` and the moderation list carry `reactions: [{emoji, count, viewerReacted}]`, read in one batch per page. A deleted comment carries none. Counts come back whether or not the switch is on, as scores do.
+- **Rate-limit budgets.** Reactions use a `comment.react` budget of 60 per minute per visitor. A reaction that starts a page's thread uses a `page.create` budget of 5 per 10 minutes, the same as creating a comment.
+- **New migration.** `drizzle/business/0006_reactions.sql` adds `comment_reactions` and `page_reactions` and the two switch columns. Run `bun run db:business:migrate`.
+
+### Admin notifications
+
+Admins get an in-app notice in the dashboard bell for new, held, hidden and deleted comments, and for page reactions.
+
+- **New migration.** `drizzle/business/0007_plugin_events_page_reacted.sql` adds `page.reacted` to the event-type CHECK. Run `bun run db:business:migrate`.
+- **New plugin.** `src/server/plugins/notifications/`. Off until `NOTIFICATIONS_URL`, `NOTIFICATIONS_APP_KEY` and `NOTIFICATIONS_API_KEY` (`lnk_…`) are set. Choose events with `NOTIFICATIONS_EVENTS`. Needs the plugin worker running.
+- **Bell.** The dashboard header shows the admin bell, backed by `GET /api/notifications-config` and `GET /api/notifications-token` (dashboard admins only). A notification-server failure shows the bell's warning state with "Try again" instead of hiding the bell. Failures are logged to the browser console and the server log.
+- **Reactions.** A new page reaction is an outbox event now. Repeats emit nothing.
+
+### Admin sign-in is protected by Turnstile
+
+- **Captcha on password sign-in.** `POST /api/auth/sign-in/email` needs a Turnstile token in `x-captcha-response`, checked before the password. The dashboard's sign-in form renders the widget from `TURNSTILE_SITE_KEY`. Set `TURNSTILE_SECRET_KEY` too: without it, sign-in answers `500` rather than skipping the check.
+- **Server-side calls are not gated.** Direct `auth.api` calls, including the initial admin setup, skip the captcha hook.
+
 ## v0.3.0
 
 Site access levels and a gateway switch, so a host server can proxy comments and the browser never holds a credential.

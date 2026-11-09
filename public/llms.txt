@@ -44,6 +44,11 @@
 | DELETE | `/api/comments/{commentId}` | Delete your own comment (session required) |
 | PUT | `/api/comments/vote` | Cast an up/down vote (session required) |
 | DELETE | `/api/comments/vote` | Clear your vote (session required) |
+| PUT | `/api/comments/reactions` | React to a comment with an allowed emoji (session required; off unless the site enables comment reactions) |
+| DELETE | `/api/comments/reactions` | Remove your reaction from a comment (session required) |
+| GET | `/api/comments/page-reactions` | Emoji counts for a page (`site` + `url`; off unless the site enables page reactions) |
+| PUT | `/api/comments/page-reactions` | React to a page (session required) |
+| DELETE | `/api/comments/page-reactions` | Remove your reaction from a page (session required) |
 | GET | `/api/moderation` | List sites, threads, and comments for the moderation dashboard (session required) |
 | POST | `/api/moderation` | Moderate: hide/restore/delete/pin comment, lock page, block user, post as moderator (session required) |
 | GET | `/api/admin/sites` | List every site with its allowed origins (session or service key) |

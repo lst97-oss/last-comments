@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { productionSecretProblem } from '@/server/security/secret-placeholders'
+import { productionSecretProblem, productionTurnstileKeyProblem } from '@/server/security/secret-placeholders'
 
 // .env files ship these blank, so an empty string must mean "not configured"
 // instead of failing validation (which would 500 every blog page).
@@ -19,11 +19,19 @@ const envSchema = z
     // notice instead of the widget, and publishing skips thread registration.
     // (The Turnstile site key moved to `turnstile.config.ts` — public, not a secret.)
     BLOG_SITE_KEY: optionalString,
+    TURNSTILE_SITE_KEY: optionalString,
+    TURNSTILE_SECRET_KEY: optionalString,
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV !== 'production') return
     const problem = productionSecretProblem(env.PAYLOAD_SECRET)
     if (problem) context.addIssue({ code: 'custom', path: ['PAYLOAD_SECRET'], message: `PAYLOAD_SECRET ${problem}` })
+    // A testing key passes every check, so a production instance with one has no bot check on guest comments.
+    for (const name of ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'] as const) {
+      const value = env[name]
+      const turnstileProblem = value === undefined ? null : productionTurnstileKeyProblem(value)
+      if (turnstileProblem) context.addIssue({ code: 'custom', path: [name], message: `${name} ${turnstileProblem}` })
+    }
   })
 
 export type ServerEnv = z.infer<typeof envSchema>

@@ -1,0 +1,2 @@
+ALTER TABLE "plugin_events" DROP CONSTRAINT "plugin_events_type_check";--> statement-breakpoint
+ALTER TABLE "plugin_events" ADD CONSTRAINT "plugin_events_type_check" CHECK ("plugin_events"."event_type" in ('comment.created', 'comment.edited', 'comment.hidden', 'comment.deleted', 'comment.restored', 'comment.pinned', 'comment.voted', 'page.reacted', 'page.locked', 'page.unlocked', 'page.deleted', 'user.blocked', 'user.unblocked', 'user.verified', 'user.unverified'));

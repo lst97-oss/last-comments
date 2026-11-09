@@ -1,6 +1,10 @@
 import { getAuthSelection, getHeaderProviderSettings, getOidcSettings } from '@/server/auth/provider-config'
 import { getCommentEditSettings, getCommentPluginSettings, getCommentPlugins } from '@/server/plugins/comment-plugins'
 import { getFilterSettings } from '@/server/plugins/filter/filter.plugin'
+import {
+  getNotificationsPluginSettings,
+  NOTIFICATION_EVENT_KINDS,
+} from '@/server/plugins/notifications/notifications.config'
 import { getRateLimitPluginSettings, rateLimits } from '@/server/plugins/rate-limit/rate-limit.config'
 import { getTurnstilePluginSettings } from '@/server/plugins/turnstile/turnstile.config'
 
@@ -100,6 +104,22 @@ export function getInstanceSettings(overrides: { env?: Record<string, string | u
         detail: rateLimitEnabled
           ? 'Request quotas are enforced per operation and identity'
           : 'BETTER_AUTH_SECRET is missing — comment operations fail closed instead of rate-limiting',
+        events: [...(plugin.events ?? [])],
+        capabilities,
+      }
+    }
+    if (plugin.id === 'notifications') {
+      const notifications = getNotificationsPluginSettings()
+      const switchedOn = NOTIFICATION_EVENT_KINDS.filter((kind) => notifications.events[kind])
+      return {
+        id: plugin.id,
+        apiVersion: plugin.apiVersion,
+        enabled: notifications.enabled,
+        detail: notifications.enabled
+          ? `Notifying admins on: ${switchedOn.join(', ')}`
+          : notifications.missing.length > 0
+            ? `Missing ${notifications.missing.join(', ')}`
+            : 'Every notification event is switched off',
         events: [...(plugin.events ?? [])],
         capabilities,
       }

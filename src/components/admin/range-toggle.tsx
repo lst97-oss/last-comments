@@ -1,7 +1,7 @@
 'use client'
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { RANGES, type Range } from '@/lib/admin-format'
+import { isRange, RANGES, type Range } from '@/lib/admin-format'
 
 export function RangeToggle({ days, onChange }: { days: Range; onChange: (days: Range) => void }) {
   return (
@@ -10,12 +10,12 @@ export function RangeToggle({ days, onChange }: { days: Range; onChange: (days: 
       value={[days]}
       onValueChange={(next) => {
         const picked = next[0]
-        if (picked === '7' || picked === '30' || picked === '90') onChange(picked)
+        if (picked && isRange(picked)) onChange(picked)
       }}
     >
       {RANGES.map((option) => (
         <ToggleGroupItem key={option} value={option} variant="outline" size="sm">
-          {option}D
+          {option === 'all' ? 'All' : `${option}D`}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>

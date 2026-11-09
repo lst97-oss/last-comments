@@ -31,11 +31,29 @@ export type SiteDashboardStats = {
   moderationActions: { action: string; count: number }[]
 }
 
+export type StatsRange = 7 | 30 | 90 | 'all'
+
+// Calendar days from `since` through today (UTC), inclusive.
+function daysSince(since: Date): number {
+  const now = new Date()
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const first = Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate())
+  return Math.max(1, Math.round((today - first) / 86_400_000) + 1)
+}
+
+async function siteCreatedAt(siteId: string, db: Db): Promise<Date> {
+  const [row] = await db.select({ createdAt: sites.createdAt }).from(sites).where(eq(sites.id, siteId)).limit(1)
+  return row?.createdAt ?? new Date()
+}
+
 export async function getSiteStats(
   siteId: string,
-  days: 7 | 30 | 90,
+  range: StatsRange,
   db: Db = getBusinessDb(),
 ): Promise<SiteDashboardStats> {
+  // `all` counts from the site's creation, not its first comment, so moderation
+  // events that predate any comment still count.
+  const days = range === 'all' ? daysSince(await siteCreatedAt(siteId, db)) : range
   // UTC midnight of the first day in the window; the series spine uses the
   // same boundary so the top-pages and moderation counts line up with it.
   const now = new Date()
@@ -218,11 +236,11 @@ export type PageThreadDetail = {
 export async function getPageThread(
   siteId: string,
   pageId: string,
-  days: 7 | 30 | 90,
+  range: StatsRange,
   db: Db = getBusinessDb(),
 ): Promise<PageThreadDetail> {
   const [site] = await db
-    .select({ name: sites.name, bodyLimit: sites.bodyLimit })
+    .select({ name: sites.name, bodyLimit: sites.bodyLimit, createdAt: sites.createdAt })
     .from(sites)
     .where(eq(sites.id, siteId))
     .limit(1)
@@ -231,6 +249,8 @@ export async function getPageThread(
   const [page] = await listModerationPages(siteId, { pageId }, db)
   if (!page) throw new HttpError(ErrorCode.PAGE_NOT_FOUND.status, ErrorCode.PAGE_NOT_FOUND.code, 'Page was not found')
 
+  // A site's creation bounds every thread in it, so it is the all-time start too.
+  const days = range === 'all' ? daysSince(site.createdAt) : range
   const now = new Date()
   const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1)))
 

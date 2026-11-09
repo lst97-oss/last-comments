@@ -32,7 +32,7 @@ export const Route = createFileRoute('/api/admin/stats')({
         withContext(async () => {
           const { site, days } = parseSearchParams(request.url, statsQuerySchema)
           await requireStatsAccess(request, site)
-          const stats = await getSiteStats(await getSiteId(site), Number(days) as 7 | 30 | 90)
+          const stats = await getSiteStats(await getSiteId(site), days)
           return { stats }
         })({ request }),
     },

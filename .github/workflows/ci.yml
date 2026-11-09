@@ -120,6 +120,9 @@ jobs:
       PAYLOAD_SECRET: ci-only-dummy-secret-override-at-runtime-1234567890
       BETTER_AUTH_SECRET: ci-only-better-auth-secret-override-at-runtime-1234567890
       PAYLOAD_PUBLIC_SERVER_URL: https://example.com
+      # Production refuses Cloudflare's testing keys, so the stack smoke uses real-shaped dummies.
+      TURNSTILE_SITE_KEY: 0x4AAAAAAAci-site-key
+      TURNSTILE_SECRET_KEY: 0x4AAAAAAAci-secret-key
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Read Bun version

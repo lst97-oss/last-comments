@@ -159,6 +159,10 @@ export const sites = pgTable(
     gatewayOnly: boolean('gateway_only').notNull().default(false),
     // Voting switch: when off, the service refuses votes and the widget hides the arrows.
     votesEnabled: boolean('votes_enabled').notNull().default(true),
+    // Reaction switches, independent of each other: the page bar and the per-comment reactions.
+    // Off by default, so an existing site gains no new surface until an admin turns it on.
+    pageReactionsEnabled: boolean('page_reactions_enabled').notNull().default(false),
+    commentReactionsEnabled: boolean('comment_reactions_enabled').notNull().default(false),
   },
   (table) => [
     check('sites_body_limit_check', sql`${table.bodyLimit} is null or ${table.bodyLimit} between 1 and 10000`),
@@ -316,6 +320,48 @@ export const votes = pgTable(
     primaryKey({ columns: [table.commentId, table.userId] }),
     index('votes_user_id_idx').on(table.userId),
     check('votes_value_check', sql`${table.value} in (-1, 1)`),
+  ],
+)
+
+// One row per (comment, user, emoji): a viewer may hold several different reactions on one comment.
+// Counts are computed on read, like votes, so there is no counter column to keep in step.
+export const commentReactions = pgTable(
+  'comment_reactions',
+  {
+    commentId: uuid('comment_id')
+      .notNull()
+      .references(() => comments.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.commentId, table.userId, table.emoji] }),
+    index('comment_reactions_user_id_idx').on(table.userId),
+    // The allowlist is enforced in the application; this only bounds what a row can hold.
+    check('comment_reactions_emoji_check', sql`char_length(${table.emoji}) between 1 and 16`),
+  ],
+)
+
+// The page-level bar: the same shape as comment reactions, keyed on the thread.
+export const pageReactions = pgTable(
+  'page_reactions',
+  {
+    pageId: uuid('page_id')
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.pageId, table.userId, table.emoji] }),
+    index('page_reactions_user_id_idx').on(table.userId),
+    check('page_reactions_emoji_check', sql`char_length(${table.emoji}) between 1 and 16`),
   ],
 )
 

@@ -1,10 +1,10 @@
 import { and, count, eq, sql } from 'drizzle-orm'
 import { getBusinessDb } from '@/server/db/business-sql'
-import { comments, moderationEvents, pages, userBlocks, votes } from '@/server/db/schema'
+import { comments, moderationEvents, pages, pluginEvents, userBlocks, votes } from '@/server/db/schema'
 import { ErrorCode, HttpError } from '@/server/http/errors'
 import { normalizePageKey, normalizePageUrl } from '@/server/modules/comments/domain/comment'
 import { withoutEditKeyHash } from '@/server/modules/comments/infrastructure/comment-keys'
-import { enqueuePluginEvent } from '@/server/modules/comments/infrastructure/comment-outbox'
+import { enqueuePluginEvent, scrubCommentEventText } from '@/server/modules/comments/infrastructure/comment-outbox'
 import type { Db } from '@/server/modules/comments/infrastructure/comment-types'
 import type { CommentEventType } from '@/server/plugins/comment-plugins'
 
@@ -38,6 +38,7 @@ export async function setCommentStatus(
       })
       .where(and(eq(comments.id, commentId), eq(comments.siteId, siteId)))
       .returning()
+    if (status === 'deleted') await scrubCommentEventText(tx, eq(pluginEvents.aggregateId, commentId))
     const eventType: CommentEventType =
       action === 'pin' || action === 'unpin'
         ? 'comment.pinned'
@@ -136,6 +137,10 @@ export async function deletePage(
         .where(eq(comments.pageId, page.id)),
     ])
 
+    await scrubCommentEventText(
+      tx,
+      sql`${pluginEvents.aggregateId} in (select ${comments.id}::text from ${comments} where ${comments.pageId} = ${page.id})`,
+    )
     await tx.delete(pages).where(and(eq(pages.siteId, siteId), eq(pages.id, page.id)))
     await tx.insert(moderationEvents).values({
       siteId,

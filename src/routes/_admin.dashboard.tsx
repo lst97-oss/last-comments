@@ -20,7 +20,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { Field, FieldLabel, FieldTitle } from '@/components/ui/field'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
-import { type Range, threadLabel } from '@/lib/admin-format'
+import { type Range, rangeCopy, threadLabel } from '@/lib/admin-format'
 import { ADMIN_SITES_QUERY_KEY, fetchAdminSites } from '@/lib/admin-sites'
 import { describeApiError, readApiData } from '@/lib/api-response'
 import { BusinessRouteError } from '@/lib/business-route-error'
@@ -86,8 +86,6 @@ function DashboardPage() {
   const switchSite = (next: string) => {
     if (next && next !== site) setSiteOverride(next)
   }
-
-  const range = Number(days) as 7 | 30 | 90
 
   return (
     <>
@@ -163,7 +161,7 @@ function DashboardPage() {
             </CardHeader>
           </Card>
         ) : (
-          <DashboardContent stats={statsQuery.data ?? null} loading={statsQuery.isFetching} days={range} site={site} />
+          <DashboardContent stats={statsQuery.data ?? null} loading={statsQuery.isFetching} range={days} site={site} />
         )}
       </main>
     </>
@@ -173,14 +171,15 @@ function DashboardPage() {
 type DashboardContentProps = {
   stats: DashboardStats | null
   loading: boolean
-  days: 7 | 30 | 90
+  range: Range
   site: string
 }
 
-function DashboardContent({ stats, loading, days, site }: DashboardContentProps) {
+function DashboardContent({ stats, loading, range, site }: DashboardContentProps) {
   if (!stats) return <SkeletonCards />
 
   const { totals, series, topPages, moderationActions } = stats
+  const copy = rangeCopy(range)
 
   return (
     <>
@@ -189,7 +188,7 @@ function DashboardContent({ stats, loading, days, site }: DashboardContentProps)
           title="Total comments"
           description="All comments ever posted"
           value={totals.comments.toLocaleString()}
-          footnote={`+${stats.window.comments.toLocaleString()} in the last ${days} days`}
+          footnote={`+${stats.window.comments.toLocaleString()} ${copy.within}`}
         />
         <StatCard
           title="Threads"
@@ -228,7 +227,7 @@ function DashboardContent({ stats, loading, days, site }: DashboardContentProps)
       <section aria-label="Trends" className="grid gap-4 lg:grid-cols-3">
         <CommentActivityPanel
           className="lg:col-span-2"
-          days={days}
+          range={range}
           windowComments={stats.window.comments}
           series={series}
         />
@@ -240,12 +239,12 @@ function DashboardContent({ stats, loading, days, site }: DashboardContentProps)
       </section>
 
       <section aria-label="Breakdown" className="grid gap-4 lg:grid-cols-3">
-        <VotesPanel days={days} votesUp={stats.window.votesUp} votesDown={stats.window.votesDown} series={series} />
+        <VotesPanel range={range} votesUp={stats.window.votesUp} votesDown={stats.window.votesDown} series={series} />
 
         <Card>
           <CardHeader>
             <CardTitle>Top threads</CardTitle>
-            <CardDescription>Most active threads, last {days} days</CardDescription>
+            <CardDescription>Most active threads, {copy.period}</CardDescription>
           </CardHeader>
           <CardContent>
             <Leaderboard
@@ -264,7 +263,7 @@ function DashboardContent({ stats, loading, days, site }: DashboardContentProps)
                 <Empty>
                   <EmptyHeader>
                     <EmptyTitle>No active threads</EmptyTitle>
-                    <EmptyDescription>No thread received a comment in the last {days} days.</EmptyDescription>
+                    <EmptyDescription>No thread received a comment {copy.within}.</EmptyDescription>
                   </EmptyHeader>
                 </Empty>
               }
@@ -275,7 +274,7 @@ function DashboardContent({ stats, loading, days, site }: DashboardContentProps)
         <VisibleRatePanel totals={totals} />
       </section>
 
-      <ModerationActivityCard days={days} moderationActions={moderationActions} scopeCopy="site" />
+      <ModerationActivityCard range={range} moderationActions={moderationActions} scopeCopy="site" />
     </>
   )
 }

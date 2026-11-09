@@ -7,6 +7,7 @@ import { SiteFooter } from '@/components/layout/site-footer'
 import { SiteHeader } from '@/components/layout/site-header'
 import { Toaster } from '@/components/ui/toast'
 import '@/styles/app.css'
+import '@lst97-oss/last-notifications-widgets/styles.css'
 
 interface MyRouterContext {
   queryClient: QueryClient

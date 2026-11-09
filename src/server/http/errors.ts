@@ -40,6 +40,15 @@ export const ErrorCode = defineMessageCodes({
   INVALID_SCOPE_SET: { status: HttpStatus.BAD_REQUEST.code, message: 'Scope set is not valid for this key type.' },
   MALFORMED_JSON: { status: HttpStatus.BAD_REQUEST.code, message: 'Request body is not valid JSON.' },
   NOTHING_TO_UPDATE: { status: HttpStatus.BAD_REQUEST.code, message: 'Pass scopes and/or enabled.' },
+  // A permanent configuration fault (wrong app or API key). The bell stops retrying on this code.
+  NOTIFICATIONS_NOT_CONFIGURED: {
+    status: HttpStatus.NOT_IMPLEMENTED.code,
+    message: 'Notifications are not set up on this site.',
+  },
+  NOTIFICATIONS_UNAVAILABLE: {
+    status: HttpStatus.SERVICE_UNAVAILABLE.code,
+    message: 'Notifications are temporarily unavailable.',
+  },
   OG_RENDER_BUSY: { status: HttpStatus.SERVICE_UNAVAILABLE.code, message: 'Image rendering is busy, retry shortly.' },
   OPENAPI_DISABLED: { status: HttpStatus.NOT_FOUND.code, message: 'OpenAPI docs are disabled.' },
   PAGE_KEY_MISMATCH: { status: HttpStatus.CONFLICT.code, message: 'This page key belongs to a different thread.' },

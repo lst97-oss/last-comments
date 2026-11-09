@@ -64,7 +64,7 @@ describe('toHttpError', () => {
 describe('ErrorCode', () => {
   test('every entry carries a valid HTTP status and matching key', () => {
     const entries = Object.entries(ErrorCode)
-    expect(entries).toHaveLength(Object.keys(MessageCode).length + 35)
+    expect(entries).toHaveLength(Object.keys(MessageCode).length + 37)
     for (const [name, info] of entries) {
       expect(String(info.code)).toBe(name)
       expect(statusByCode(info.status)).toBeDefined()

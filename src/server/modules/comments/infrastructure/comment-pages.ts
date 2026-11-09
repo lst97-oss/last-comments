@@ -6,6 +6,14 @@ import { normalizePageKey, normalizePageUrl } from '@/server/modules/comments/do
 import { getSiteId } from '@/server/modules/comments/infrastructure/comment-sites'
 import type { Db, Transaction } from '@/server/modules/comments/infrastructure/comment-types'
 
+// The page a reference names: its slug when one is sent, otherwise its exact URL. Every read and act that
+// finds a page uses this, so the comment list and the reaction bar agree on which thread it is.
+export function pageMatch(pageUrl: string, pageKey?: string) {
+  return pageKey === undefined
+    ? eq(pages.canonicalUrl, normalizePageUrl(pageUrl))
+    : eq(pages.pageKey, normalizePageKey(pageKey))
+}
+
 // Thread identity lives here so comment creation and the publisher API
 // (POST /api/admin/pages) cannot drift: a slug names the thread and the URL
 // follows it, while URL-only threads stay bound to their exact URL.
@@ -58,24 +66,32 @@ export async function resolvePage(
         .where(eq(pages.id, keyThread.id))
       pageId = keyThread.id
     } else if (urlThread) {
-      // Existing URL thread gaining its first slug — claim it, never merge threads.
-      if (urlThread.pageKey !== null) {
+      // A racing first insert may commit between the two reads above. The same slug is this thread; a different
+      // one is a real mismatch. An existing URL thread gaining its first slug is claimed, never merged.
+      if (urlThread.pageKey !== null && urlThread.pageKey !== pageKey) {
         throw new HttpError(
           ErrorCode.PAGE_KEY_MISMATCH.status,
           ErrorCode.PAGE_KEY_MISMATCH.code,
           'This URL already belongs to a different page key',
         )
       }
-      await tx
-        .update(pages)
-        .set({ pageKey, ...(title !== null ? { title } : {}) })
-        .where(eq(pages.id, urlThread.id))
+      if (urlThread.pageKey === null) {
+        await tx
+          .update(pages)
+          .set({ pageKey, ...(title !== null ? { title } : {}) })
+          .where(eq(pages.id, urlThread.id))
+      } else if (title !== null) {
+        await tx.update(pages).set({ title }).where(eq(pages.id, urlThread.id))
+      }
       pageId = urlThread.id
     } else {
       const [inserted] = await tx
         .insert(pages)
         .values({ siteId, canonicalUrl: pageUrl, pageKey, title })
+        .onConflictDoNothing()
         .returning({ id: pages.id })
+      // A concurrent first comment inserted this thread after our reads. Read it again instead of failing.
+      if (!inserted) return resolvePage(tx, input)
       pageId = inserted.id
     }
   }

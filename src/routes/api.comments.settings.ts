@@ -6,7 +6,7 @@ import { parseSearchParams } from '@/server/http/validation'
 import { withContext } from '@/server/http/with-context'
 import { buildPublicSiteSettings } from '@/server/modules/comments/domain/site-settings'
 import { siteQuerySchema } from '@/server/modules/comments/http/comment-schemas'
-import { getPublicSiteSettingsRow } from '@/server/modules/comments/infrastructure/comment-repository'
+import { getSiteContext } from '@/server/modules/comments/infrastructure/comment-repository'
 import { getCommentEditSettings } from '@/server/plugins/comment-policy.config'
 import { getTurnstilePluginSettings } from '@/server/plugins/turnstile/turnstile.config'
 
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/api/comments/settings')({
       GET: async (ctx) => {
         const response = await withContext(async () => {
           const { site } = parseSearchParams(ctx.request.url, siteQuerySchema)
-          const row = await getPublicSiteSettingsRow(site)
+          const row = await getSiteContext(site, null)
           if (!row)
             throw new HttpError(ErrorCode.SITE_NOT_FOUND.status, ErrorCode.SITE_NOT_FOUND.code, 'Site was not found')
           const settings = buildPublicSiteSettings(row, {

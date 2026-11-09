@@ -1,680 +1,777 @@
-# Graph Report - last-comments  (2026-10-23)
+# Graph Report - last-comments  (2026-11-04)
 
 ## Corpus Check
-- 440 files · ~222,894 words
+- 492 files · ~224,930 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 17 file(s) not represented in the graph (top: .css 5, (none) 5, .ttf 2)
+- Unclassified: 16 file(s) not represented in the graph (top: (none) 6, .css 4, .ttf 2)
 
 ## Summary
-- 2357 nodes · 6473 edges · 139 communities (115 shown, 24 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 187 edges (avg confidence: 0.85)
+- 2882 nodes · 8511 edges · 159 communities (133 shown, 26 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 188 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
+## Graph Freshness
+- Built from commit: `6a73470f`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
+
 ## Community Hubs (Navigation)
-- Admin Forms & Dialogs
-- Recent Activity UI
-- Validation Schemas
-- Admin Dashboard Screens
-- Moderation & Auth Guards
-- Payload & Site Shell
-- Admin Auth UI
-- Blog Rendering & Widgets
-- Paging & Thread Badges
-- Server Plugin Docs
-- Runtime Dependencies
-- Admin API Routes
-- Demo Seed Scripts
-- External Identity Providers
-- Public API Routes
-- Business DB Schema & Tests
-- Vite & RSC Build Plugins
-- Biome Lint Config
-- Project Config & Manifest
-- Comments API & Principals
-- NPM Scripts
-- Structured Logging
-- OpenRouter Decider Client
-- Payload CMS Config & Seeds
-- API Keys & Scopes
-- Navigation Dropdowns
-- Health Probes
-- OG Image Rendering
-- Docs Site (Fumadocs)
-- Filter Decider Eval
-- Landing Page & OG Meta
-- Filter Configuration
-- Auth Provider Config
-- shadcn components.json
-- Site Header & Mobile Nav
-- Auth & OpenAPI Endpoints
-- Sidebar & Sheet Primitives
-- API Key Management UI
-- TypeScript Config
-- Business DB Scripts
-- Blog Cards & Landing Content
-- Plugin Configuration Layer
-- Filter Plugin Engine
-- Admin Sidebar Navigation
-- Integration Test Helpers
-- Build Dev Dependencies
-- Doc Icon Tree
-- Business Auth Setup
-- Turnstile Configuration
-- Sitemap Generation
-- Comment Creation & Plugin Contract
-- Widget Markdown & Moderation
-- Widget Client Helpers
-- Confirm Dialog Primitives
-- Auth File Configuration
-- API Security & Docs
-- Router & Root Provider
-- Admin Design System Docs
-- React Admin Data Rules
-- shadcn Registry & MCP
-- Chat UI Primitives
-- CI/CD Pipelines
-- Widget Theming Tokens
-- Widget Framework Ports
-- Admin Interaction Patterns
-- Design System Color QA
-- Business Auth Client
-- Chart Primitives
-- Blog Server Functions
-- Admin User Tests
-- Empty States & Query Keys
-- Leaderboard Component
-- Design System Showcase
-- Authentication Providers
-- Bad-Words Screening
-- MDX Components
-- Server Architecture Rules
-- Server Env & URL Guard
-- Decider Prompt Builder
-- Filter Plugin Design
-- Form & Input Primitives
-- Widget Errors & Identity
-- Widget Package Distribution
-- Payload Shutdown Lifecycle
-- Dual Database Architecture
-- Blog SEO & JSON-LD
-- Client IP Resolution
-- Admin Shared Components
-- Stat Cards & Panels
-- Payload Boot Contract
-- Showcase Coverage Script
-- Architecture Blog Post
-- Progress & Leaderboard UI
-- Design Tokens & Visual Language
-- Landing Hero ASCII Art
-- Plugin Event Delivery
-- robots.txt
-- Turnstile Screening Order
-- Rate-Limit Plugin
-- Font Licenses
-- React Admin Skill Docs
-- React Compiler Mode
-- Semantic Token System
-- shadcn Composition Traps
-- Mermaid & Skeleton UI
-- OG Artwork Layers
-- Filename Sanitizer
-- shadcn CLI Workflow
-- Vendored Vite Type Defs
-- Admin CSS Generator
-- Smoke Script
-- Time Formatting
-- shadcn Init & Presets
+- oidc-jwt.ts
+- HttpError
+- recent-view.tsx
+- schema.ts
+- _admin.moderation.tsx
+- sites-view.tsx
+- Admin Page Routes
+- _admin.settings.tsx
+- health-handler.ts
+- compose.yaml
+- ref_bun_test
+- comment-reactions.ts
+- src/server AGENTS.md
+- withContext
+- Notifications Plugin Config
+- OpenAPI Registry
+- image-prep.ts
+- vite.config.ts
+- _payload.tsx
+- errors.ts
+- sidebar.tsx
+- OpenRouter Filter Client
+- vite-logger.ts
+- comment-repository.ts
+- blog-seo.ts
+- business-sql.ts
+- Fonts & OG Artwork
+- admin-sidebar.tsx
+- _admin.moderation.tsx
+- about.tsx
+- reactions.ts
+- pages-view.tsx
+- Filter Decider Evaluation
+- API Key Library
+- api-key-repository.ts
+- settings.ts
+- filter.config.ts
+- filter.plugin.ts
+- notifications.config.ts
+- business-auth.ts
+- rate-limit.plugin.ts
+- logger-format.ts
+- dropdown-menu.tsx
+- comment-plugins.ts
+- api.auth.$.ts
+- comment-writes.ts
+- post-card.tsx
+- landing-framework-section.tsx
+- Key permissions table
+- Theming Docs
+- toast.tsx
+- comment-schemas.ts
+- Self-Hosting & CD Docs
+- Widget Props Docs
+- payload.config.ts
+- Moderation Route & Origins
+- comment-plugins.ts
+- Client Library Docs
+- admin-repository.ts
+- migrate
+- alert-dialog.tsx
 - Plugin Contract Docs
-- shadcn Project Info
-- Overlay Component Rules
-- RSC ReactDOM Plugin
-- Comment Deletion
-- shadcn Logo Assets
-- Toggle & Accordion Rules
-- Favicon Assets
-- Dev Start Script
-- First-Admin Setup
-- Control Height Rules
-- Mobile Navigation Panel
-- CSS Architecture Rules
-- Blog Theme Inheritance
-- Per-Page OG Cards
-- Mobile-First Rules
-- Script Reference
+- Site Access Help
+- turnstile.plugin.ts
+- header-provider.ts
+- Badges & Empty States
+- API Keys Docs
+- Filter Decider Docs
+- Angular Widget Docs
+- Moderation Widget Docs
+- Auth Button
+- environment
+- Notifications Plugin Docs
+- Plugin Docs & Events
+- Seed Scripts Docs
+- env
+- x-app-environment
+- Empty State Components
+- Page Deletion & Reactions
+- site-schema.ts
+- @lst97-oss/last-comments-widgets package
+- check
+- docs.$.tsx
+- mobile-nav.tsx
+- with
+- logger.ts
+- compose.yaml
+- registered-origins.ts
+- Badge Variants
+- Pending Buttons & Mutations
+- Chart Panels
+- Leaderboards
+- Admin Screen State
+- Boot Contract Rules
+- app
+- Leaderboard Component
+- Payload Shutdown Hooks
+- worker
+- Markdown Docs
+- Design Guidance
+- steps
+- sitemap[.]xml.ts
+- ci.yml
+- Archivo Black Font
+- Access Levels Changelog
+- use-mobile.ts
+- env
+- better-auth provider (email/password plus Google OAuth)
+- turnstile.config.ts
+- Admin CSS Generator
+- comment-caller.test.ts
+- router.tsx
+- x-app-service
+- Button
+- cd.yml
+- Admin Notifications Changelog
+- deploy
+- Visitor Headers & Budgets
+- landing-framework-section.tsx
+- Image Filter Pipeline
+- React Compiler annotation mode
+- Comment Scopes & Gateway
+- steps
+- API Key Docs
+- CSS & Tailwind Design
+- Security Policy
+- Admin Grant Docs
+- Idle DB Connections
+- Same-Origin TLS
+- Permitted Origin Threads
+- Turnstile Commenters
+- Error Content Codes
+- Signed-In Fallback
+- Mobile-First Design
+- docker
+- index.ts
+- Bad-Words Semantics
+- workflow_run
+- decider-prompt.ts
+- env
+- env
+- CLAUDE.md
+- .claude/CLAUDE.md
+- auth.config.ts
+- site-users.ts
+- @lst97-oss/last-comments-widgets package
+- formatClockTime
+- resolve.ts
+- Access levels (open, login, private)
+- payload-config-hooks.test.ts
+- admin-users.integration.test.ts
+- AdminQueryError
+- Per-site comment length limit
 
 ## God Nodes (most connected - your core abstractions)
-1. `HttpError` - 90 edges
-2. `Button()` - 63 edges
-3. `@tanstack/react-router` - 61 edges
-4. `react` - 58 edges
-5. `withContext()` - 57 edges
-6. `getBusinessDb()` - 50 edges
-7. `cn` - 43 edges
-8. `RecentView()` - 41 edges
-9. `lucide-react` - 38 edges
-10. `Card()` - 37 edges
+1. `HttpError` - 129 edges
+2. `getBusinessDb()` - 85 edges
+3. `Button()` - 69 edges
+4. `withContext()` - 69 edges
+5. `ErrorCode` - 47 edges
+6. `SitesView()` - 45 edges
+7. `RecentView()` - 41 edges
+8. `sites` - 41 edges
+9. `Card()` - 39 edges
+10. `CardHeader()` - 35 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Same-Origin Credential Rule` --semantically_similar_to--> `Same-Origin API Proxy`  [INFERRED] [semantically similar]
-  public/llms.txt → content/docs/install.mdx
-- `data / error Envelope` --semantically_similar_to--> `API Response Envelope`  [INFERRED] [semantically similar]
-  public/llms.txt → content/docs/api-reference.mdx
 - `Moderation Dashboard Story` --semantically_similar_to--> `Moderation Screen`  [INFERRED] [semantically similar]
   scripts/seeds/introducing-last-comments.md → .agents/skills/admin-design-structure/rules/screens.md
-- `Vendored Payload TanStack Vite README` --semantically_similar_to--> `Dual-Runtime Bun/Node Safety`  [INFERRED] [semantically similar]
-  vendor/payload-tanstack-vite/README.md → src/server/AGENTS.md
-- `Image Thumbnail Preparation` --semantically_similar_to--> `OFL JetBrains Mono License File`  [AMBIGUOUS] [semantically similar]
-  src/server/plugins/filter/README.md → src/server/seo/fonts/OFL-JetBrains-Mono.txt
+- `React Compiler annotation mode` --references--> `SitesView()`  [EXTRACTED]
+  .agents/skills/react-admin-patterns/rules/react-compiler.md → src/components/admin/sites-view.tsx
+- `Guest edit window (comment-policy.config.ts, default 10 minutes)` --conceptually_related_to--> `Anonymous edit window (anonEditWindowMinutes, default 10)`  [AMBIGUOUS]
+  README.md → content/docs/identity.mdx
+- `Per-request ordering: rate-limit, Turnstile, filter, persist` --references--> `installedCommentPlugins manifest`  [AMBIGUOUS]
+  src/server/plugins/filter/README.md → content/docs/plugins.mdx
+- `Credentialed CORS for registered origins` --semantically_similar_to--> `Credentialed CORS for registered origins (install guide)`  [INFERRED] [semantically similar]
+  CHANGELOG.md → content/docs/install.mdx
 
 ## Import Cycles
-- 5-file cycle: `src/server/auth/business-auth.ts -> src/server/modules/admin/infrastructure/admin-repository.ts -> src/server/modules/comments/infrastructure/comment-repository.ts -> src/server/http/route-guards.ts -> src/server/auth/resolve.ts -> src/server/auth/business-auth.ts`
+- 3-file cycle: `src/server/plugins/comment-plugins.ts -> src/server/plugins/config.ts -> src/server/plugins/notifications/notifications.plugin.ts -> src/server/plugins/comment-plugins.ts`
 
 ## Hyperedges (group relationships)
-- **Built-in comment plugin trio** — content_docs_plugins_turnstile_plugin, content_docs_plugins_rate_limit_plugin, content_docs_plugins_filter_plugin, content_docs_plugins_comment_plugin_contract [EXTRACTED 1.00]
-- **Four widget ports on one shared client** — content_docs_widgets_react_comments_component, content_docs_widgets_vue_comments_component, content_docs_widgets_angular_lc_comments, content_docs_widgets_html_mount_comments, content_docs_client_client_api [EXTRACTED 1.00]
-- **Self-host deployment topology** — content_docs_self_hosting_compose_stack, compose_migrate_service, compose_app_service, compose_worker_service, compose_tunnel_service, content_docs_self_hosting_cd_pipeline [EXTRACTED 1.00]
-- **shadcn Critical Rules** — _agents_skills_shadcn_skill_critical_rules, _agents_skills_shadcn_rules_styling_semantic_colors, _agents_skills_shadcn_rules_forms_field_group, _agents_skills_shadcn_rules_composition_items_inside_groups, _agents_skills_shadcn_rules_icons_data_icon_attribute, _agents_skills_shadcn_rules_base_vs_radix_aschild_vs_render, _agents_skills_shadcn_rules_chat_messagescroller [EXTRACTED 1.00]
-- **CI to Production Deploy Pipeline** — _github_workflows_ci_check_job, _github_workflows_ci_docker_job, _github_workflows_ci_ghcr_publish, _github_workflows_cd_deploy_job, _github_workflows_cd_compose_up, _github_workflows_cd_readiness_gate [EXTRACTED 1.00]
-- **DESIGN.md to Design System Page Flow** — _agents_skills_shadcn_design_system_design_md, _agents_skills_shadcn_design_system_style_picking, _agents_skills_shadcn_design_system_role_mapping, _agents_skills_shadcn_design_system_type_scale_utilities, _agents_skills_shadcn_design_system_control_heights, _agents_skills_shadcn_design_system_page_page_outline, _agents_skills_shadcn_design_system_page_state_matrix, _agents_skills_shadcn_design_system_page_color_pair [EXTRACTED 1.00]
 - **Shared Admin Panel Family** — _agents_skills_admin_design_structure_skill_statcard, _agents_skills_admin_design_structure_rules_charts_comment_activity_panel, _agents_skills_admin_design_structure_rules_charts_comment_status_pie, _agents_skills_admin_design_structure_rules_charts_votes_panel, _agents_skills_admin_design_structure_rules_charts_visible_rate_panel, _agents_skills_admin_design_structure_rules_leaderboards_leaderboard [EXTRACTED 1.00]
-- **Comment Screening Pipeline Order** — src_server_plugins_rate_limit_readme_rate_limit_plugin, src_server_plugins_turnstile_readme_turnstile_plugin, src_server_plugins_filter_readme_filter_plugin, src_server_plugins_filter_readme_screening_order [EXTRACTED 1.00]
+- **Image build, publish and production deploy** — _github_workflows_ci_docker, _github_workflows_ci_ghcr_image, _github_workflows_cd, _github_workflows_cd_deploy, dockerfile, compose [EXTRACTED 1.00]
+- **Compose services sharing YAML anchors** — compose_app_environment, compose_app_service, compose_migrate, compose_app, compose_worker [EXTRACTED 1.00]
+- **Failure-mode policy across comment plugins (fail-closed Turnstile and rate limit, fail-open filter by default)** — content_docs_plugins_turnstile_plugin, readme_rate_limit_plugin, content_docs_plugins_filter_plugin, content_docs_plugins_fail_open_closed_policy [EXTRACTED 1.00]
+- **Effects that must stay (external synchronization)** — src_components_blog_blog_markdown, src_components_landing_landing_code_block, src_components_blog_mermaid_diagram, src_hooks_use_window_event, src_hooks_use_blog_thread, src_routes__payload [EXTRACTED 1.00]
 - **Business Slice Layer Model** — src_server_agents_layer_direction, src_server_readme_request_flow, src_server_agents_health_reference_slice, src_server_agents_new_module_recipe, src_server_agents_response_envelope [EXTRACTED 1.00]
-- **shadcn/ui Brand Asset Family** — _agents_skills_shadcn_assets_shadcn_logo_mark, _agents_skills_shadcn_assets_shadcn_app_icon_tile, _agents_skills_shadcn_assets_shadcn_small_icon_variant [INFERRED 0.85]
-- **Theme-Paired ASCII Hero Artwork (dark + light files swapped by theme)** — public_assets_ascii_magic_comment_dark_asciicommentheroart, public_assets_ascii_magic_comment_light_asciicommentheroart, public_assets_ascii_magic_comment_dark_themetokeninkramp [INFERRED 0.95]
-- **Conversation Motif in the Hero Art (comment bubble, typing dots, reply bubble)** — public_assets_ascii_magic_comment_dark_asciicommentheroart, public_assets_ascii_magic_comment_dark_typingindicator, public_assets_ascii_magic_comment_dark_replybubble, public_assets_ascii_magic_comment_light_nestedthreadmetaphor [INFERRED 0.90]
-- **Pixel-Art Visual Language of the OG Background** — src_server_seo_og_artwork_background, src_server_seo_og_artwork_speech_bubble_motif, src_server_seo_og_artwork_stacked_bubble_layering, src_server_seo_og_artwork_pixel_dust_corners, src_server_seo_og_artwork_blueprint_grid [EXTRACTED 1.00]
+- **themeVars object shared by React, Angular, plain HTML and the read-only viewer** — content_docs_theming_themevars, content_docs_widgets_react_themevars_prop, content_docs_widgets_angular_signal_inputs, content_docs_widgets_html_mount_comments_api, content_docs_widgets_viewer_shared_theme_tokens [EXTRACTED 1.00]
+- **Per-request comment write pipeline (rate-limit, Turnstile, filter, persist)** — content_docs_plugins_turnstile_plugin, readme_rate_limit_plugin, content_docs_plugins_filter_plugin, src_server_plugins_filter_readme_request_ordering [INFERRED 0.85]
 
-## Communities (139 total, 24 thin omitted)
+## Communities (159 total, 26 thin omitted)
 
-### Community 0 - "Admin Forms & Dialogs"
-Cohesion: 0.08
-Nodes (57): cn, @tanstack/react-form, AccountTextField(), AdminFormApi, PageCreateDialog(), PageForm, pageFormSchema(), pageUrlFrom() (+49 more)
-
-### Community 1 - "Recent Activity UI"
-Cohesion: 0.07
-Nodes (57): @base-ui/react, class-variance-authority, RangeToggle(), RECENT_WINDOWS, RecentStatusBadge(), RecentView(), threadPreviewExcerpt(), windowOptionLabel() (+49 more)
-
-### Community 2 - "Validation Schemas"
-Cohesion: 0.05
-Nodes (63): zod, COMMENT_BODY_LIMIT, commentBodyMarkdown, initialAdminSchema, RenameSiteForm, renameSiteSchema, siteFormSchema, siteNameSchema (+55 more)
-
-### Community 3 - "Admin Dashboard Screens"
+### Community 0 - "oidc-jwt.ts"
 Cohesion: 0.14
-Nodes (50): AdminLogin(), PagesView(), SitesView(), ACTIVITY_CONFIG, CommentActivityPanel(), CommentStatusPie(), ModerationActionCount, ModerationActivityCard() (+42 more)
+Nodes (16): base64UrlDecode(), clearOidcCache(), extractBearer(), hashForAlg(), importJwk(), Jwk, JwksDocument, loadJwks() (+8 more)
 
-### Community 4 - "Moderation & Auth Guards"
+### Community 1 - "HttpError"
+Cohesion: 0.20
+Nodes (26): Route, pageRef(), Route, Route, Route, Route, resolveSessionPrincipal(), applyCors() (+18 more)
+
+### Community 2 - "recent-view.tsx"
+Cohesion: 0.07
+Nodes (67): ApiKeyRow(), Checklist(), ChecklistGroup, ChecklistItem, PermissionPicker(), scopeGroups(), SiteSettings, RangeToggle() (+59 more)
+
+### Community 3 - "schema.ts"
 Cohesion: 0.08
-Nodes (57): requireInstanceAdmin(), requireSiteModerator(), Route, HttpError, editComment(), EditCommentData, EditCommentDeps, normalizePageKey() (+49 more)
+Nodes (34): email, BusinessDb, ExternalIdentityInput, account, accountRelations, commentReactions, commentStatus, externalIdentities (+26 more)
 
-### Community 5 - "Payload & Site Shell"
-Cohesion: 0.06
-Nodes (40): @payloadcms/tanstack-start, @payloadcms/ui, @tanstack/react-start, COPYRIGHT_YEAR, SiteFooter(), ToastAction(), ToastClose(), ToastContent() (+32 more)
-
-### Community 6 - "Admin Auth UI"
-Cohesion: 0.12
-Nodes (39): react, @tanstack/react-query, AdminLoginForm(), ExternalLoginNotice(), PasswordLoginForm(), AdminFailure, AdminQueryError(), DashboardShell() (+31 more)
-
-### Community 7 - "Blog Rendering & Widgets"
+### Community 4 - "_admin.moderation.tsx"
 Cohesion: 0.09
-Nodes (42): @lst97-oss/last-comments-widgets, mermaid, shiki, BlogMarkdown(), BlogComments(), BlogMarkdownScope(), MermaidDiagram(), render() (+34 more)
+Nodes (44): AccountTextField(), PasswordLoginForm(), siteExample(), ApiKeyCreateDialog(), PageCreateDialog(), PageForm, pageFormSchema(), pageUrlFrom() (+36 more)
 
-### Community 8 - "Paging & Thread Badges"
-Cohesion: 0.11
-Nodes (36): lucide-react, Hint(), PageNumber, pageNumbers(), Pager(), SkeletonCards(), ThreadKeyBadge(), ThreadStatusBadge() (+28 more)
+### Community 5 - "sites-view.tsx"
+Cohesion: 0.09
+Nodes (68): AdminLogin(), DashboardAccessDenied(), Hint(), PagesView(), ACTIVITY_CONFIG, CommentActivityPanel(), CommentStatusPie(), ModerationActionCount (+60 more)
 
-### Community 9 - "Server Plugin Docs"
-Cohesion: 0.06
-Nodes (44): Filter Plugin Decisions-API Engine, Per-Plugin Folder Layout, Rate-Limit Plugin, Self-Host Compose Stack, Turnstile Covers Every Commenter, Typed TS Plugin Configuration, app Compose Service, Bring-Your-Own Postgres Topology (+36 more)
-
-### Community 10 - "Runtime Dependencies"
-Cohesion: 0.04
-Nodes (46): dependencies, @asteasolutions/zod-to-openapi, bad-words, @base-ui/react, better-auth, @better-auth/api-key, @better-auth/drizzle-adapter, class-variance-authority (+38 more)
-
-### Community 11 - "Admin API Routes"
+### Community 6 - "Admin Page Routes"
 Cohesion: 0.15
-Nodes (37): @tanstack/react-router, requirePageDetailAccess(), Route, requirePageAccess(), Route, requireSiteCreator(), requireSiteReader(), Route (+29 more)
+Nodes (36): requirePageDetailAccess(), Route, requirePageAccess(), Route, requireSiteCreator(), requireSiteReader(), Route, requireSiteWriter() (+28 more)
 
-### Community 12 - "Demo Seed Scripts"
+### Community 7 - "_admin.settings.tsx"
+Cohesion: 0.12
+Nodes (22): ICON_TONE, SettingRow(), SettingState(), SettingTone, SettingView, TINT, readHidden(), setTourHidden() (+14 more)
+
+### Community 8 - "health-handler.ts"
+Cohesion: 0.17
+Nodes (12): DbProbe, getHealth(), GetHealthDeps, buildHealthReport(), buildLiveReport(), HealthCheckState, HealthReport, LiveReport (+4 more)
+
+### Community 9 - "compose.yaml"
+Cohesion: 0.07
+Nodes (28): .bun-version, cd.yml production deploy workflow, Readiness wait on /api/ready, Production .env composed from GitHub secrets, cd deploy job, GitHub production environment, Deploy over Tailscale SSH, ci.yml workflow (+20 more)
+
+### Community 10 - "ref_bun_test"
 Cohesion: 0.08
-Nodes (30): Seeds README, DRY_RUN, origins, serverUrl, siteKey, db, DEMO_COMMENTS, DRY_RUN (+22 more)
+Nodes (49): getBusinessDb(), toBunSqlUrl(), siteMemberships, siteOrigins, sites, listRegisteredOrigins(), db(), now (+41 more)
 
-### Community 13 - "External Identity Providers"
-Cohesion: 0.09
-Nodes (26): BusinessDb, ExternalIdentityInput, linkOrProvisionExternalUser(), maybeBootstrapInstanceAdmin(), HeaderDeps, resolveHeaderSession(), base64UrlDecode(), clearOidcCache() (+18 more)
+### Community 11 - "comment-reactions.ts"
+Cohesion: 0.14
+Nodes (29): pages, normalizePageKey(), normalizePageUrl(), toReactionSummaries(), SWITCH_COPY, scrubCommentEventText(), pageMatch(), resolvePage() (+21 more)
 
-### Community 14 - "Public API Routes"
+### Community 12 - "src/server AGENTS.md"
+Cohesion: 0.07
+Nodes (35): Turnstile testing keys (Compose defaults), Introducing last-comments Blog Post, Architecture Flowchart, Payload CMS vs Business Postgres Split, Guest Edit Keys and Unlimited Author Edits, One Widget, Four Frameworks, Comment Plugin System, Publisher API (pages:write) (+27 more)
+
+### Community 13 - "withContext"
+Cohesion: 0.12
+Nodes (19): Route, Route, Route, Route, Route, Route, Route, robotsTxtResponse() (+11 more)
+
+### Community 14 - "Notifications Plugin Config"
+Cohesion: 0.11
+Nodes (19): CommentPluginEvent, NotificationEventKind, excerpt(), FormatInput, formatNotification(), FormattedNotification, moderationUrl(), NotificationKind (+11 more)
+
+### Community 15 - "OpenAPI Registry"
+Cohesion: 0.08
+Nodes (40): errorResponse(), json(), ok(), ReactionSummaries, registry, serviceKey, sessionCookie, sessionOrServiceKey (+32 more)
+
+### Community 16 - "image-prep.ts"
 Cohesion: 0.13
-Nodes (23): Route, Route, Route, Route, Route, databaseUnavailableCodes, getDatabaseErrorCode(), toHttpError() (+15 more)
+Nodes (19): ALLOWED_PORTS, BLOCKED_V4, extractImageUrls(), fetchAndShrink(), Fetcher, fetchPublic(), HostResolver, ImagePrepSettings (+11 more)
 
-### Community 15 - "Business DB Schema & Tests"
-Cohesion: 0.16
-Nodes (28): apikey, moderationEvents, siteMemberships, sites, db(), now, twoDaysAgo, yesterday (+20 more)
-
-### Community 16 - "Vite & RSC Build Plugins"
-Cohesion: 0.08
-Nodes (19): @tailwindcss/vite, unwasm, @vitejs/plugin-react, @vitejs/plugin-rsc, clientModuleResolution(), payloadDevTransforms(), buildBundledPackages, buildExternalPackages (+11 more)
-
-### Community 17 - "Biome Lint Config"
-Cohesion: 0.06
-Nodes (32): source, assist, actions, enabled, includes, noRenderReturnValue, noVoidElementsWithChildren, useExhaustiveDependencies (+24 more)
-
-### Community 18 - "Project Config & Manifest"
-Cohesion: 0.06
-Nodes (29): imports, #vendor/*, license, name, private, type, @asteasolutions/zod-to-openapi, @better-auth/drizzle-adapter (+21 more)
-
-### Community 19 - "Comments API & Principals"
-Cohesion: 0.19
-Nodes (22): Route, Route, Route, Route, Principal, adapters, getSessionAdapters(), resolvePrincipal() (+14 more)
-
-### Community 20 - "NPM Scripts"
-Cohesion: 0.07
-Nodes (30): scripts, build, check, db:business:generate, db:business:grant-admin, db:business:migrate, db:business:plugins:uninstall, db:migrate (+22 more)
-
-### Community 21 - "Structured Logging"
-Cohesion: 0.16
-Nodes (23): consoleWriter(), createLogger(), createPrettySink(), defaultEnv(), formatLogLine(), getLoggerSettings(), LEVEL_COLORS, LoggerSettings (+15 more)
-
-### Community 22 - "OpenRouter Decider Client"
-Cohesion: 0.11
-Nodes (19): @openrouter/sdk, ResolvedFilterConfig, callDecider(), CallDeciderInput, createFetchSender(), createSdkSender(), DeciderError, DeciderQuestion (+11 more)
-
-### Community 23 - "Payload CMS Config & Seeds"
-Cohesion: 0.09
-Nodes (9): env, payload, @payloadcms/db-postgres, @payloadcms/richtext-lexical, Idempotent Seed Upsert, DRY_RUN, POSTS, migrations (+1 more)
-
-### Community 24 - "API Keys & Scopes"
-Cohesion: 0.16
-Nodes (23): requireManagedKey(), requireScopeManager(), requireSiteAdminId(), Route, getBusinessAuth(), assertValidScopeSet(), BusinessDb, deleteServiceKey() (+15 more)
-
-### Community 25 - "Navigation Dropdowns"
-Cohesion: 0.15
-Nodes (16): SiteSwitcher(), UserMenu(), DocsVersionSwitch(), DashboardMenu(), DropdownMenu(), DropdownMenuContent(), DropdownMenuGroup(), DropdownMenuItem() (+8 more)
-
-### Community 26 - "Health Probes"
-Cohesion: 0.16
-Nodes (12): Route, DbProbe, getHealth(), GetHealthDeps, buildHealthReport(), buildLiveReport(), HealthCheckState, HealthReport (+4 more)
-
-### Community 27 - "OG Image Rendering"
+### Community 18 - "_payload.tsx"
 Cohesion: 0.14
-Nodes (18): fontkit, OG_FRAMEWORKS, fitWithEllipsis(), measureText(), normalizeText(), renderTextPaths(), TextPathOptions, wrapText() (+10 more)
+Nodes (10): adminRenderServerFn, payloadLayoutServerFn, payloadServerFn, payloadServerFunctionClient, Route, Route, layout, PayloadLayout() (+2 more)
 
-### Community 28 - "Docs Site (Fumadocs)"
+### Community 19 - "errors.ts"
+Cohesion: 0.11
+Nodes (23): Route, Route, Route, applyPublicCors(), databaseUnavailableCodes, ErrorCode, getDatabaseErrorCode(), toHttpError() (+15 more)
+
+### Community 20 - "sidebar.tsx"
+Cohesion: 0.19
+Nodes (12): SidebarContext, SidebarContextProps, SidebarInput(), SidebarMenuButton(), sidebarMenuButtonVariants, SidebarMenuSkeleton(), SidebarRail(), useSidebar() (+4 more)
+
+### Community 21 - "OpenRouter Filter Client"
 Cohesion: 0.12
-Nodes (17): fumadocs-core, fumadocs-mdx, fumadocs-ui, DocsMobileBar(), PRINCIPLES, baseOptions(), docs, source (+9 more)
+Nodes (17): ResolvedFilterConfig, callDecider(), CallDeciderInput, createFetchSender(), DeciderError, DeciderQuestion, DeciderReason, DeciderRequest (+9 more)
 
-### Community 29 - "Filter Decider Eval"
+### Community 22 - "vite-logger.ts"
+Cohesion: 0.18
+Nodes (13): classifyEnvRunnerLine(), classifyViteLine(), consolaLevel(), plainLines(), routeConsola(), routeDevToolLogs(), routeEnvRunnerWarnings(), Rule (+5 more)
+
+### Community 23 - "comment-repository.ts"
+Cohesion: 0.09
+Nodes (46): Route, comments, userBlocks, votes, editModerationCommentData(), listCommentReactions(), listPageComments(), getPageCanonicalUrl() (+38 more)
+
+### Community 24 - "blog-seo.ts"
+Cohesion: 0.45
+Nodes (9): absoluteCoverUrl(), absoluteUrl(), buildBlogPostingJsonLd(), postCanonicalUrl(), postSeoDescription(), SeoPostLike, stripMarkdownToText(), BlogPostPage() (+1 more)
+
+### Community 25 - "business-sql.ts"
+Cohesion: 0.07
+Nodes (29): assertLocalBusinessTarget(), LOCAL_HOSTS, DROPS, migrate, sql, Case, cases, main() (+21 more)
+
+### Community 26 - "Fonts & OG Artwork"
+Cohesion: 0.12
+Nodes (21): Per-page social share cards (/og), OG_FRAMEWORKS, og-artwork.webp, fitWithEllipsis(), measureText(), normalizeText(), renderTextPaths(), TextPathOptions (+13 more)
+
+### Community 27 - "admin-sidebar.tsx"
+Cohesion: 0.18
+Nodes (21): ADMIN_NAV, AdminNavGroup, AdminNavItem, AdminSidebar(), MODERATION_SUBS, ModerationNav(), SiteSwitcher(), ThemeToggle() (+13 more)
+
+### Community 28 - "_admin.moderation.tsx"
+Cohesion: 0.06
+Nodes (48): AdminLoginForm(), ExternalLoginNotice(), AdminTourButton(), anchorFor(), isOnPage(), startAdminTour(), AdminTour, AdminTourAction (+40 more)
+
+### Community 29 - "about.tsx"
+Cohesion: 0.19
+Nodes (17): AboutContent(), PRINCIPLES, GithubIcon(), LandingRail(), OG_IMAGE_HEIGHT, OG_IMAGE_ROUTE, OG_IMAGE_WIDTH, ogImageAlt() (+9 more)
+
+### Community 30 - "reactions.ts"
+Cohesion: 0.19
+Nodes (11): Fixed reaction emoji set, COMMENT_BODY_LIMIT, SiteAccess, REACTION_EMOJIS, ReactionEmoji, ReactionRow, ReactionSummary, PublicSiteSettings (+3 more)
+
+### Community 31 - "pages-view.tsx"
+Cohesion: 0.34
+Nodes (11): PageNumber, pageNumbers(), Pager(), Pagination(), PaginationContent(), PaginationEllipsis(), PaginationItem(), PaginationLink() (+3 more)
+
+### Community 32 - "Filter Decider Evaluation"
 Cohesion: 0.08
 Nodes (20): ambiguous, CASES, Category, confidenceFor(), config, elapsed, enabled, EvalCase (+12 more)
 
-### Community 30 - "Landing Page & OG Meta"
-Cohesion: 0.21
-Nodes (18): AboutContent(), GithubIcon(), LandingRail(), OG_IMAGE_HEIGHT, OG_IMAGE_ROUTE, OG_IMAGE_WIDTH, ogImageAlt(), ogImageQuery() (+10 more)
+### Community 33 - "API Key Library"
+Cohesion: 0.11
+Nodes (24): API_KEY_EXPIRY_OPTIONS, API_KEY_FEATURES, API_KEY_GUIDE_PATH, API_KEY_GUIDE_SITE_SECTION, ApiKeyExpiry, apiKeyExpirySchema, ApiKeyFeature, ApiKeyForm (+16 more)
 
-### Community 31 - "Filter Configuration"
-Cohesion: 0.15
-Nodes (19): filterConfig, filterConfigDef, resolveApiKey(), ALL_IMAGE_CATEGORIES, ALL_TEXT_CATEGORIES, FilterFileConfig, filterFileSchema, IMAGE_SCHEMA_DESCRIPTIONS (+11 more)
-
-### Community 32 - "Auth Provider Config"
-Cohesion: 0.18
-Nodes (19): getAuthConfig(), AuthProviderName, AuthSelection, getAuthSelection(), getHeaderProviderSettings(), getOidcSettings(), isBetterAuthEnabled(), oidcEnvSchema (+11 more)
-
-### Community 33 - "shadcn components.json"
-Cohesion: 0.09
-Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
-
-### Community 34 - "Site Header & Mobile Nav"
-Cohesion: 0.22
-Nodes (16): MobileNav(), DASHBOARD_MENU, isActivePath(), isDashboardActive(), NAV, SiteHeader(), Collapsible(), CollapsibleContent() (+8 more)
-
-### Community 35 - "Auth & OpenAPI Endpoints"
-Cohesion: 0.20
-Nodes (15): better-auth, handleAuth(), Route, Route, Route, installedOpenApiPlugins, openApiDocsEnabled, apiReferenceResponse() (+7 more)
-
-### Community 36 - "Sidebar & Sheet Primitives"
-Cohesion: 0.18
-Nodes (14): SheetDescription(), SheetHeader(), Sidebar(), SidebarContext, SidebarContextProps, SidebarMenuButton(), sidebarMenuButtonVariants, SidebarRail() (+6 more)
-
-### Community 37 - "API Key Management UI"
-Cohesion: 0.17
-Nodes (17): useSiteKeys(), confirmDelete(), saveScopes(), toggleEnabled(), toggleScope(), API_KEY_SCOPES, ApiKeyScope, KeyForm (+9 more)
-
-### Community 38 - "TypeScript Config"
-Cohesion: 0.10
-Nodes (20): compilerOptions, allowImportingTsExtensions, jsx, lib, module, moduleResolution, noEmit, noFallthroughCasesInSwitch (+12 more)
-
-### Community 39 - "Business DB Scripts"
-Cohesion: 0.18
-Nodes (12): drizzle-orm, email, businessEnvSchema, getBusinessEnv(), closeBusinessSql(), getBusinessDb(), getBusinessSql(), toBunSqlUrl() (+4 more)
-
-### Community 40 - "Blog Cards & Landing Content"
-Cohesion: 0.18
-Nodes (13): PostCard(), PostRow(), ReadMore(), formatPostDate(), PostMeta(), FEATURES, LandingContent(), FieldSeparator() (+5 more)
-
-### Community 41 - "Plugin Configuration Layer"
-Cohesion: 0.16
-Nodes (15): CommentOperation, installedCommentPlugins, filterPlugin, DEFAULT_TRUSTED_PROXY_CIDRS, getRateLimitPluginSettings(), parseTrustedProxyCidrs(), rateLimitEnvSchema, rateLimits (+7 more)
-
-### Community 42 - "Filter Plugin Engine"
-Cohesion: 0.18
-Nodes (14): sharp, applyVerdictThreshold(), screenWithDecider(), siteHostOf(), unavailable(), extractImageUrls(), fetchAndShrink(), Fetcher (+6 more)
-
-### Community 43 - "Admin Sidebar Navigation"
-Cohesion: 0.18
-Nodes (18): ADMIN_NAV, AdminNavGroup, AdminNavItem, AdminSidebar(), MatchRouteFn, MODERATION_SUBS, ModerationNav(), useModerationView() (+10 more)
-
-### Community 44 - "Integration Test Helpers"
-Cohesion: 0.14
-Nodes (10): createAdminSite(), createComment(), input, db, hideScreening, createTestComment(), createPage, createSite() (+2 more)
-
-### Community 45 - "Build Dev Dependencies"
-Cohesion: 0.12
-Nodes (17): devDependencies, @biomejs/biome, bun-types, drizzle-kit, nitro, oxc-transform-react, @tanstack/router-cli, @types/fontkit (+9 more)
-
-### Community 46 - "Doc Icon Tree"
-Cohesion: 0.18
-Nodes (12): DOC_ICONS, DocIconName, iconNameOf(), IconNode, resolveDocIcon(), withDocTreeIcons(), copyNode(), nodeName() (+4 more)
-
-### Community 47 - "Business Auth Setup"
-Cohesion: 0.17
-Nodes (13): businessApiKeyPlugin(), businessAuthEnvSchema, getBusinessAuthSettings(), optionalOAuthCredential, createBusinessAuth(), getBusinessSession(), getBusinessSetupAuth(), resolveBetterAuthSession() (+5 more)
-
-### Community 48 - "Turnstile Configuration"
-Cohesion: 0.15
-Nodes (12): readSecret(), readSiteKey(), ResolvedTurnstileConfig, turnstileConfig, turnstileConfigDef, TurnstileFileConfig, turnstileFileSchema, createTurnstilePlugin() (+4 more)
-
-### Community 49 - "Sitemap Generation"
-Cohesion: 0.30
-Nodes (12): absoluteSiteUrl(), buildSitemapXml(), docsSitemapUrls(), escapeXml(), normalizeOrigin(), postsSitemapUrls(), SitemapChangefreq, SitemapUrl (+4 more)
-
-### Community 50 - "Comment Creation & Plugin Contract"
-Cohesion: 0.16
-Nodes (12): CommentCreationContext, CreateCommentData, CreateCommentDeps, CommentEventType, CommentOperationInput, CommentPlugin, CommentPluginEvent, CommentValidationInput (+4 more)
-
-### Community 51 - "Widget Markdown & Moderation"
+### Community 34 - "api-key-repository.ts"
 Cohesion: 0.13
-Nodes (15): Moderation Restore Action, renderMarkdown / safeUrl, Body Limit Character Counter, Composer Toolbar and Preview, GitHub-Flavored Markdown Renderer, safeUrl Link Restriction, Shiki Lazy Syntax Highlighting, Admin Badge + Coloured Name (+7 more)
+Nodes (25): requireManagedKey(), requireScopeManager(), requireSiteAdminId(), Route, HttpError, requireDashboardUser(), assertValidScopeSet(), boundSiteKeyOf() (+17 more)
 
-### Community 52 - "Widget Client Helpers"
-Cohesion: 0.15
-Nodes (15): Bring-Your-Own fetchImpl, Framework-Free Client API, buildCommentTree, isEditWindowOpen / canModerate, Session and Sign-In Helpers, Thread Window Paging Helpers, IntersectionObserver Lazy Loading, Reddit-Style Relative Timestamps (+7 more)
+### Community 35 - "settings.ts"
+Cohesion: 0.17
+Nodes (21): getAuthConfig(), AuthProviderName, AuthSelection, getAuthSelection(), getHeaderProviderSettings(), getOidcSettings(), HeaderProviderSettings, isBetterAuthEnabled() (+13 more)
 
-### Community 53 - "Confirm Dialog Primitives"
-Cohesion: 0.30
-Nodes (11): ConfirmDeleteDialog(), AlertDialog(), AlertDialogAction(), AlertDialogCancel(), AlertDialogContent(), AlertDialogDescription(), AlertDialogFooter(), AlertDialogHeader() (+3 more)
-
-### Community 54 - "Auth File Configuration"
+### Community 36 - "filter.config.ts"
 Cohesion: 0.14
-Nodes (13): authConfig, authConfigDef, AuthConfigProviderName, AuthFileConfig, authFileSchema, parseProvidersOverride(), providerNameSchema, ResolvedAuthConfig (+5 more)
+Nodes (21): Filter comment plugin (advisory hide-for-review), OpenRouter Decisions API decider, Per-plugin folder shape (<id>.plugin.ts, <id>.config.ts, README.md), Filter screening, filterConfigDef, resolveApiKey(), ALL_IMAGE_CATEGORIES, ALL_TEXT_CATEGORIES (+13 more)
 
-### Community 55 - "API Security & Docs"
+### Community 37 - "filter.plugin.ts"
+Cohesion: 0.19
+Nodes (11): BadwordsFilter, BadwordsScreenResult, redact(), screenBadwords(), tokensOf(), applyVerdictThreshold(), createFilterPlugin(), loadBadwordsFilter() (+3 more)
+
+### Community 38 - "notifications.config.ts"
+Cohesion: 0.25
+Nodes (10): eventsFromEnv(), eventsSchema, nonEmpty(), NOTIFICATION_CHANNEL_NAMES, NOTIFICATION_EVENT_KINDS, NotificationChannelName, notificationsConfigDef, NotificationsFileConfig (+2 more)
+
+### Community 39 - "business-auth.ts"
+Cohesion: 0.17
+Nodes (12): businessApiKeyPlugin(), businessAuthEnvSchema, getBusinessAuthSettings(), optionalOAuthCredential, createBusinessAuth(), getBusinessAuth(), getBusinessSession(), getBusinessSetupAuth() (+4 more)
+
+### Community 40 - "rate-limit.plugin.ts"
+Cohesion: 0.15
+Nodes (18): Rate-limit trusted ingress header rules, Plugin system, CommentOperation, installedCommentPlugins, filterPlugin, getRateLimitPluginSettings(), KEY_BUCKET_MULTIPLIER, parseTrustedProxyCidrs() (+10 more)
+
+### Community 41 - "logger-format.ts"
 Cohesion: 0.18
-Nodes (14): Admin API Permission Hardening, Business Kernel Response Envelope, Live vs Ready Health Probes, Auth Reference Visibility, API Response Envelope, OpenAPI Server Plugin, Documented HTTP Path Table, Scalar API References (+6 more)
+Nodes (19): cellValue(), errorKey(), formatPretty(), formatTime(), inlineValue(), isRecord(), isRecordList(), LEVEL_LABEL (+11 more)
 
-### Community 56 - "Router & Root Provider"
+### Community 42 - "dropdown-menu.tsx"
+Cohesion: 0.15
+Nodes (12): UserMenu(), DocsVersionSwitch(), DropdownMenu(), DropdownMenuContent(), DropdownMenuGroup(), DropdownMenuItem(), DropdownMenuLabel(), DropdownMenuSeparator() (+4 more)
+
+### Community 43 - "comment-plugins.ts"
+Cohesion: 0.17
+Nodes (12): CommentCreationContext, CreateCommentData, CreateCommentDeps, CommentOperationInput, CommentPlugin, CommentValidationInput, EMPTY_SCREENING, SCREENING_TIMEOUT_MS (+4 more)
+
+### Community 44 - "api.auth.$.ts"
+Cohesion: 0.22
+Nodes (16): allowedOrigin(), handleAuth(), respondWithCors(), Route, withCors(), Route, Route, isRegisteredAuthOrigin() (+8 more)
+
+### Community 45 - "comment-writes.ts"
+Cohesion: 0.14
+Nodes (29): resolveBodyLimit(), getSiteRole(), MembershipRole, createComment(), createCommentData(), createModerationCommentData(), deleteCommentData(), editCommentData() (+21 more)
+
+### Community 46 - "post-card.tsx"
+Cohesion: 0.32
+Nodes (7): PostCard(), PostRow(), ReadMore(), formatPostDate(), PostMeta(), BlogPostSummary, basePost
+
+### Community 47 - "landing-framework-section.tsx"
+Cohesion: 0.17
+Nodes (23): AngularIcon(), HtmlIcon(), Icon(), ReactIcon(), VueIcon(), LandingCodeBlock(), FEATURES, LandingContent() (+15 more)
+
+### Community 48 - "Key permissions table"
+Cohesion: 0.12
+Nodes (17): Deleted comments keep their place in the thread, Guest delete with edit key, comments:read (Show comments on pages), comments:write (Post comments for visitors), Relay guest edit key (editKey, x-lc-edit-key), Instance key (sites:* permissions), pages:read, pages:write (+9 more)
+
+### Community 49 - "Theming Docs"
+Cohesion: 0.14
+Nodes (15): CSS variables mapping (kebab-case and --lc- prefix), Layout and control theme keys, Theming docs page, Plain HTML data-lc-theme-var attributes, Native CSS @scope scoping, Shape and typography theme keys, Status theme keys, Shared style hooks (.lc-* classes) (+7 more)
+
+### Community 50 - "toast.tsx"
+Cohesion: 0.12
+Nodes (20): DiagramResult, DiagramStatus, LOADING, COPYRIGHT_YEAR, SiteFooter(), Toast(), ToastAction(), ToastClose() (+12 more)
+
+### Community 51 - "comment-schemas.ts"
+Cohesion: 0.08
+Nodes (23): commentBodyMarkdown, actionSchema, commentBodySchema, commentIdSchema, commentReactionSchema, editBodySchema, editKeyHeaderSchema, listQuerySchema (+15 more)
+
+### Community 52 - "Self-Hosting & CD Docs"
 Cohesion: 0.21
-Nodes (8): react-dom, @tanstack/react-router-ssr-query, getContext(), SiteError(), getRouter(), Register, @tanstack/react-router, renderThrowingRoute()
+Nodes (8): Composer posts through /api/moderation, settings policy prop, Admin endpoints (/api/admin), Comment endpoints (/api/comments family), Moderation endpoint (/api/moderation), llms.txt site overview, Liveness and readiness probes (/api/live, /api/ready), Response envelope ({data} or {error})
 
-### Community 57 - "Admin Design System Docs"
+### Community 53 - "Widget Props Docs"
+Cohesion: 0.13
+Nodes (18): data-lc-* attribute table, dist/vanilla styles.css and index.js, marked importmap entry, Plain HTML widget docs page, data-lc-turnstile options, actionMode prop, anonEditWindowMinutes prop, bodyLimit prop (+10 more)
+
+### Community 54 - "payload.config.ts"
+Cohesion: 0.09
+Nodes (23): Blog-thread ensure effect, Legitimate effects that must not be fixed, Payload 4.0.0-beta.2 upgrade and schema guard, env, Adding a Payload collection, DRY_RUN, POSTS, BlogThreadOptions (+15 more)
+
+### Community 55 - "Moderation Route & Origins"
+Cohesion: 0.20
+Nodes (12): originServerFn, envSchema, optionalString, parseServerEnv(), ServerEnv, LOOPBACK_HOSTS, PayloadServerUrlError, resolvePayloadServerUrl() (+4 more)
+
+### Community 56 - "comment-plugins.ts"
+Cohesion: 0.10
+Nodes (23): Plugin worker waits when nothing subscribes, HOOKS, logger, polling, startedAt, stop(), stopController, wake() (+15 more)
+
+### Community 57 - "Client Library Docs"
+Cohesion: 0.15
+Nodes (15): Bring-Your-Own fetchImpl, Framework-Free Client API, buildCommentTree, describeError Copy Mapper, isEditWindowOpen / canModerate, Session and Sign-In Helpers, renderMarkdown / safeUrl, themeVars to CSS Variables (+7 more)
+
+### Community 58 - "admin-repository.ts"
+Cohesion: 0.12
+Nodes (16): Route, apikey, apiKeySites, canCreateInitialAdmin(), createAdminSite(), deleteAdminSite(), updateAdminSite(), createSite() (+8 more)
+
+### Community 59 - "migrate"
+Cohesion: 0.11
+Nodes (20): condition, app, TUNNEL_TOKEN, disable, command, extra_hosts, healthcheck, image (+12 more)
+
+### Community 60 - "alert-dialog.tsx"
+Cohesion: 0.26
+Nodes (12): ConfirmDeleteDialog(), AlertDialog(), AlertDialogAction(), AlertDialogCancel(), AlertDialogContent(), AlertDialogDescription(), AlertDialogFooter(), AlertDialogHeader() (+4 more)
+
+### Community 61 - "Plugin Contract Docs"
+Cohesion: 0.22
+Nodes (10): CommentPlugin contract, installedCommentPlugins manifest, Plugin system docs page, Plugin migrations (db:business:migrate), screenComment hook, Turnstile plugin, validateComment hook, Writing a plugin (rate-limit and Turnstile reference pair) (+2 more)
+
+### Community 62 - "Site Access Help"
+Cohesion: 0.34
+Nodes (11): SERVER_NOTES, SiteAccessHelp(), Sheet(), SheetContent(), SheetDescription(), SheetHeader(), SheetOverlay(), SheetPortal() (+3 more)
+
+### Community 63 - "turnstile.plugin.ts"
+Cohesion: 0.17
+Nodes (8): Turnstile verification, createTurnstilePlugin(), Fetcher, invalid(), loadRegisteredHostnames(), RegisteredHostnames, unavailable(), input
+
+### Community 64 - "header-provider.ts"
+Cohesion: 0.23
+Nodes (12): RFC-1918, linkOrProvisionExternalUser(), maybeBootstrapInstanceAdmin(), HeaderDeps, resolveHeaderSession(), isProxySourceAllowed(), normalizeAddress(), peerAddress() (+4 more)
+
+### Community 65 - "Badges & Empty States"
 Cohesion: 0.18
 Nodes (12): Admin Badges and Empty States Rule Doc, Admin Charts Rule Doc, Admin Leaderboards Rule Doc, renderLabel Slot, Admin Screens Rule Doc, Dashboard Screen, DashboardShell, Thread Detail Screen (+4 more)
 
-### Community 58 - "React Admin Data Rules"
-Cohesion: 0.15
-Nodes (5): Pending Button Spinner and Disabled State, Session Principal Probe Query, Pending State Disables Its Control, Failure Reported Where Admin Looks, AdminQueryError
-
-### Community 59 - "shadcn Registry & MCP"
-Cohesion: 0.21
-Nodes (13): shadcn build Command, shadcn search Command, shadcn MCP Server, components.json Registry Configuration, shadcn MCP Registry Tools, Registry Address Schemes, Built Registry, GitHub Source Registry (+5 more)
-
-### Community 60 - "Chat UI Primitives"
-Cohesion: 0.22
-Nodes (8): Attachment, Bubble Surface, Marker, Message Row, MessageScroller, Message Scroller Hooks, Full Card Composition, shimmer and scroll-fade Utilities
-
-### Community 61 - "CI/CD Pipelines"
-Cohesion: 0.22
-Nodes (13): Remote docker compose up, CD Production Deploy Job, Production .env Composition, Public Site Check, /api/ready Readiness Gate, Tailscale Connect Step, CI Check Job, CI Compose Stack Smoke (+5 more)
-
-### Community 62 - "Widget Theming Tokens"
-Cohesion: 0.18
-Nodes (13): themeVars to CSS Variables, CommentsTheme Theme Root, Theme CSS Variables, data-lc-theme-var Attributes, Native CSS @scope Isolation, Shared Style Hooks, Theme Key Catalogue, themeVars Configuration Object (+5 more)
-
-### Community 63 - "Widget Framework Ports"
+### Community 66 - "API Keys Docs"
 Cohesion: 0.17
-Nodes (13): LcCommentsComponent (lc-comments), moderated Output, Angular Signal Inputs, signIn Output, lcTurnstile Directive, onModerated Callback, Comments Component (React), CommentsTheme Root (+5 more)
+Nodes (13): API keys and permissions guide, Scalar API references (/api/reference, /api/auth/reference), Caller kinds: instance admin, site admin, service key, Auth providers guide, Provider selection (first match wins, AUTH_PROVIDERS override), Roles: instance admin, site admin, member, Service keys (lck_ publisher keys), Identity and sign-in page (+5 more)
 
-### Community 64 - "Admin Interaction Patterns"
+### Community 67 - "Filter Decider Docs"
+Cohesion: 0.11
+Nodes (17): bad-words engine, Filter plugin (hold-for-review screening), Image schemas (8 categories, incl. benign evidence-only), LLM decider engine (OpenRouter pplx-decider-v1.2), Text schemas (8 categories, per-schema opt-in), bad-words engine (lexical blocklist), Live decider eval (bun run eval:filter), OpenRouter Decisions API transport (/api/alpha/decisions) (+9 more)
+
+### Community 68 - "Angular Widget Docs"
+Cohesion: 0.19
+Nodes (15): Self-hosting docs page, lc-comment-viewer selector, lc-comments selector (LcCommentsComponent), Angular widget docs page, Angular signal inputs (bound with [name]), (signIn) output, lc-vote-buttons and lcTurnstile directive, React other exports (CommentViewer, VoteButtons, CommentsTheme, WidgetTheme) (+7 more)
+
+### Community 69 - "Moderation Widget Docs"
 Cohesion: 0.18
-Nodes (6): Moderation Screen, Dialog-Owned Mutation, FormDialog, Blog Thread Ensure Effect, Legitimate Effect Register, Moderation Dashboard Story
+Nodes (12): (moderated) output, Author role badges (Admin and Member), Inline moderation controls (viewerRole admin), Moderator identity and anonymous posts, onModerated callback across frameworks, Inline moderation docs page, Permanent page delete, pageId addresses the thread directly (+4 more)
 
-### Community 65 - "Design System Color QA"
-Cohesion: 0.24
-Nodes (6): ColorPair(), contrast(), luminance(), toHex(), toRgb(), defaultStates
+### Community 70 - "Auth Button"
+Cohesion: 0.16
+Nodes (16): DashboardShell(), SidebarInset(), SidebarProvider(), SidebarTrigger(), TooltipProvider(), authClient, AuthProviderName, fetchSessionState() (+8 more)
 
-### Community 66 - "Business Auth Client"
-Cohesion: 0.29
-Nodes (10): @better-auth/api-key, AuthButton(), authClient, AuthProviderName, fetchSessionPrincipal(), getAuthProviders(), SessionPrincipalClient, signOut() (+2 more)
-
-### Community 67 - "Chart Primitives"
-Cohesion: 0.20
-Nodes (11): recharts, ChartConfig, ChartContext, ChartContextProps, ChartLegendContent(), ChartStyle(), getPayloadConfigFromPayload(), INITIAL_DIMENSION (+3 more)
-
-### Community 68 - "Blog Server Functions"
+### Community 71 - "environment"
 Cohesion: 0.35
-Nodes (11): BlogCommentConfig, BlogPost, blogPostServerFn, commentConfig(), ensureBlogThreadServerFn, getBlogPayload(), listBlogPostsServerFn, PostDoc (+3 more)
+Nodes (19): environment, BETTER_AUTH_SECRET, BETTER_AUTH_URL, BUSINESS_DATABASE_URL, DATABASE_URL, HOST, LOG_COLOR, LOG_FORMAT (+11 more)
 
-### Community 69 - "Admin User Tests"
+### Community 72 - "Notifications Plugin Docs"
+Cohesion: 0.15
+Nodes (11): /api/notifications-token endpoint, Code map of the four notifications modules, NOTIFICATIONS_* environment configuration, created event kind, deleted event kind, hidden event kind, pageReacted event kind, last-notifications server (bell and delivery) (+3 more)
+
+### Community 73 - "Plugin Docs & Events"
+Cohesion: 0.14
+Nodes (13): Business events (events and handleEvent), plugins:work outbox worker, app service (Nitro server on port 3000), Business database (BUSINESS_DATABASE_URL), 0.3.0 requires a new empty business database, Cloudflare tunnel client IP headers, Docker Compose stack, migrate service (one-shot migrations) (+5 more)
+
+### Community 74 - "Seed Scripts Docs"
 Cohesion: 0.20
-Nodes (10): user, db, DirectoryIds, insertUser(), listHistory, listUsers, readSettings, setupDirectory() (+2 more)
+Nodes (11): Continuous deployment workflow (cd.yml), GitHub production environment secrets, bench-comments.ts read-path benchmark, Blog site recovery for an empty business DB, introducing-last-comments.md source post, Seeds README (idempotent demo content), publishedWhere visibility rule, seed-blog-site.ts blog site seeder (+3 more)
 
-### Community 70 - "Empty States & Query Keys"
+### Community 75 - "env"
+Cohesion: 0.11
+Nodes (18): BETTER_AUTH_SECRET, BLOG_PUBLISHER_API_KEY, BLOG_SITE_KEY, BUSINESS_DATABASE_URL, CLOUDFLARE_TUNNEL_TOKEN, DATABASE_URL, GHCR_TOKEN, GHCR_USER (+10 more)
+
+### Community 76 - "x-app-environment"
+Cohesion: 0.12
+Nodes (16): x-app-environment, BETTER_AUTH_SECRET, BETTER_AUTH_URL, BUSINESS_DATABASE_URL, DATABASE_URL, HOST, LOG_COLOR, LOG_FORMAT (+8 more)
+
+### Community 77 - "Empty State Components"
 Cohesion: 0.18
 Nodes (10): Empty State Component Family, Empty State Copy Table, CommentStatusPie, Leaderboard Empty Node Prop, threadLabel Fallback, Header Site and Range Controls, ADMIN_SITES_QUERY_KEY, setupRouterSsrQueryIntegration (+2 more)
 
-### Community 71 - "Leaderboard Component"
+### Community 78 - "Page Deletion & Reactions"
+Cohesion: 0.18
+Nodes (11): Permanent page deletion, Reaction rate-limit budgets, Reaction API routes, pages:delete, /api/admin/api-keys routes, /api/admin/pages routes, /api/admin/sites routes, GET /api/comments (+3 more)
+
+### Community 79 - "site-schema.ts"
+Cohesion: 0.10
+Nodes (21): API_KEY_SCOPES, siteBodyLimitSchema, AccessOperation, anonymousAllowed(), SITE_ACCESS_LEVELS, bodyLimitFieldSchema, EditSiteForm, editSiteSchema (+13 more)
+
+### Community 80 - "@lst97-oss/last-comments-widgets package"
 Cohesion: 0.20
-Nodes (6): Leaderboard Component, LeaderboardItem Type, Leaderboard (admin design summary), Leaderboard (shared component doc), Biome Lint Enforcement Scope, Admin Change Verification Gates
+Nodes (11): API key error codes, API reference page, ORIGIN_NOT_ALLOWED (403), Request error codes, Documentation home page, Go deeper cards (install, self-hosting, theming, client, API), Registered origins can call the API directly, Widget picker cards (React, Vue, Angular, plain HTML) (+3 more)
 
-### Community 72 - "Design System Showcase"
-Cohesion: 0.24
-Nodes (9): DESIGN.md Brand Spec, ColorPair Contrast Measurement, Component Tiers and Block Anatomy, Rendered Do/Don't Pairs, Design System Edge Cases, Design System Foundations, Design System Page Outline, Showcase Helpers Bundle (+1 more)
+### Community 81 - "check"
+Cohesion: 0.17
+Nodes (13): image, options, ports, runs-on, services, timeout-minutes, services, check (+5 more)
 
-### Community 73 - "Authentication Providers"
+### Community 82 - "docs.$.tsx"
+Cohesion: 0.06
+Nodes (32): DocsMobileBar(), DocsMdxComponents, getMDXComponents(), MdxLink(), MDXProvidedComponents, useMDXComponents, DOC_ICONS, DocIconName (+24 more)
+
+### Community 83 - "mobile-nav.tsx"
+Cohesion: 0.33
+Nodes (12): AuthButton(), MobileNav(), DASHBOARD_MENU, isActivePath(), isDashboardActive(), NAV, DashboardMenu(), SiteHeader() (+4 more)
+
+### Community 84 - "with"
+Cohesion: 0.17
+Nodes (12): with, build-args, bun-version-file, cache-from, cache-to, context, load, password (+4 more)
+
+### Community 85 - "logger.ts"
+Cohesion: 0.09
+Nodes (27): registeredOrigins, createLogger(), formatJson(), getRequestLogger(), LogFields, Logger, LogWriter, makeLogger() (+19 more)
+
+### Community 86 - "compose.yaml"
 Cohesion: 0.20
-Nodes (10): auth.config.ts Configuration, better-auth Provider, First-Admin Bootstrap, header Reverse-Proxy SSO Provider, External Identity Mapping, oidc-jwt Provider, Service Keys (lck_*), First Users Setup (+2 more)
+Nodes (9): Self-host Compose stack, name, name, volumes, media, x-app-service, extra_hosts, image (+1 more)
 
-### Community 74 - "Bad-Words Screening"
-Cohesion: 0.27
-Nodes (8): bad-words, BadwordsFilter, BadwordsScreenResult, redact(), screenBadwords(), tokensOf(), createFilterPlugin(), loadBadwordsFilter()
+### Community 87 - "registered-origins.ts"
+Cohesion: 0.28
+Nodes (6): createRegisteredOrigins(), list(), refresh(), RegisteredOrigins, RegisteredOriginsOptions, RegisteredOriginSource
 
-### Community 75 - "MDX Components"
-Cohesion: 0.22
-Nodes (8): DocsMdxComponents, getMDXComponents(), MdxLink(), MDXProvidedComponents, useMDXComponents, Anchor, AnchorComponent, AnchorProps
-
-### Community 76 - "Server Architecture Rules"
-Cohesion: 0.29
-Nodes (8): src/server AGENTS.md, Health Reference Slice, HttpError.expose Default, Structured Log Event Names, New-Module Recipe, parseWith Validation, withContext Request Wrapper, Request Flow Through Layers
-
-### Community 77 - "Server Env & URL Guard"
-Cohesion: 0.29
-Nodes (6): envSchema, optionalString, ServerEnv, LOOPBACK_HOSTS, PayloadServerUrlError, resolvePayloadServerUrl()
-
-### Community 78 - "Decider Prompt Builder"
-Cohesion: 0.29
-Nodes (9): buildQuestions(), buildStateText(), buildUserText(), DECIDER_PROMPT_VERSION, DeciderUserInput, noul(), PREAMBLE, TEXT_QUESTION_RULES (+1 more)
-
-### Community 79 - "Filter Plugin Design"
-Cohesion: 0.31
-Nodes (9): Filter Plugin README, bad-words Engine, blocklist / allowlist Semantics, OpenRouter Decisions Transport (pplx-decider-v1.2), Filter Plugin, Image Thumbnail Preparation, Live Decider Eval (eval:filter), LLM Decider Engine (+1 more)
-
-### Community 80 - "Form & Input Primitives"
-Cohesion: 0.20
-Nodes (7): Button Loading via Spinner, FieldGroup and Field Form Layout, FieldSet and FieldLegend Grouping, InputGroup Composition, data-invalid and aria-invalid Validation, data-icon Attribute, cn() Conditional Classes
-
-### Community 81 - "Widget Errors & Identity"
-Cohesion: 0.22
-Nodes (10): describeError Copy Mapper, data-lc-error Styling Attributes, ApiError Code Catalog, Unified Error Block, Anonymous Edit Window, Guest Comments (credentials omit), Comment-as Identity Control, API-Started OAuth Fallback (+2 more)
-
-### Community 82 - "Widget Package Distribution"
-Cohesion: 0.20
-Nodes (8): Four Native Widget Ports, Same-Origin API Requirement, last-comments-widgets Package, Subpath Entry Points, Widget Install Flow, Page Origin Registration, Runtime Requirements (ES2025, @scope), Same-Origin API Proxy
-
-### Community 83 - "Payload Shutdown Lifecycle"
-Cohesion: 0.36
-Nodes (7): nitro, armProcessHandlers(), cachedPayloads(), Destroyable, destroyCachedPayloads(), drainAll(), payloadShutdownPlugin()
-
-### Community 84 - "Dual Database Architecture"
-Cohesion: 0.29
-Nodes (6): Payload CMS vs Business Postgres Split, business-sql.ts Client Seam, BUSINESS_DATABASE_URL Separation, Vendored Payload TanStack Vite README, Vendored clientModuleResolution Plugin, Vendored importProtection Plugin
-
-### Community 85 - "Blog SEO & JSON-LD"
-Cohesion: 0.47
-Nodes (8): absoluteCoverUrl(), absoluteUrl(), buildBlogPostingJsonLd(), postCanonicalUrl(), postSeoDescription(), SeoPostLike, stripMarkdownToText(), Route
-
-### Community 86 - "Client IP Resolution"
-Cohesion: 0.42
-Nodes (6): isProxySourceAllowed(), normalizeAddress(), isTrustedProxy(), peerAddress(), resolveClientIp(), RFC-1918
-
-### Community 87 - "Admin Shared Components"
+### Community 88 - "Badge Variants"
 Cohesion: 0.22
 Nodes (6): ThreadStatusBadge / ThreadKeyBadge, AccountTextField, Shared Admin Component Catalogue, ConfirmDeleteDialog, Hint, thread-status-badge.tsx Exports
 
-### Community 88 - "Stat Cards & Panels"
+### Community 90 - "Chart Panels"
 Cohesion: 0.25
 Nodes (6): CommentActivityPanel, VisibleRatePanel, VotesPanel, Shared Four Stat Card Slots, StatCard, stats-panels.tsx Exports
 
-### Community 89 - "Payload Boot Contract"
+### Community 91 - "Leaderboards"
+Cohesion: 0.25
+Nodes (6): Leaderboard Component, LeaderboardItem Type, Leaderboard (admin design summary), Leaderboard (shared component doc), Biome Lint Enforcement Scope, Admin Change Verification Gates
+
+### Community 92 - "Admin Screen State"
+Cohesion: 0.22
+Nodes (4): Moderation Screen, Dialog-Owned Mutation, FormDialog, Moderation Dashboard Story
+
+### Community 93 - "Boot Contract Rules"
 Cohesion: 0.22
 Nodes (8): Admin CSS Real <link> Contract, Generated Files Are Script-Owned, migrate:create Value-Import Trap, Payload Migration Workflow (push:false), payloadParseSearch / payloadStringifySearch, handleServerFunctions RSC Passthrough, Vendored RSC-independent Payload Vite plugins, withPayloadRoot Admin Shell
 
-### Community 90 - "Showcase Coverage Script"
-Cohesion: 0.22
-Nodes (6): components, missing, source, [uiArg, ...roots], uiDir, walk()
+### Community 94 - "app"
+Cohesion: 0.18
+Nodes (11): build, extra_hosts, image, ports, restart, stop_grace_period, volumes, BUN_VERSION (+3 more)
 
-### Community 91 - "Architecture Blog Post"
-Cohesion: 0.31
-Nodes (7): Introducing last-comments Blog Post, Architecture Flowchart, Guest Edit Keys and Unlimited Author Edits, One Widget, Four Frameworks, Comment Plugin System, Publisher API (pages:write), Five-Step Publisher Workflow
-
-### Community 92 - "Progress & Leaderboard UI"
+### Community 95 - "Leaderboard Component"
 Cohesion: 0.44
 Nodes (7): Leaderboard(), LeaderboardItem, Progress(), ProgressIndicator(), ProgressLabel(), ProgressTrack(), ProgressValue()
 
-### Community 93 - "Design Tokens & Visual Language"
+### Community 96 - "Payload Shutdown Hooks"
 Cohesion: 0.29
-Nodes (8): ASCII Landing Comment Animation, Accessible Interaction States, cn() and CVA Variant Pattern, Component Variant Architecture, Semantic Design Token Palette, shadcn Registry Primitives, Status Colour Semantics, WCAG AA Contrast Requirements
+Nodes (7): cachedPayloads(), countFailures(), Destroyable, destroyCachedPayloads(), drainAll(), logger, payloadShutdownPlugin()
 
-### Community 94 - "Landing Hero ASCII Art"
-Cohesion: 0.36
-Nodes (7): ASCII-Magic Comment Thread Hero Art (Dark): two overlapping speech bubbles rendered as ASCII glyph cells, white ink on black background, 760x555 animated WebP (45 frames @70ms, infinite loop), 45-Frame Looping Glyph Drift (frame set drifts from frame 0 and returns by frame 44), Trailing Reply Bubble (Second, Smaller Speech Bubble), Three-Dot Typing Indicator Inside the Comment Bubble, ASCII-Magic Comment Thread Hero Art (Light): same two-bubble ASCII composition as black ink on white, ASCII-Magic Character-Cell Rendering (glyph grid resolves to solid shapes at display size), Nested Comment Thread Metaphor (main comment + attached reply)
+### Community 97 - "worker"
+Cohesion: 0.20
+Nodes (10): depends_on, migrate, condition, worker, command, depends_on, extra_hosts, image (+2 more)
 
-### Community 95 - "Plugin Event Delivery"
-Cohesion: 0.39
-Nodes (5): logger, getCommentPlugins(), deliverPendingPluginEvents(), getPluginRetryDelayMs(), logger
+### Community 98 - "Markdown Docs"
+Cohesion: 0.32
+Nodes (7): Framework peer dependencies, Markdown rendering page, codeHighlight flag (data-lc-no-code-highlight), GitHub-flavored markdown renderer, Math (KaTeX) and Mermaid diagrams (opt-in renderers), renderMarkdown and safeUrl exports, Shiki syntax highlighting (React widget)
 
-### Community 96 - "robots.txt"
-Cohesion: 0.39
-Nodes (5): ALLOWED_PATHS, buildRobotsTxt(), DISALLOWED_PATHS, robotsTxtResponse(), Route
+### Community 99 - "Design Guidance"
+Cohesion: 0.29
+Nodes (8): Accessible Interaction States, cn() and CVA Variant Pattern, Component Variant Architecture, Dark Mode Through The Same Tokens, Semantic Design Token Palette, shadcn Registry Primitives, Status Colour Semantics, WCAG AA Contrast Requirements
 
-### Community 97 - "Turnstile Screening Order"
-Cohesion: 0.36
-Nodes (6): Turnstile Plugin README, getTurnstilePluginSettings, Cloudflare Turnstile Testing Keys, Turnstile Plugin, verificationRequired Setting, Per-Plugin TS Config Standard
+### Community 100 - "steps"
+Cohesion: 0.20
+Nodes (10): steps, name, run, uses, with, oauth-client-id, oauth-secret, ping (+2 more)
 
-### Community 98 - "Rate-Limit Plugin"
-Cohesion: 0.43
-Nodes (6): Rate-Limit Plugin README, client-ip.ts Resolution, HMAC-Hashed Requester Identity, Rate-Limit Plugin, comment_rate_limit Schema, RATE_LIMIT_TRUSTED_PROXY_CIDR
+### Community 101 - "sitemap[.]xml.ts"
+Cohesion: 0.23
+Nodes (15): ALLOWED_PATHS, buildRobotsTxt(), DISALLOWED_PATHS, absoluteSiteUrl(), buildSitemapXml(), docsSitemapUrls(), escapeXml(), normalizeOrigin() (+7 more)
 
-### Community 99 - "Font Licenses"
+### Community 102 - "ci.yml"
+Cohesion: 0.20
+Nodes (9): concurrency, cancel-in-progress, group, jobs, name, on, pull_request, push (+1 more)
+
+### Community 103 - "Archivo Black Font"
 Cohesion: 0.43
 Nodes (6): OFL Archivo Black License File, Archivo Black Font, Archivo Black Copyright Notice, SIL Open Font License 1.1, OFL JetBrains Mono License File, JetBrains Mono Font
 
-### Community 100 - "React Admin Skill Docs"
+### Community 104 - "Access Levels Changelog"
 Cohesion: 0.29
-Nodes (7): Data Fetching Rule Doc, Mutations Rule Doc, React Compiler Rule Doc, Rendering Rule Doc, Shared Components Rule Doc, State and Effects Rule Doc, React Admin Patterns Skill
+Nodes (7): Per-site access levels (open, login, private), Business baseline migrations (fresh database required), Per-site page and comment reaction switches, sites.votes_enabled voting switch, API error codes (server-only), FEATURE_DISABLED (403), drizzle/business/0006_reactions.sql
 
-### Community 101 - "React Compiler Mode"
+### Community 105 - "use-mobile.ts"
+Cohesion: 0.47
+Nodes (3): getSnapshot(), subscribe(), useIsMobile()
+
+### Community 106 - "env"
 Cohesion: 0.29
-Nodes (3): react-doctor Suppression Documents Compiler Scope, Annotated File Scope, Function-Level 'use memo' Directive
+Nodes (10): env, env, BETTER_AUTH_SECRET, BETTER_AUTH_URL, BUSINESS_DATABASE_URL, DATABASE_URL, PAYLOAD_BUNX_FLAGS, PAYLOAD_CLI_ARGS (+2 more)
 
-### Community 102 - "Semantic Token System"
-Cohesion: 0.38
-Nodes (6): Class-based Dark Mode, OKLCH Color Format, Global --radius Scale, Focus Treatment Mapping, DESIGN.md Role to shadcn Variable Mapping, type-* Utility Scale
+### Community 107 - "better-auth provider (email/password plus Google OAuth)"
+Cohesion: 0.20
+Nodes (12): .env.example, Google sign-in links to existing account by email, better-auth provider (email/password plus Google OAuth), bootstrapEmail (first admin address), First admin setup (/create-admin-user), Google sign-in links existing account by email, header provider (reverse-proxy SSO), External identity mapping (external_identities) (+4 more)
 
-### Community 103 - "shadcn Composition Traps"
-Cohesion: 0.29
-Nodes (5): Showcase Known Traps, asChild vs render Composition, nativeButton False for Non-button Render, Base Select items Prop, Slider Scalar vs Array Values
-
-### Community 104 - "Mermaid & Skeleton UI"
-Cohesion: 0.33
-Nodes (4): next-themes, DiagramStatus, SidebarMenuSkeleton(), Skeleton()
-
-### Community 105 - "OG Artwork Layers"
-Cohesion: 0.52
-Nodes (7): OG Artwork Background Layer, Faint Blueprint Grid Overlay, Light Monochrome Palette (near-white with black/grey accents), Pixel Dust Scatter in Top-Left and Bottom-Left Corners, Pixel-Art Speech Bubble Motif, Stacked Grey Bubble Behind Primary Bubble, Reserved Left-Column Text Zone
-
-### Community 106 - "Filename Sanitizer"
-Cohesion: 0.43
-Nodes (6): encoder, replaceMatches(), Replacement, sanitize(), sanitizeFilename(), truncateUtf8()
-
-### Community 107 - "shadcn CLI Workflow"
-Cohesion: 0.33
-Nodes (5): shadcn/ui Agent Interface Metadata, shadcn add Command, shadcn docs Command, add dry-run / diff / view Previews, shadcn/ui
+### Community 108 - "turnstile.config.ts"
+Cohesion: 0.16
+Nodes (12): commentPolicyConfig, commentPolicyConfigDef, CommentPolicyFileConfig, commentPolicyFileSchema, definePluginConfig(), readSecret(), readSiteKey(), ResolvedTurnstileConfig (+4 more)
 
 ### Community 109 - "Admin CSS Generator"
 Cohesion: 0.47
 Nodes (5): collect(), main(), ROOTS, SKIPPED, toSpecifier()
 
-### Community 110 - "Smoke Script"
-Cohesion: 0.33
-Nodes (3): base, Check, checks
+### Community 110 - "comment-caller.test.ts"
+Cohesion: 0.20
+Nodes (6): CallerDeps, CallerSiteContext, CommentCaller, defaultCallerDeps, requestOrigin(), visitor
 
-### Community 111 - "Time Formatting"
+### Community 111 - "router.tsx"
+Cohesion: 0.19
+Nodes (7): getContext(), SiteError(), SiteNotFound(), getRouter(), Register, @tanstack/react-router, renderThrowingRoute()
+
+### Community 112 - "x-app-service"
 Cohesion: 0.53
-Nodes (4): formatClockTime(), pad2(), pad3(), clockTimeOf()
+Nodes (6): env_file, path, required, env_file, env_file, env_file
 
-### Community 112 - "shadcn Init & Presets"
+### Community 113 - "Button"
+Cohesion: 0.13
+Nodes (29): AdminFailure, AdminQueryError(), AdminFormApi, FormDialog(), SharePostDialog(), ThreadComments(), Alert(), AlertDescription() (+21 more)
+
+### Community 114 - "cd.yml"
+Cohesion: 0.22
+Nodes (8): concurrency, cancel-in-progress, group, jobs, name, permissions, contents, packages
+
+### Community 115 - "Admin Notifications Changelog"
+Cohesion: 0.40
+Nodes (5): Admin notifications (dashboard bell), Dashboard admin bell (notifications token), drizzle/business/0007_plugin_events_page_reacted.sql, Admin notifications plugin, notifications plugin folder
+
+### Community 116 - "deploy"
+Cohesion: 0.22
+Nodes (9): env, environment, if, runs-on, timeout-minutes, PUBLIC_URL, name, url (+1 more)
+
+### Community 117 - "Visitor Headers & Budgets"
 Cohesion: 0.50
-Nodes (4): shadcn apply Command, shadcn init Command, shadcn Presets, shadcn Project Templates
+Nodes (5): Key-wide rate budget (50x visitor budget), x-lc-client verified visitor header, x-api-key and Authorization Bearer key headers, x-lc-client per-visitor header (API keys guide), x-lc-client (proxy visitor identity, auth guide)
 
-### Community 113 - "Plugin Contract Docs"
-Cohesion: 0.60
-Nodes (4): src/server README, CommentPlugin Contract, Transactional Event Outbox, screenComment / publishCommentScreening
+### Community 118 - "landing-framework-section.tsx"
+Cohesion: 0.11
+Nodes (25): AdminNotificationBell(), BellConfig, readConfig(), BlogMarkdown(), BlogComments(), BlogMarkdownScope(), MermaidDiagram(), render() (+17 more)
 
-### Community 117 - "Comment Deletion"
+### Community 121 - "React Compiler annotation mode"
+Cohesion: 0.17
+Nodes (9): Data Fetching Rule Doc, Mutations Rule Doc, React Compiler and use memo rules, 'use memo' function directive, Rendering Rule Doc, Shared Components Rule Doc, React Admin Patterns Skill, src/components/ui (vendored shadcn/Base UI) (+1 more)
+
+### Community 123 - "steps"
+Cohesion: 0.29
+Nodes (8): steps, steps, LAST_COMMENTS_IMAGE, env, if, name, run, uses
+
+### Community 139 - "docker"
+Cohesion: 0.25
+Nodes (8): needs, permissions, runs-on, timeout-minutes, docker, permissions, contents, packages
+
+### Community 143 - "workflow_run"
+Cohesion: 0.33
+Nodes (6): on, workflow_dispatch, workflow_run, branches, types, workflows
+
+### Community 144 - "decider-prompt.ts"
+Cohesion: 0.26
+Nodes (10): buildQuestions(), buildStateText(), buildUserText(), DECIDER_PROMPT_VERSION, DeciderUserInput, noul(), PREAMBLE, TEXT_QUESTION_RULES (+2 more)
+
+### Community 145 - "env"
 Cohesion: 0.50
-Nodes (3): deleteComment(), DeleteCommentData, DeleteCommentDeps
+Nodes (5): env, POSTGRES_DB, POSTGRES_PASSWORD, POSTGRES_USER, env
 
-### Community 121 - "Favicon Assets"
-Cohesion: 1.00
-Nodes (3): Speech Bubble Android/PWA Chrome Icons (192x192, 512x512), Speech Bubble Apple Touch Icon (180x180, iOS home screen), Pixel-Art Dual Speech Bubble Browser Favicon (16x16, 32x32)
+### Community 146 - "env"
+Cohesion: 0.50
+Nodes (4): env, APP_PORT, DEPLOY_SHA, IMAGE
+
+### Community 149 - "auth.config.ts"
+Cohesion: 0.20
+Nodes (10): Typed TS instance config files, Auth configuration reference (file keys and env keys), authConfig, authConfigDef, AuthConfigProviderName, AuthFileConfig, authFileSchema, parseProvidersOverride() (+2 more)
+
+### Community 150 - "site-users.ts"
+Cohesion: 0.15
+Nodes (13): INITIAL_MODERATION_VIEW, ModerationViewAction, moderationViewReducer(), ModerationViewState, INITIAL_USER_DIRECTORY, InstanceSettings, UserCommentHistoryItem, UserDirectoryAction (+5 more)
+
+### Community 151 - "@lst97-oss/last-comments-widgets package"
+Cohesion: 0.22
+Nodes (9): Success and failure response envelope, Errors page, data-lc-error and data-error-code styling hooks, describeError helper, Single error block rendered by every widget, Package entry points, Quick start (Comments component embed), @lst97-oss/last-comments-widgets package (+1 more)
+
+### Community 152 - "formatClockTime"
+Cohesion: 0.70
+Nodes (3): formatClockTime(), pad2(), pad3()
+
+### Community 153 - "resolve.ts"
+Cohesion: 0.33
+Nodes (6): Principal, PrincipalCredential, SessionAdapter, SessionPrincipal, adapters, getSessionAdapters()
+
+### Community 154 - "Access levels (open, login, private)"
+Cohesion: 0.29
+Nodes (7): Credentialed CORS for registered origins, Access levels (open, login, private), Session cookie scope (sibling subdomain only), Sign-in card on login and private sites, Reaching the API: same vs different registrable domain, Credentialed CORS for registered origins (install guide), /api/moderation is same-origin only
+
+### Community 156 - "admin-users.integration.test.ts"
+Cohesion: 0.29
+Nodes (7): db, DirectoryIds, insertUser(), listHistory, listUsers, readSettings, setupDirectory()
+
+### Community 157 - "AdminQueryError"
+Cohesion: 0.40
+Nodes (3): Session Principal Probe Query, Failure Reported Where Admin Looks, AdminQueryError
+
+### Community 158 - "Per-site comment length limit"
+Cohesion: 0.40
+Nodes (5): Per-site comment length limit, GET /api/comments/settings public policy, GET /api/comments/settings, bodyLimit (default 10,000, counted before trimming), Composer toolbar and Write/Preview toggle
 
 ## Ambiguous Edges - Review These
-- `Layer Direction http → application → domain` → `RATE_LIMIT_TRUSTED_PROXY_CIDR`  [AMBIGUOUS]
+- `RATE_LIMIT_TRUSTED_PROXY_CIDR` → `Layer Direction http → application → domain`  [AMBIGUOUS]
   src/server/plugins/rate-limit/README.md · relation: conceptually_related_to
-- `Image Thumbnail Preparation` → `OFL JetBrains Mono License File`  [AMBIGUOUS]
-  src/server/plugins/filter/README.md · relation: semantically_similar_to
+- `Anonymous edit window (anonEditWindowMinutes, default 10)` → `Guest edit window (comment-policy.config.ts, default 10 minutes)`  [AMBIGUOUS]
+  README.md · relation: conceptually_related_to
+- `installedCommentPlugins manifest` → `Per-request ordering: rate-limit, Turnstile, filter, persist`  [AMBIGUOUS]
+  src/server/plugins/filter/README.md · relation: references
 
 ## Knowledge Gaps
-- **131 isolated node(s):** `@fontsource-variable/geist`, `@payloadcms/drizzle`, `@payloadcms/translations`, `@scalar/api-reference`, `@tanstack/react-form-start` (+126 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 742 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **24 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **145 isolated node(s):** `RFC-1918`, `drizzle/business/0006_reactions.sql`, `Per-site access levels (open, login, private)`, `API error codes (server-only)`, `Google sign-in links to existing account by email` (+140 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 890 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **26 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `@tanstack/react-router` connect `Admin API Routes` to `Admin Forms & Dialogs`, `Recent Activity UI`, `Admin Dashboard Screens`, `Moderation & Auth Guards`, `Payload & Site Shell`, `Admin Auth UI`, `Paging & Thread Badges`, `Public API Routes`, `Project Config & Manifest`, `Comments API & Principals`, `API Keys & Scopes`, `Health Probes`, `Docs Site (Fumadocs)`, `Landing Page & OG Meta`, `Site Header & Mobile Nav`, `Auth & OpenAPI Endpoints`, `Blog Cards & Landing Content`, `Admin Sidebar Navigation`, `Sitemap Generation`, `Router & Root Provider`, `Business Auth Client`, `robots.txt`?**
-  _High betweenness centrality (0.154) - this node is a cross-community bridge._
-- **What connects `@fontsource-variable/geist`, `@payloadcms/drizzle`, `@payloadcms/translations` to the rest of the system?**
-  _131 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Admin Forms & Dialogs` be split into smaller, more focused modules?**
-  _Cohesion score 0.07530022719896137 - nodes in this community are weakly interconnected._
-- **Why does `Introducing last-comments Blog Post` connect `Architecture Blog Post` to `Admin Interaction Patterns`, `Dual Database Architecture`, `Demo Seed Scripts`, `Payload CMS Config & Seeds`?**
-  _High betweenness centrality (0.086) - this node is a cross-community bridge._
-- **Should `Recent Activity UI` be split into smaller, more focused modules?**
-  _Cohesion score 0.07423423423423424 - nodes in this community are weakly interconnected._
+- **Why does `Rate-limit plugin` connect `Plugin Contract Docs` to `rate-limit.plugin.ts`, `Plugin Docs & Events`?**
+  _High betweenness centrality (0.137) - this node is a cross-community bridge._
+- **What connects `RFC-1918`, `drizzle/business/0006_reactions.sql`, `Per-site access levels (open, login, private)` to the rest of the system?**
+  _145 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `oidc-jwt.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
+- **Why does `Plugin system docs page` connect `Plugin Contract Docs` to `Plugin Docs & Events`, `Angular Widget Docs`?**
+  _High betweenness centrality (0.078) - this node is a cross-community bridge._
+- **Should `recent-view.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.06641184902054467 - nodes in this community are weakly interconnected._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._
 
-- **What is the exact relationship between `Layer Direction http → application → domain` and `RATE_LIMIT_TRUSTED_PROXY_CIDR`?**
+- **What is the exact relationship between `RATE_LIMIT_TRUSTED_PROXY_CIDR` and `Layer Direction http → application → domain`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **What is the exact relationship between `Image Thumbnail Preparation` and `OFL JetBrains Mono License File`?**
-  _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
+- **What is the exact relationship between `Anonymous edit window (anonEditWindowMinutes, default 10)` and `Guest edit window (comment-policy.config.ts, default 10 minutes)`?**
+  _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._

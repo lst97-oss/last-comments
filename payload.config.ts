@@ -4,6 +4,8 @@ import { buildConfig } from 'payload'
 
 import { migrations } from '@/migrations'
 import { getServerEnv } from '@/server/env'
+import { payloadLoggerConfig } from '@/server/observability/payload-logger'
+import { sanitizeLogFields } from '@/server/observability/redact'
 import { resolvePayloadServerUrl } from '@/server/security/payload-server-url'
 
 const env = getServerEnv()
@@ -13,6 +15,8 @@ const projectDirectory = import.meta.dir ?? import.meta.dirname
 const projectPath = (relativePath: string) => `${projectDirectory}/${relativePath.replace(/^\.\//, '')}`
 
 export default buildConfig({
+  // Payload's lines go through our writer and redaction, so they match the server's format (see payload-logger.ts).
+  logger: payloadLoggerConfig(sanitizeLogFields),
   graphQL: {
     disable: true,
   },

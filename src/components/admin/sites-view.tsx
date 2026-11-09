@@ -30,6 +30,24 @@ import {
   siteFormSchema,
 } from '@/lib/site-schema'
 
+// The two reaction switches in the edit dialog. Each names its form field, its checkbox id and its copy.
+const REACTION_SWITCHES = [
+  {
+    name: 'pageReactionsEnabled',
+    id: 'rename-site-page-reactions',
+    label: 'Allow page reactions',
+    description:
+      'Signed-in visitors can react to the whole page. Turning this off hides the bar and refuses reactions to the page.',
+  },
+  {
+    name: 'commentReactionsEnabled',
+    id: 'rename-site-comment-reactions',
+    label: 'Allow comment reactions',
+    description:
+      'Signed-in visitors can react to comments and replies. Turning this off hides the reactions and refuses new ones.',
+  },
+] as const
+
 export function SitesView({
   sites,
   allSites,
@@ -70,7 +88,15 @@ export function SitesView({
   const [deleteTarget, setDeleteTarget] = useState<Site | null>(null)
   const [deleting, startDelete] = useTransition()
   const renameForm = useForm({
-    defaultValues: { name: '', bodyLimit: '', access: 'open', gatewayOnly: false, votesEnabled: true } as EditSiteForm,
+    defaultValues: {
+      name: '',
+      bodyLimit: '',
+      access: 'open',
+      gatewayOnly: false,
+      votesEnabled: true,
+      pageReactionsEnabled: false,
+      commentReactionsEnabled: false,
+    } as EditSiteForm,
     validators: { onChange: editSiteSchema },
     onSubmit: async ({ value }) => {
       if (!renameTarget) return
@@ -81,6 +107,8 @@ export function SitesView({
         access: value.access,
         gatewayOnly: value.gatewayOnly,
         votesEnabled: value.votesEnabled,
+        pageReactionsEnabled: value.pageReactionsEnabled,
+        commentReactionsEnabled: value.commentReactionsEnabled,
       }
       if (await onEditSite(renameTarget.key, next)) setRenameTarget(null)
     },
@@ -94,6 +122,8 @@ export function SitesView({
     renameForm.setFieldValue('access', target.access ?? 'open')
     renameForm.setFieldValue('gatewayOnly', target.gatewayOnly ?? false)
     renameForm.setFieldValue('votesEnabled', target.votesEnabled ?? true)
+    renameForm.setFieldValue('pageReactionsEnabled', target.pageReactionsEnabled ?? false)
+    renameForm.setFieldValue('commentReactionsEnabled', target.commentReactionsEnabled ?? false)
     setRenameTarget(target)
   }
 
@@ -335,6 +365,25 @@ export function SitesView({
               </Field>
             )}
           />
+          {REACTION_SWITCHES.map((item) => (
+            <renameForm.Field
+              key={item.name}
+              name={item.name}
+              children={(field) => (
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id={item.id}
+                    checked={field.state.value}
+                    onCheckedChange={(checked) => field.handleChange(checked === true)}
+                  />
+                  <FieldContent>
+                    <FieldLabel htmlFor={item.id}>{item.label}</FieldLabel>
+                    <FieldDescription>{item.description}</FieldDescription>
+                  </FieldContent>
+                </Field>
+              )}
+            />
+          ))}
         </FieldGroup>
       </FormDialog>
       <ConfirmDeleteDialog
