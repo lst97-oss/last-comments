@@ -6,17 +6,11 @@ import type { ImageCategory, TextCategory } from '@/server/plugins/filter/filter
 // model is served only by `/api/alpha/decisions` (`text+image -> decisions`):
 // it reads a `state` and returns one calibrated probability per question, it
 // is not OpenAI-compatible, and `/chat/completions` rejects it with a 400.
-// Primary path is the official `@openrouter/sdk` (`client.alpha.decisions.
-// create`, response already unwrapped); a same-body raw-`fetch` fallback
-// covers a missing SDK install. Callers never branch on transport.
-//
-// Verified SDK shapes (@openrouter/sdk 1.5.3, Speakeasy):
-// `new OpenRouter({ apiKey })`, `client.alpha.decisions.create({
-// decisionsRequest }, { serverURL })` resolving to `DecisionsResponse`.
-// Everything below the `DeciderSender` boundary is defensive unknown handling
-// so SDK/API drift degrades to `DeciderError`, never to a misread verdict.
+// One `fetch` call carries the request, with no retries: the caller's timeout is
+// the whole budget. The answer is checked with zod, so API drift degrades to a
+// `DeciderError`, never to a misread verdict.
 
-export type DeciderReason = 'timeout' | 'http' | 'malformed' | 'schema' | 'missing_key' | 'sdk_unsupported'
+export type DeciderReason = 'timeout' | 'http' | 'malformed' | 'schema' | 'missing_key'
 
 export class DeciderError extends Error {
   reason: DeciderReason
@@ -49,35 +43,6 @@ export type DeciderVerdict = { textSignals: DeciderSignal[]; imageSignals: Decid
 const decisionsResponseSchema = z.object({
   answers: z.record(z.string(), z.object({ type: z.string(), noul: z.number().min(0).max(1) })),
 })
-
-function createSdkSender(apiKey: string, baseUrl: string): DeciderSender {
-  return async (request) => {
-    let client: {
-      alpha: { decisions: { create: (args: unknown, options?: unknown) => Promise<unknown> } }
-    }
-    try {
-      // Dynamic import: a missing install degrades to the fetch fallback
-      // instead of crashing the plugin host at module load.
-      const sdk = (await import('@openrouter/sdk')) as unknown as {
-        OpenRouter: new (options: { apiKey: string }) => typeof client
-      }
-      client = new sdk.OpenRouter({ apiKey })
-    } catch {
-      throw new DeciderError('sdk_unsupported', 'OpenRouter SDK is not installed')
-    }
-    if (typeof client.alpha?.decisions?.create !== 'function') {
-      throw new DeciderError('sdk_unsupported', 'OpenRouter SDK has no decisions client')
-    }
-    try {
-      return await client.alpha.decisions.create({ decisionsRequest: request }, { serverURL: baseUrl })
-    } catch (cause) {
-      throw new DeciderError(
-        'http',
-        `OpenRouter SDK request failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-      )
-    }
-  }
-}
 
 function createFetchSender(apiKey: string, baseUrl: string, fetcher: typeof fetch): DeciderSender {
   return async (request) => {
@@ -130,17 +95,7 @@ export async function callDecider(
     questions: input.questions,
   }
 
-  const run = async (): Promise<unknown> => {
-    if (deps.sender) return deps.sender(request)
-    try {
-      return await createSdkSender(apiKey, baseUrl)(request)
-    } catch (error) {
-      if (error instanceof DeciderError && error.reason === 'sdk_unsupported') {
-        return createFetchSender(apiKey, baseUrl, deps.fetcher ?? fetch)(request)
-      }
-      throw error
-    }
-  }
+  const sender = deps.sender ?? createFetchSender(apiKey, baseUrl, deps.fetcher ?? fetch)
 
   const timeout = Promise.withResolvers<never>()
   const timer = setTimeout(
@@ -149,7 +104,7 @@ export async function callDecider(
   )
   let response: unknown
   try {
-    response = await Promise.race([run(), timeout.promise])
+    response = await Promise.race([sender(request), timeout.promise])
   } catch (error) {
     if (error instanceof DeciderError) throw error
     throw new DeciderError('http', error instanceof Error ? error.message : String(error))

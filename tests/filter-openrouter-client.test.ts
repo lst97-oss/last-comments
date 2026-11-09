@@ -112,6 +112,37 @@ describe('openrouter decisions client', () => {
     ).rejects.toMatchObject({ reason: 'malformed' })
   })
 
+  test('the default transport is one POST to the decisions endpoint, carrying the key and the same body', async () => {
+    const calls: { url: string; init: RequestInit }[] = []
+    const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} })
+      return Response.json(answers({ 'text:spam_scam': 0.9 }))
+    }) as unknown as typeof fetch
+
+    const verdict = await callDecider(baseInput, openrouter, { fetcher })
+
+    expect(verdict.textSignals).toEqual([{ category: 'spam_scam', confidence: 0.9 }])
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.url).toBe('https://openrouter.ai/api/alpha/decisions')
+    expect(calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer sk-or-test' })
+    expect(JSON.parse(String(calls[0]!.init.body))).toMatchObject({
+      model: 'perplexity/pplx-decider-v1.2',
+      state: [baseInput.state],
+      questions,
+    })
+  })
+
+  test('a failing HTTP answer is an http DeciderError after one attempt, with no retry', async () => {
+    let attempts = 0
+    const fetcher = (async () => {
+      attempts += 1
+      return new Response('busy', { status: 503 })
+    }) as unknown as typeof fetch
+
+    await expect(callDecider(baseInput, openrouter, { fetcher })).rejects.toMatchObject({ reason: 'http' })
+    expect(attempts).toBe(1)
+  })
+
   test('sender failures surface as http DeciderError', async () => {
     const sender: DeciderSender = async () => {
       throw new TypeError('down')
