@@ -83,7 +83,10 @@ export async function resolvePage(
 }
 
 export type SitePage = {
+        .onConflictDoNothing()
   id: string
+      // A concurrent first comment inserted this thread after our reads. Read it again instead of failing.
+      if (!inserted) return resolvePage(tx, input)
   canonicalUrl: string
   pageKey: string | null
   title: string | null
