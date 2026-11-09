@@ -7,6 +7,8 @@
     { "idx": 2, "version": "7", "when": 1792999193684, "tag": "0002_threads_and_comments", "breakpoints": true },
     { "idx": 3, "version": "7", "when": 1792999193685, "tag": "0003_moderation", "breakpoints": true },
     { "idx": 4, "version": "7", "when": 1792999193686, "tag": "0004_plugin_outbox", "breakpoints": true },
-    { "idx": 5, "version": "7", "when": 1792999193687, "tag": "0005_site_member_role", "breakpoints": true }
+    { "idx": 5, "version": "7", "when": 1792999193687, "tag": "0005_site_member_role", "breakpoints": true },
+    { "idx": 6, "version": "7", "when": 1793109780821, "tag": "0006_reactions", "breakpoints": true },
+    { "idx": 7, "version": "7", "when": 1793261263919, "tag": "0007_plugin_events_page_reacted", "breakpoints": true }
   ]
 }

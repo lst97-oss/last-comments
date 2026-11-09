@@ -6,6 +6,14 @@ import { normalizePageKey, normalizePageUrl } from '@/server/modules/comments/do
 import { getSiteId } from '@/server/modules/comments/infrastructure/comment-sites'
 import type { Db, Transaction } from '@/server/modules/comments/infrastructure/comment-types'
 
+// The page a reference names: its slug when one is sent, otherwise its exact URL. Every read and act that
+// finds a page uses this, so the comment list and the reaction bar agree on which thread it is.
+export function pageMatch(pageUrl: string, pageKey?: string) {
+  return pageKey === undefined
+    ? eq(pages.canonicalUrl, normalizePageUrl(pageUrl))
+    : eq(pages.pageKey, normalizePageKey(pageKey))
+}
+
 // Thread identity lives here so comment creation and the publisher API
 // (POST /api/admin/pages) cannot drift: a slug names the thread and the URL
 // follows it, while URL-only threads stay bound to their exact URL.

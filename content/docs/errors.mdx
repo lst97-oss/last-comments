@@ -98,7 +98,7 @@ The server also returns codes the widgets never show, because the widgets send r
 | `SITE_KEY_EXISTS` | 409 | A site with that key already exists. |
 | `SETUP_UNAVAILABLE` | 409 | The first-admin setup has already been used. |
 | `ADMIN_SIGNUP_FAILED` | 400 | The first admin account could not be created. |
-| `FEATURE_DISABLED` | 403 | Voting is off for this site (`votesEnabled`). Votes already cast are kept. |
+| `FEATURE_DISABLED` | 403 | Voting, comment reactions or page reactions are off for this site (`votesEnabled`, `commentReactionsEnabled` or `pageReactionsEnabled`). Votes and reactions already made are kept. |
 | `AUTH_PROVIDER_DISABLED` | 404 | The built-in login endpoints are off because `better-auth` is not in the enabled providers. Sign in through the configured provider. |
 | `OPENAPI_DISABLED` | 404 | The OpenAPI document and its reference page are not installed on this server. |
 | `INTERNAL_ERROR` | 500 | An unexpected failure. The message is generic; the request ID in `x-request-id` finds the log line. |

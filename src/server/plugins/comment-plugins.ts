@@ -30,7 +30,8 @@ export type CommentPluginEvent = {
   signal: AbortSignal
 }
 
-export type CommentOperation = 'comment.create' | 'comment.edit' | 'comment.delete' | 'comment.vote'
+export type CommentOperation =
+  'comment.create' | 'comment.edit' | 'comment.delete' | 'comment.vote' | 'comment.react' | 'page.create'
 export type CommentOperationInput = {
   operation: CommentOperation
   siteKey: string

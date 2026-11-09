@@ -17,6 +17,8 @@ import {
   verification,
   verifiedUsers,
   votes,
+  commentReactions,
+  pageReactions,
 } from '@/server/db/schema'
 
 describe('business schema', () => {
@@ -33,6 +35,8 @@ describe('business schema', () => {
       pages,
       comments,
       votes,
+      commentReactions,
+      pageReactions,
       userBlocks,
       verifiedUsers,
       pluginEvents,
@@ -51,6 +55,8 @@ describe('business schema', () => {
       'pages',
       'comments',
       'votes',
+      'comment_reactions',
+      'page_reactions',
       'user_blocks',
       'verified_users',
       'plugin_events',

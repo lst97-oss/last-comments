@@ -37,6 +37,8 @@ export const editSiteSchema = z.object({
   access: z.enum(SITE_ACCESS_LEVELS),
   gatewayOnly: z.boolean(),
   votesEnabled: z.boolean(),
+  pageReactionsEnabled: z.boolean(),
+  commentReactionsEnabled: z.boolean(),
 })
 
 // Operator-facing copy for the visitor policy. Each one says who may do what.

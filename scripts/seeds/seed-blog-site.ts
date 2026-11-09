@@ -48,7 +48,16 @@ try {
   }
 
   const db = getBusinessDb()
-  await db.insert(sites).values({ key: siteKey, name: 'Last Comments Blog' }).onConflictDoNothing()
+  // Both reaction bars are on for the demo. The conflict clause leaves an existing site's switches alone.
+  await db
+    .insert(sites)
+    .values({
+      key: siteKey,
+      name: 'Last Comments Blog',
+      pageReactionsEnabled: true,
+      commentReactionsEnabled: true,
+    })
+    .onConflictDoNothing()
   const [site] = await db.select({ id: sites.id }).from(sites).where(eq(sites.key, siteKey))
   if (!site) throw new Error(`Site row missing after upsert: ${siteKey}`)
   for (const origin of origins) {

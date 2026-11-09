@@ -79,7 +79,7 @@ An account can hold one role per site, and one account may also be the instance 
 | --- | --- | --- |
 | Instance admin | One account: the one created during setup, or granted with `bun run db:business:grant-admin` | Everything: moderation of every site, instance settings, creating sites, and every site's admin tasks |
 | Site admin (`admin`) | The account that created the site, on that site | Manage the site: its settings, pages, API keys, stats, user directory and comment history |
-| Member (`member`) | Every other signed-in account on a site, derived automatically: no row is stored | Comment, edit its own comments, and vote, as the site's access level allows. No dashboard, no management |
+| Member (`member`) | Every other signed-in account on a site, derived automatically: no row is stored | Comment, edit its own comments, vote and react, as the site's access level allows. No dashboard, no management |
 
 A guest (no account) has no role. The public `Member` badge marks a member; an admin's comments carry the `Admin` badge.
 

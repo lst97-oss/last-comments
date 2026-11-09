@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { commentBodyMarkdown } from '@/lib/comment-schema'
+import { REACTION_EMOJIS } from '@/server/modules/comments/domain/reactions'
 
 // Request schemas shared by the comment, vote and moderation routes. They
 // live here (not in the route files) so the OpenAPI registry can document
@@ -90,6 +91,26 @@ export const voteSearchSchema = z.strictObject({
   site: z.string().min(1),
   commentId: z.string().uuid(),
 })
+
+// The emoji is one of the allowlist, so an unknown one fails validation before any lookup.
+export const reactionEmojiSchema = z.enum(REACTION_EMOJIS)
+
+// A comment reaction: the body of PUT and the query of DELETE.
+export const commentReactionSchema = z.strictObject({
+  site: z.string().min(1).max(100),
+  commentId: z.string().uuid(),
+  emoji: reactionEmojiSchema,
+})
+
+// A page is named as the comment list names it: its URL, with an optional slug.
+export const pageReactionQuerySchema = z.strictObject({
+  site: z.string().min(1).max(100),
+  url: pageUrlSchema,
+  pageKey: pageKeySchema.optional(),
+})
+
+// A page reaction: the body of PUT and the query of DELETE.
+export const pageReactionSchema = pageReactionQuerySchema.extend({ emoji: reactionEmojiSchema })
 
 // The domain helpers own URL/slug validation and their error codes, so this
 // schema only bounds the payload.

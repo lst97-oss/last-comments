@@ -12,6 +12,8 @@ const SPEC_PATHS = [
   '/api/comments/{commentId}',
   '/api/comments/settings',
   '/api/comments/vote',
+  '/api/comments/reactions',
+  '/api/comments/page-reactions',
   '/api/moderation',
   '/api/admin/sites',
   '/api/admin/sites/{siteKey}',

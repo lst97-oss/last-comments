@@ -46,6 +46,8 @@ describe('rate-limit plugin', () => {
         'comment.edit': { count: 20, windowSeconds: 600 },
         'comment.delete': { count: 20, windowSeconds: 600 },
         'comment.vote': { count: 60, windowSeconds: 60 },
+        'comment.react': { count: 60, windowSeconds: 60 },
+        'page.create': { count: 5, windowSeconds: 600 },
       },
     )
     const input = {
@@ -143,6 +145,8 @@ describe('rate-limit plugin', () => {
         'comment.edit': { count: 20, windowSeconds: 600 },
         'comment.delete': { count: 20, windowSeconds: 600 },
         'comment.vote': { count: 60, windowSeconds: 60 },
+        'comment.react': { count: 60, windowSeconds: 60 },
+        'page.create': { count: 5, windowSeconds: 600 },
       },
     )
     const request = new Request('https://comments.example/api/comments', { method: 'POST' })
@@ -176,6 +180,8 @@ describe('rate-limit plugin', () => {
         'comment.edit': { count: 20, windowSeconds: 600 },
         'comment.delete': { count: 20, windowSeconds: 600 },
         'comment.vote': { count: 60, windowSeconds: 60 },
+        'comment.react': { count: 60, windowSeconds: 60 },
+        'page.create': { count: 5, windowSeconds: 600 },
       },
     )
     const request = new Request('https://comments.example/api/comments', { method: 'POST' })
@@ -210,6 +216,8 @@ describe('rate-limit plugin', () => {
         'comment.edit': { count: 20, windowSeconds: 600 },
         'comment.delete': { count: 20, windowSeconds: 600 },
         'comment.vote': { count: 60, windowSeconds: 60 },
+        'comment.react': { count: 60, windowSeconds: 60 },
+        'page.create': { count: 5, windowSeconds: 600 },
       },
     )
     const request = new Request('https://comments.example/api/comments', { method: 'POST' })

@@ -63,6 +63,8 @@ export async function listAdminSites() {
       access: sites.access,
       gatewayOnly: sites.gatewayOnly,
       votesEnabled: sites.votesEnabled,
+      pageReactionsEnabled: sites.pageReactionsEnabled,
+      commentReactionsEnabled: sites.commentReactionsEnabled,
     })
     .from(sites)
     .orderBy(asc(sites.name))
@@ -83,6 +85,8 @@ export async function listAdminSitesForUser(userId: string) {
       access: sites.access,
       gatewayOnly: sites.gatewayOnly,
       votesEnabled: sites.votesEnabled,
+      pageReactionsEnabled: sites.pageReactionsEnabled,
+      commentReactionsEnabled: sites.commentReactionsEnabled,
     })
     .from(siteMemberships)
     .innerJoin(sites, eq(siteMemberships.siteId, sites.id))
@@ -127,6 +131,8 @@ export async function createAdminSite(userId: string | null, input: { name: stri
       access: site.access,
       gatewayOnly: site.gatewayOnly,
       votesEnabled: site.votesEnabled,
+      pageReactionsEnabled: site.pageReactionsEnabled,
+      commentReactionsEnabled: site.commentReactionsEnabled,
     }
   })
 }
@@ -140,6 +146,8 @@ export async function updateAdminSite(
     access?: SiteAccess
     gatewayOnly?: boolean
     votesEnabled?: boolean
+    pageReactionsEnabled?: boolean
+    commentReactionsEnabled?: boolean
   },
 ) {
   const changes = {
@@ -148,12 +156,14 @@ export async function updateAdminSite(
     ...(input.access === undefined ? {} : { access: input.access }),
     ...(input.gatewayOnly === undefined ? {} : { gatewayOnly: input.gatewayOnly }),
     ...(input.votesEnabled === undefined ? {} : { votesEnabled: input.votesEnabled }),
+    ...(input.pageReactionsEnabled === undefined ? {} : { pageReactionsEnabled: input.pageReactionsEnabled }),
+    ...(input.commentReactionsEnabled === undefined ? {} : { commentReactionsEnabled: input.commentReactionsEnabled }),
   }
   if (Object.keys(changes).length === 0) {
     throw new HttpError(
       ErrorCode.VALIDATION_ERROR.status,
       ErrorCode.VALIDATION_ERROR.code,
-      'Provide a name, a bodyLimit, an access level, gatewayOnly or votesEnabled',
+      'Provide a name, a bodyLimit, an access level, gatewayOnly, votesEnabled, pageReactionsEnabled or commentReactionsEnabled',
     )
   }
   const db = getBusinessDb()
@@ -165,6 +175,8 @@ export async function updateAdminSite(
     access: sites.access,
     gatewayOnly: sites.gatewayOnly,
     votesEnabled: sites.votesEnabled,
+    pageReactionsEnabled: sites.pageReactionsEnabled,
+    commentReactionsEnabled: sites.commentReactionsEnabled,
   })
   if (!site) throw new HttpError(ErrorCode.SITE_NOT_FOUND.status, ErrorCode.SITE_NOT_FOUND.code, 'Site was not found')
   return site

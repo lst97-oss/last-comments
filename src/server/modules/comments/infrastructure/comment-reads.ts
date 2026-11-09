@@ -2,7 +2,8 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { getBusinessDb } from '@/server/db/business-sql'
 import { comments, pages, siteMemberships, sites, user } from '@/server/db/schema'
 import type { MembershipRole } from '@/server/http/route-guards'
-import { normalizePageKey, normalizePageUrl } from '@/server/modules/comments/domain/comment'
+import { pageMatch } from '@/server/modules/comments/infrastructure/comment-pages'
+import { listCommentReactions } from '@/server/modules/comments/infrastructure/comment-reactions'
 import type { Db, VoteValue } from '@/server/modules/comments/infrastructure/comment-types'
 
 // The public thread, one query per page of the flat list. The page is resolved inside the statement, so
@@ -16,18 +17,15 @@ export async function listPageComments(
   options: { limit: number; offset: number; viewerUserId?: string | null; pageKey?: string },
   db: Db = getBusinessDb(),
 ) {
-  const normalizedKey = options.pageKey === undefined ? undefined : normalizePageKey(options.pageKey)
-  const pageFilter =
-    normalizedKey === undefined ? eq(pages.canonicalUrl, normalizePageUrl(pageUrl)) : eq(pages.pageKey, normalizedKey)
   const pageOfSite = db
     .select({ id: pages.id })
     .from(pages)
     .innerJoin(sites, eq(pages.siteId, sites.id))
-    .where(and(eq(sites.key, siteKey), pageFilter))
+    .where(and(eq(sites.key, siteKey), pageMatch(pageUrl, options.pageKey)))
     .limit(1)
   const deleted = sql`${comments.status} = 'deleted'`
 
-  return db
+  const rows = await db
     .select({
       id: comments.id,
       pageId: comments.pageId,
@@ -55,4 +53,16 @@ export async function listPageComments(
     .orderBy(asc(comments.createdAt), asc(comments.id))
     .limit(options.limit)
     .offset(options.offset)
+
+  // Reactions are one batched read after the page of rows, not a subquery per row. A deleted row is
+  // redacted here as its score is above: its place stays, its reactions do not.
+  const reactionsByComment = await listCommentReactions(
+    rows.map((row) => row.id),
+    options.viewerUserId ?? null,
+    db,
+  )
+  return rows.map((row) => ({
+    ...row,
+    reactions: row.status === 'deleted' ? [] : (reactionsByComment.get(row.id) ?? []),
+  }))
 }

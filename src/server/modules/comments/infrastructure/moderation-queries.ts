@@ -2,6 +2,8 @@ import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNotNull, isNull, 
 import { getBusinessDb } from '@/server/db/business-sql'
 import { comments, pages, siteMemberships, siteOrigins, sites, user, userBlocks, votes } from '@/server/db/schema'
 import type { MembershipRole } from '@/server/http/route-guards'
+import type { ReactionSummary } from '@/server/modules/comments/domain/reactions'
+import { listCommentReactions } from '@/server/modules/comments/infrastructure/comment-reactions'
 import type { Db, VoteValue } from '@/server/modules/comments/infrastructure/comment-types'
 
 export type ModerationComment = {
@@ -21,6 +23,8 @@ export type ModerationComment = {
   // public endpoints are origin-gated, so the dashboard cannot use them.
   score: number
   viewerVote: VoteValue | null
+  // Read-only here: the moderator sees the counts, and reacting goes through the public routes.
+  reactions: ReactionSummary[]
   authorRole: MembershipRole | null
 }
 
@@ -296,11 +300,20 @@ export async function listModerationComments(
         ...(newestFirst ? [desc(comments.createdAt), desc(comments.id)] : [asc(comments.createdAt), asc(comments.id)]),
       )
       .limit(options.limit)
+  const reactionsByComment = await listCommentReactions(
+    commentRows.map((row) => row.id),
+    options.viewerUserId ?? null,
+    db,
+  )
       .offset(options.offset),
     db.select({ total: count() }).from(comments).where(filter),
   ])
   return {
-    comments: commentRows.map((row) => ({ ...row, score: Number(row.score) })),
+    comments: commentRows.map((row) => ({
+      ...row,
+      score: Number(row.score),
+      reactions: reactionsByComment.get(row.id) ?? [],
+    })),
     total: Number(totalRows[0].total),
   }
 }

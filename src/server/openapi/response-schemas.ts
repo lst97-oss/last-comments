@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { SITE_ACCESS_LEVELS } from '@/lib/site-access'
+import { REACTION_EMOJIS } from '@/server/modules/comments/domain/reactions'
 
 // Response mirrors. The API returns ad-hoc object literals, so there is no
 // runtime schema to reuse — every schema below carries a `shortcut:` comment
@@ -45,8 +46,17 @@ export const commentSchema = z
   })
   .meta({ id: 'Comment' })
 
+// shortcut: mirror of ReactionSummary in src/server/modules/comments/domain/reactions.ts
+export const reactionSummarySchema = z
+  .strictObject({
+    emoji: z.enum(REACTION_EMOJIS),
+    count: z.number().int(),
+    viewerReacted: z.boolean().describe('True when the signed-in viewer holds this reaction'),
+  })
+  .meta({ id: 'ReactionSummary' })
+
 // shortcut: mirror of the select list in listPageComments()
-// (src/server/modules/comments/infrastructure/comment-repository.ts)
+// (src/server/modules/comments/infrastructure/comment-reads.ts)
 export const commentListItemSchema = z
   .strictObject({
     id: z.uuid(),
@@ -63,6 +73,7 @@ export const commentListItemSchema = z
     authorRole: z.enum(['admin', 'member']).nullable(),
     score: z.number().int().describe('Sum of the votes on this comment'),
     viewerVote: z.union([z.literal(-1), z.literal(1)]).nullable(),
+    reactions: z.array(reactionSummarySchema).describe('Emoji counts on this comment; empty for a deleted one'),
   })
   .meta({ id: 'CommentListItem' })
 
@@ -74,7 +85,11 @@ export const publicSiteSettingsSchema = z
     bodyLimit: z.number().int(),
     anonEditWindowMinutes: z.number().int(),
     turnstileSiteKey: z.string().nullable(),
-    features: z.strictObject({ votes: z.boolean() }),
+    features: z.strictObject({
+      votes: z.boolean(),
+      pageReactions: z.array(z.enum(REACTION_EMOJIS)).describe('Allowed emoji for the page bar; empty when off'),
+      commentReactions: z.array(z.enum(REACTION_EMOJIS)).describe('Allowed emoji on comments; empty when off'),
+    }),
   })
   .meta({ id: 'PublicSiteSettings' })
 
@@ -103,6 +118,7 @@ export const moderationCommentSchema = z
     createdAt: z.iso.datetime(),
     score: z.number().int(),
     viewerVote: z.union([z.literal(-1), z.literal(1)]).nullable(),
+    reactions: z.array(reactionSummarySchema),
     authorRole: z.enum(['admin', 'member']).nullable(),
   })
   .meta({ id: 'ModerationComment' })
@@ -309,6 +325,8 @@ export const adminSiteListItemSchema = z
     access: z.enum(SITE_ACCESS_LEVELS),
     gatewayOnly: z.boolean(),
     votesEnabled: z.boolean(),
+    pageReactionsEnabled: z.boolean(),
+    commentReactionsEnabled: z.boolean(),
     origins: z.array(z.string()),
   })
   .meta({ id: 'AdminSite' })
@@ -323,6 +341,8 @@ export const adminSiteCreatedSchema = z
     access: z.enum(SITE_ACCESS_LEVELS),
     gatewayOnly: z.boolean(),
     votesEnabled: z.boolean(),
+    pageReactionsEnabled: z.boolean(),
+    commentReactionsEnabled: z.boolean(),
   })
   .meta({ id: 'AdminSiteCreated' })
 

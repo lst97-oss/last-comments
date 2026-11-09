@@ -297,7 +297,9 @@ describe('admin users API', () => {
         'comment.create',
         'comment.delete',
         'comment.edit',
+        'comment.react',
         'comment.vote',
+        'page.create',
       ])
       // Presence flags only: the snapshot must never carry secret values.
       const serialized = JSON.stringify(body.data)
