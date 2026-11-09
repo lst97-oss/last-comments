@@ -3,8 +3,8 @@ import { describe, expect, test } from 'bun:test'
 import { destroyCachedPayloads, drainAll } from '@/plugins/payload-shutdown'
 
 // Exercises the shipped drain against a fake globalThis._payload cache.
-// Signal traps and the Nitro `close` hook are wiring, covered by the live
-// SIGTERM proof (exit 0), not unit-testable here.
+// The Nitro `close` hook is wiring, covered by the live SIGTERM proof (exit 0),
+// not unit-testable here.
 function setPayloadCache(entries: [string, unknown][] | undefined) {
   if (entries === undefined) {
     delete (globalThis as Record<string, unknown>)._payload
