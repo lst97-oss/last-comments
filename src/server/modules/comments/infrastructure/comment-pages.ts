@@ -66,18 +66,23 @@ export async function resolvePage(
         .where(eq(pages.id, keyThread.id))
       pageId = keyThread.id
     } else if (urlThread) {
-      // Existing URL thread gaining its first slug — claim it, never merge threads.
-      if (urlThread.pageKey !== null) {
+      // A racing first insert may commit between the two reads above. The same slug is this thread; a different
+      // one is a real mismatch. An existing URL thread gaining its first slug is claimed, never merged.
+      if (urlThread.pageKey !== null && urlThread.pageKey !== pageKey) {
         throw new HttpError(
           ErrorCode.PAGE_KEY_MISMATCH.status,
           ErrorCode.PAGE_KEY_MISMATCH.code,
           'This URL already belongs to a different page key',
         )
       }
-      await tx
-        .update(pages)
-        .set({ pageKey, ...(title !== null ? { title } : {}) })
-        .where(eq(pages.id, urlThread.id))
+      if (urlThread.pageKey === null) {
+        await tx
+          .update(pages)
+          .set({ pageKey, ...(title !== null ? { title } : {}) })
+          .where(eq(pages.id, urlThread.id))
+      } else if (title !== null) {
+        await tx.update(pages).set({ title }).where(eq(pages.id, urlThread.id))
+      }
       pageId = urlThread.id
     } else {
       const [inserted] = await tx
