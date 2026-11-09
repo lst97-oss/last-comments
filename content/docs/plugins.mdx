@@ -88,7 +88,7 @@ The decider scores text and image schemas, and `schemas.text` / `schemas.image` 
 </Accordion>
 </Accordions>
 
-Hits persist with `status: 'hidden'`: invisible on the public thread, visible in `/moderation`, with reasons in the `comment.created` event payload. Edits are re-screened (`visible → hidden` only, never auto-unhide); moderator dashboard writes skip screening. The plugin never throws — an LLM outage resolves through `failOpen` (allow by default, or hold for review), so writers never see a 5xx from screening. Set `OPENROUTER_API_KEY` in the environment when the LLM engine is on; everything else lives in `filter.config.ts`.
+Hits persist with `status: 'hidden'`: invisible on the public thread, visible in `/moderation`, with reasons in the `comment.created` event payload. Edits are re-screened (`visible → hidden` only, never auto-unhide); moderator dashboard writes skip screening. The plugin never throws — an LLM outage resolves through `failOpen` (allow by default, or hold for review), so writers never see a 5xx from screening. Screening waits up to 15 seconds for a verdict, so a slow model makes the commenter wait; a verdict that arrives later than that is dropped and the comment is allowed. Set `OPENROUTER_API_KEY` in the environment when the LLM engine is on; everything else lives in `filter.config.ts`.
 
 ## Writing a plugin
 

@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 
+import { filterConfig } from '@/server/plugins/filter/filter.config'
 import {
   getCommentEditSettings,
   getCommentPluginSettings,
   publishCommentOperation,
+  publishCommentScreening,
   publishCommentValidation,
+  SCREENING_TIMEOUT_MS,
   subscribedPlugins,
   type CommentPlugin,
 } from '@/server/plugins/comment-plugins'
@@ -120,6 +123,26 @@ describe('comment plugin contract', () => {
     await expect(pending).rejects.toMatchObject({ code: 'COMMENT_VERIFICATION_UNAVAILABLE' })
     expect(signal?.aborted).toBe(true)
   }, 7_000)
+
+  test('screening waits longer than the filter can take, so a slow model verdict is not dropped', () => {
+    // The filter spends up to images.timeoutMs fetching pictures, then up to openrouter.timeoutMs on the model.
+    expect(SCREENING_TIMEOUT_MS).toBeGreaterThan(filterConfig.images.timeoutMs + filterConfig.openrouter.timeoutMs)
+  })
+
+  test('a screening hide that arrives in time holds the comment', async () => {
+    const verdict = await publishCommentScreening(submission, [
+      {
+        id: 'slow-screener',
+        apiVersion: 1,
+        screenComment: async () => {
+          await Bun.sleep(50)
+          return { decision: 'hide', reasons: ['auto.hide: abuse(0.90)'], triggeredCategories: ['abuse'] }
+        },
+      },
+    ])
+
+    expect(verdict).toMatchObject({ decision: 'hide', triggeredCategories: ['abuse'] })
+  })
 
   test('selects event subscribers without exposing unregistered plugin IDs', () => {
     const plugins: CommentPlugin[] = [

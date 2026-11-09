@@ -3,6 +3,7 @@ import { ErrorCode, HttpError } from '@/server/http/errors'
 import { getCommentEditSettings } from '@/server/plugins/comment-policy.config'
 import { installedCommentPlugins } from '@/server/plugins/config'
 import { getTurnstilePluginSettings } from '@/server/plugins/turnstile/turnstile.config'
+import { withTimeout } from '@/server/plugins/with-timeout'
 
 // The event vocabulary lives in the schema's module, so the CHECK and this union cannot drift.
 export type { CommentEventType }
@@ -44,6 +45,20 @@ export type CommentOperationInput = {
   request: Request
 }
 
+// A handler throws this to say whether a retry can help. A permanent failure (a misconfigured integration) is retried
+// slowly and keeps its code on the delivery row, so the cause is visible without reading the logs.
+export class PluginFailure extends Error {
+  readonly code: string
+  readonly retryable: boolean
+
+  constructor(code: string, message: string, retryable: boolean) {
+    super(message)
+    this.name = 'PluginFailure'
+    this.code = code
+    this.retryable = retryable
+  }
+}
+
 export type CommentPlugin = {
   id: string
   apiVersion: 1
@@ -67,6 +82,9 @@ export type ScreenVerdict = {
 }
 
 const COMMENT_VALIDATION_TIMEOUT_MS = 5_000
+// Screening waits longer than the filter's own worst case (4 s of image fetches, then an 8 s model call), so the
+// plugin's failOpen setting decides a slow verdict. A shorter wait drops a late `hide` and lets the comment through.
+export const SCREENING_TIMEOUT_MS = 15_000
 
 export function getCommentPluginSettings(overrides: { file?: unknown; env?: Record<string, string | undefined> } = {}) {
   return { verificationRequired: getTurnstilePluginSettings(overrides).verificationRequired }
@@ -109,29 +127,18 @@ export async function publishCommentValidation(
 
   for (const plugin of plugins) {
     if (!plugin.validateComment) continue
-
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        plugin.validateComment(input, controller.signal),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            controller.abort()
-            reject(
-              new HttpError(
-                ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.status,
-                ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.code,
-                'Comment verification is temporarily unavailable',
-                { expose: true },
-              ),
-            )
-          }, COMMENT_VALIDATION_TIMEOUT_MS)
-        }),
-      ])
-    } finally {
-      if (timer) clearTimeout(timer)
-    }
+    const validate = plugin.validateComment.bind(plugin)
+    await withTimeout(
+      COMMENT_VALIDATION_TIMEOUT_MS,
+      (signal) => validate(input, signal),
+      () =>
+        new HttpError(
+          ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.status,
+          ErrorCode.COMMENT_VERIFICATION_UNAVAILABLE.code,
+          'Comment verification is temporarily unavailable',
+          { expose: true },
+        ),
+    )
   }
 }
 
@@ -155,18 +162,13 @@ export async function publishCommentScreening(
   const triggeredCategories: string[] = []
   for (const plugin of plugins) {
     if (!plugin.screenComment) continue
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout> | undefined
+    const screen = plugin.screenComment.bind(plugin)
     try {
-      const verdict = await Promise.race([
-        plugin.screenComment(input, controller.signal),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            controller.abort()
-            reject(new Error('SCREENING_TIMEOUT'))
-          }, COMMENT_VALIDATION_TIMEOUT_MS)
-        }),
-      ])
+      const verdict = await withTimeout(
+        SCREENING_TIMEOUT_MS,
+        (signal) => screen(input, signal),
+        () => new Error('SCREENING_TIMEOUT'),
+      )
       if (verdict.decision === 'hide') {
         for (const category of verdict.triggeredCategories) {
           if (!triggeredCategories.includes(category)) triggeredCategories.push(category)
@@ -176,8 +178,7 @@ export async function publishCommentScreening(
         if (reasons.length < 4) reasons.push(reason)
       }
     } catch {
-    } finally {
-      if (timer) clearTimeout(timer)
+      // A screener that fails or runs out of time counts as `allow`, so it never blocks a comment.
     }
   }
   if (triggeredCategories.length === 0) return { decision: 'allow', reasons: reasons.slice(0, 4), triggeredCategories }
@@ -190,29 +191,17 @@ export async function publishCommentOperation(
 ): Promise<void> {
   for (const plugin of plugins) {
     if (!plugin.beforeOperation) continue
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        plugin.beforeOperation(input, controller.signal),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => {
-            controller.abort()
-            reject(
-              new HttpError(
-                ErrorCode.COMMENT_PLUGIN_UNAVAILABLE.status,
-                ErrorCode.COMMENT_PLUGIN_UNAVAILABLE.code,
-                'Comment operations are temporarily unavailable',
-                {
-                  expose: true,
-                },
-              ),
-            )
-          }, COMMENT_VALIDATION_TIMEOUT_MS)
-        }),
-      ])
-    } finally {
-      if (timer) clearTimeout(timer)
-    }
+    const beforeOperation = plugin.beforeOperation.bind(plugin)
+    await withTimeout(
+      COMMENT_VALIDATION_TIMEOUT_MS,
+      (signal) => beforeOperation(input, signal),
+      () =>
+        new HttpError(
+          ErrorCode.COMMENT_PLUGIN_UNAVAILABLE.status,
+          ErrorCode.COMMENT_PLUGIN_UNAVAILABLE.code,
+          'Comment operations are temporarily unavailable',
+          { expose: true },
+        ),
+    )
   }
 }
