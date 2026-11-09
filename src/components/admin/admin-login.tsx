@@ -1,7 +1,8 @@
 'use client'
 
-import { useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef, useState } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { authClient, useAuthProviders } from '@/lib/business-auth-client'
+import { turnstileSiteKeyServerFn } from '@/lib/turnstile-site-key'
 
 export function AdminLoginForm({ onSignedIn }: { onSignedIn?: () => void }) {
   const providers = useAuthProviders()
@@ -34,19 +36,36 @@ function ExternalLoginNotice({ providers }: { providers: string[] }) {
   )
 }
 
+const VERIFICATION_UNAVAILABLE = 'Sign-in verification is unavailable right now. Reload the page and try again.'
+
 function PasswordLoginForm({ onSignedIn }: { onSignedIn?: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
   const [error, setError] = useState('')
   const [signingIn, setSigningIn] = useState(false)
   const queryClient = useQueryClient()
+  const turnstile = useRef<TurnstileInstance | undefined>(undefined)
+  const siteKeyQuery = useQuery({
+    queryKey: ['turnstile-site-key'],
+    queryFn: () => turnstileSiteKeyServerFn(),
+    staleTime: Infinity,
+    retry: false,
+  })
+  const siteKey = siteKeyQuery.data?.siteKey ?? null
+  // With no widget the form cannot be submitted, so the reason is shown instead of a dead button.
+  const verificationUnavailable = siteKeyQuery.isError || (siteKeyQuery.isSuccess && siteKey === null)
 
   async function signIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
     setSigningIn(true)
     try {
-      const result = await authClient.signIn.email({ email, password })
+      const result = await authClient.signIn.email({
+        email,
+        password,
+        fetchOptions: { headers: { 'x-captcha-response': captchaToken } },
+      })
       if (result.error) {
         setError('Sign-in failed. Check your credentials and try again.')
         return
@@ -59,6 +78,9 @@ function PasswordLoginForm({ onSignedIn }: { onSignedIn?: () => void }) {
     } catch {
       setError('Sign-in could not be completed. Please try again.')
     } finally {
+      // A Turnstile token is good for one check, so each attempt needs a fresh one.
+      setCaptchaToken('')
+      turnstile.current?.reset()
       setSigningIn(false)
     }
   }
@@ -89,12 +111,21 @@ function PasswordLoginForm({ onSignedIn }: { onSignedIn?: () => void }) {
           />
         </Field>
       </FieldGroup>
-      {error && (
+      {siteKey && (
+        <Turnstile
+          ref={turnstile}
+          siteKey={siteKey}
+          onSuccess={setCaptchaToken}
+          onExpire={() => setCaptchaToken('')}
+          onError={() => setError(VERIFICATION_UNAVAILABLE)}
+        />
+      )}
+      {(error || verificationUnavailable) && (
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{error || VERIFICATION_UNAVAILABLE}</AlertDescription>
         </Alert>
       )}
-      <Button type="submit" disabled={signingIn}>
+      <Button type="submit" disabled={signingIn || !captchaToken}>
         {signingIn && <Spinner data-icon="inline-start" />}
         {signingIn ? 'Signing in…' : 'Sign in'}
       </Button>
