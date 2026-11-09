@@ -120,12 +120,10 @@ export async function listModerationPages(
   // `recentDays: 0` is "all time": the window drops its lower bound.
   const windowStart = windowDays > 0 ? new Date(Date.now() - windowDays * 86_400_000) : null
   const pageIds = rows.map((row) => row.id)
-  // Newest `previewCap` rows per thread. The window function caps each thread
-  // on its own: a flat LIMIT across all threads let one busy thread take every
-  // preview slot and left the other threads with none.
-  const ranked = db
+  // Newest `previewCap` rows per thread. The subquery runs once per thread and stops at its cap, so a long
+  // thread is never sorted in full, and one busy thread cannot take the other threads' preview slots.
+  const preview = db
     .select({
-      pageId: comments.pageId,
       id: comments.id,
       authorName: comments.authorName,
       bodyMarkdown: comments.bodyMarkdown,
@@ -297,11 +295,11 @@ export async function listModerationComments(
       .where(filter)
       .orderBy(
         ...(newestFirst ? [desc(comments.createdAt), desc(comments.id)] : [asc(comments.createdAt), asc(comments.id)]),
+      )
+      .limit(options.limit)
       .offset(options.offset),
     db.select({ total: count() }).from(comments).where(filter),
   ])
-      )
-      .limit(options.limit)
   const reactionsByComment = await listCommentReactions(
     commentRows.map((row) => row.id),
     options.viewerUserId ?? null,

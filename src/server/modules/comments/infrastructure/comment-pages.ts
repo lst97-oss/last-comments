@@ -83,7 +83,10 @@ export async function resolvePage(
       const [inserted] = await tx
         .insert(pages)
         .values({ siteId, canonicalUrl: pageUrl, pageKey, title })
+        .onConflictDoNothing()
         .returning({ id: pages.id })
+      // A concurrent first comment inserted this thread after our reads. Read it again instead of failing.
+      if (!inserted) return resolvePage(tx, input)
       pageId = inserted.id
     }
   }
@@ -91,10 +94,7 @@ export async function resolvePage(
 }
 
 export type SitePage = {
-        .onConflictDoNothing()
   id: string
-      // A concurrent first comment inserted this thread after our reads. Read it again instead of failing.
-      if (!inserted) return resolvePage(tx, input)
   canonicalUrl: string
   pageKey: string | null
   title: string | null

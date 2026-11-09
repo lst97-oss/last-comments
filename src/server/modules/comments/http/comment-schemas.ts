@@ -130,6 +130,8 @@ export const listQuerySchema = z.strictObject({
   offset: z.coerce.number().int().min(0).default(0),
 })
 
+const STATS_RANGE = { '7': 7, '30': 30, '90': 90, all: 'all' } as const
+
 export const statsQuerySchema = z.strictObject({
   site: z.string().min(1).max(100),
   days: z
@@ -154,8 +156,6 @@ export const userCommentsQuerySchema = z.strictObject({
 
 export const actionSchema = z.discriminatedUnion('target', [
   z.strictObject({
-const STATS_RANGE = { '7': 7, '30': 30, '90': 90, all: 'all' } as const
-
     site: z.string().min(1).max(100),
     target: z.literal('comment'),
     commentId: z.string().uuid(),
